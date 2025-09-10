@@ -79,5 +79,5 @@ SpendWise automates personal expense tracking using local device capabilities:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/amitksingh0880/spendwise.git
+git clone https://github.com/your-username/spendwise.git
 cd spendwise
