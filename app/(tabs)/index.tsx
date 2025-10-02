@@ -1,23 +1,15 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, FlatList, Dimensions, TouchableOpacity } from 'react-native';
-import { BarChart } from 'react-native-chart-kit';
-import { ArrowDownLeft, ArrowUpRight, TrendingUp, PiggyBank } from 'lucide-react-native';
-import { Transaction } from '@/types';
-import { MOCK_TRANSACTIONS } from '@/constants/mockData';
+import { generateFinancialInsights } from '@/app/services/analyticsService';
+import { getRecentTransactions, getTransactionSummary } from '@/app/services/transactionService';
 import Card from '@/components/ui/card';
+import { Transaction } from '@/types';
+import { ArrowDownLeft, ArrowUpRight, PiggyBank, RefreshCw, TrendingUp } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { Dimensions, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { BarChart } from 'react-native-chart-kit';
 
 
 
 const screenWidth = Dimensions.get('window').width;
-
-const chartData = {
-  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-  datasets: [
-    {
-      data: [30, 45, 60, 25, 80, 120, 55],
-    },
-  ],
-};
 
 const TransactionItem = ({ transaction }: { transaction: Transaction }) => {
   const isIncome = transaction.type === 'income';
@@ -42,52 +34,168 @@ const TransactionItem = ({ transaction }: { transaction: Transaction }) => {
 };
 
 const DashboardScreen: React.FC = () => {
-  const totalSpent = MOCK_TRANSACTIONS.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-  const savingsGoal = 500;
+  const [summary, setSummary] = useState<any>(null);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [insights, setInsights] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [summaryData, recentTxs, insightsData] = await Promise.all([
+        getTransactionSummary(),
+        getRecentTransactions(5),
+        generateFinancialInsights(),
+      ]);
+      
+      setSummary(summaryData);
+      setRecentTransactions(recentTxs);
+      setInsights(insightsData);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadDashboardData();
+  };
+
+  const generateChartData = () => {
+    if (!summary?.monthlyTrend) {
+      return {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }],
+      };
+    }
+
+    const last7Months = summary.monthlyTrend.slice(-7);
+    return {
+      labels: last7Months.map((m: any) => m.month.slice(0, 3)),
+      datasets: [{ data: last7Months.map((m: any) => m.expenses) }],
+    };
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <Text style={styles.loadingText}>Loading dashboard...</Text>
+      </View>
+    );
+  }
+
+  const chartData = generateChartData();
+  const savingsRate = summary ? ((summary.totalIncome - summary.totalExpenses) / summary.totalIncome) * 100 : 0;
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.heading}>Dashboard</Text>
+      <View style={styles.header}>
+        <Text style={styles.heading}>Dashboard</Text>
+        <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
+          <RefreshCw 
+            size={24} 
+            color={refreshing ? "#9ca3af" : "#60a5fa"} 
+            style={refreshing ? { transform: [{ rotate: '180deg' }] } : {}}
+          />
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.cardGrid}>
         <Card>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardSubheading}>This Month's Spending</Text>
-            <TrendingUp color="#4f46e5" />
+            <Text style={styles.cardSubheading}>Total Expenses</Text>
+            <TrendingUp color="#ef4444" />
           </View>
-          <Text style={styles.cardValue}>${totalSpent.toFixed(2)}</Text>
+          <Text style={styles.cardValue}>
+            ${summary?.totalExpenses?.toFixed(2) || '0.00'}
+          </Text>
         </Card>
 
         <Card>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardSubheading}>Savings Goal</Text>
-            <PiggyBank color="#0ea5e9" />
+            <Text style={styles.cardSubheading}>Total Income</Text>
+            <PiggyBank color="#22c55e" />
           </View>
-          <Text style={styles.cardValue}>${savingsGoal.toFixed(2)}</Text>
+          <Text style={styles.cardValue}>
+            ${summary?.totalIncome?.toFixed(2) || '0.00'}
+          </Text>
         </Card>
       </View>
 
-      <Card>
-        <Text style={styles.sectionHeading}>Weekly Spending</Text>
-        <BarChart
-          data={chartData}
-          width={screenWidth - 48}
-          height={220}
-          chartConfig={{
-            backgroundColor: '#000',
-            backgroundGradientFrom: '#1f2937',
-            backgroundGradientTo: '#1f2937',
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(96, 165, 250, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(255,255,255,${opacity})`,
-            propsForBackgroundLines: {
-              strokeDasharray: '',
-              stroke: '#374151',
-            },
-          }}
-          style={{ marginVertical: 8, borderRadius: 8 }}
-        />
-      </Card>
+      <View style={styles.cardGrid}>
+        <Card>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardSubheading}>Net Amount</Text>
+            <TrendingUp color={summary?.netAmount >= 0 ? "#22c55e" : "#ef4444"} />
+          </View>
+          <Text style={[
+            styles.cardValue,
+            { color: summary?.netAmount >= 0 ? "#22c55e" : "#ef4444" }
+          ]}>
+            ${summary?.netAmount?.toFixed(2) || '0.00'}
+          </Text>
+        </Card>
+
+        <Card>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardSubheading}>Savings Rate</Text>
+            <PiggyBank color="#0ea5e9" />
+          </View>
+          <Text style={styles.cardValue}>
+            {savingsRate.toFixed(1)}%
+          </Text>
+        </Card>
+      </View>
+
+      {chartData.datasets[0].data.some(val => val > 0) && (
+        <Card>
+          <Text style={styles.sectionHeading}>Monthly Spending Trend</Text>
+          <BarChart
+            data={chartData}
+            width={screenWidth - 48}
+            height={220}
+            chartConfig={{
+              backgroundColor: '#000',
+              backgroundGradientFrom: '#1f2937',
+              backgroundGradientTo: '#1f2937',
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(96, 165, 250, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(255,255,255,${opacity})`,
+              propsForBackgroundLines: {
+                strokeDasharray: '',
+                stroke: '#374151',
+              },
+            }}
+            style={{ marginVertical: 8, borderRadius: 8 }}
+          />
+        </Card>
+      )}
+
+      {insights.length > 0 && (
+        <Card>
+          <Text style={styles.sectionHeading}>Financial Insights</Text>
+          {insights.slice(0, 3).map((insight, index) => (
+            <View key={insight.id} style={styles.insightItem}>
+              <View style={[
+                styles.insightIndicator,
+                { backgroundColor: insight.impact === 'high' ? '#ef4444' : insight.impact === 'medium' ? '#f59e0b' : '#22c55e' }
+              ]} />
+              <View style={styles.insightContent}>
+                <Text style={styles.insightTitle}>{insight.title}</Text>
+                <Text style={styles.insightDescription}>{insight.description}</Text>
+              </View>
+            </View>
+          ))}
+        </Card>
+      )}
 
       <Card>
         <View style={styles.recentHeader}>
@@ -96,13 +204,20 @@ const DashboardScreen: React.FC = () => {
             <Text style={styles.viewAll}>View All</Text>
           </TouchableOpacity>
         </View>
-        <FlatList
-          scrollEnabled={false}
-          data={MOCK_TRANSACTIONS.slice(0, 4)}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => <TransactionItem transaction={item} />}
-          ItemSeparatorComponent={() => <View style={styles.divider} />}
-        />
+        {recentTransactions.length > 0 ? (
+          <FlatList
+            scrollEnabled={false}
+            data={recentTransactions}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => <TransactionItem transaction={item} />}
+            ItemSeparatorComponent={() => <View style={styles.divider} />}
+          />
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No transactions yet</Text>
+            <Text style={styles.emptySubtext}>Add your first transaction to get started</Text>
+          </View>
+        )}
       </Card>
     </ScrollView>
   );
@@ -114,11 +229,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a',
     flex: 1,
   },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#9ca3af',
+    fontSize: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
   heading: {
     fontSize: 28,
     fontWeight: '700',
     color: '#f9fafb',
-    marginBottom: 20,
   },
   cardGrid: {
     flexDirection: 'row',
@@ -201,6 +329,48 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: '#1f2937',
+  },
+  insightItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1f2937',
+  },
+  insightIndicator: {
+    width: 4,
+    height: 40,
+    borderRadius: 2,
+    marginRight: 12,
+  },
+  insightContent: {
+    flex: 1,
+  },
+  insightTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#f9fafb',
+    marginBottom: 4,
+  },
+  insightDescription: {
+    fontSize: 13,
+    color: '#9ca3af',
+    lineHeight: 18,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#9ca3af',
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#6b7280',
   },
 });
 

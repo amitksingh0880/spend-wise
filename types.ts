@@ -16,6 +16,9 @@ export interface Transaction {
     date: string;
     category: string;
     type: 'income' | 'expense';
+    description?: string;
+    tags?: string[];
+    createdAt?: string;
 }
 
 export interface BudgetCategory {
@@ -24,4 +27,56 @@ export interface BudgetCategory {
     spent: number;
     total: number;
     color: string;
+}
+
+// Extended types for enhanced functionality
+export interface Category {
+    id: string;
+    name: string;
+    type: 'income' | 'expense' | 'both';
+    icon: string;
+    color: string;
+    isDefault: boolean;
+    isActive: boolean;
+    parentId?: string;
+}
+
+export interface Budget {
+    id: string;
+    name: string;
+    category: string;
+    amount: number;
+    spent: number;
+    period: 'weekly' | 'monthly' | 'yearly';
+    startDate: string;
+    endDate: string;
+    color: string;
+    isActive: boolean;
+}
+
+export interface FinancialGoal {
+    id: string;
+    name: string;
+    targetAmount: number;
+    currentAmount: number;
+    targetDate: string;
+    category: string;
+    priority: 'high' | 'medium' | 'low';
+    isActive: boolean;
+}
+
+export interface NotificationSettings {
+    budgetAlerts: boolean;
+    goalReminders: boolean;
+    weeklyReports: boolean;
+    monthlyReports: boolean;
+    pushNotifications: boolean;
+}
+
+export interface UserPreferences {
+    currency: string;
+    dateFormat: string;
+    theme: Theme;
+    notifications: NotificationSettings;
+    defaultCategories: string[];
 }

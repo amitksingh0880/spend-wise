@@ -1,92 +1,226 @@
-import React from 'react';
+import BudgetForm from '@/app/components/BudgetForm';
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
-import { Target, PlusCircle } from 'lucide-react-native';
-import { BudgetCategory } from '@/types';
+    checkBudgetAlerts,
+    deleteBudget,
+    getAllBudgets,
+    getBudgetSummary
+} from '@/app/services/budgetService';
 import Card from '@/components/ui/card';
-import { MOCK_BUDGETS } from '@/constants/mockData';
+import { AlertTriangle, PlusCircle, Target, TrendingUp } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import {
+    Alert,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 
 
-const BudgetCard = ({ budget }: { budget: BudgetCategory }) => {
-  const percentage = Math.min((budget.spent / budget.total) * 100, 100);
-  const isOverBudget = budget.spent > budget.total;
-  const remaining = budget.total - budget.spent;
+const BudgetCard = ({ 
+  budget, 
+  onDelete 
+}: { 
+  budget: any; 
+  onDelete: (id: string) => void;
+}) => {
+  const percentage = Math.min((budget.spent / budget.amount) * 100, 100);
+  const isOverBudget = budget.spent > budget.amount;
+  const remaining = budget.amount - budget.spent;
+
+  const handleLongPress = () => {
+    Alert.alert(
+      'Delete Budget',
+      `Are you sure you want to delete the "${budget.name}" budget?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => onDelete(budget.id) },
+      ]
+    );
+  };
+
+  const getStatusIcon = () => {
+    if (isOverBudget) return <AlertTriangle size={16} color="#ef4444" />;
+    if (percentage > 80) return <AlertTriangle size={16} color="#f59e0b" />;
+    return <TrendingUp size={16} color="#22c55e" />;
+  };
 
   return (
-    <Card style={styles.budgetCard}>
-      <Text style={styles.budgetTitle}>{budget.name}</Text>
+    <TouchableOpacity onLongPress={handleLongPress}>
+      <Card style={styles.budgetCard}>
+        <View style={styles.budgetHeader}>
+          <Text style={styles.budgetTitle}>{budget.name}</Text>
+          {getStatusIcon()}
+        </View>
 
-      <View style={styles.budgetAmounts}>
-        <Text style={styles.budgetSpent}>${budget.spent.toFixed(2)}</Text>
-        <Text style={styles.budgetTotal}>of ${budget.total.toFixed(2)}</Text>
-      </View>
+        <View style={styles.budgetAmounts}>
+          <Text style={styles.budgetSpent}>${budget.spent.toFixed(2)}</Text>
+          <Text style={styles.budgetTotal}>of ${budget.amount.toFixed(2)}</Text>
+        </View>
 
-      <View style={styles.progressBar}>
-        <View
-          style={[
-            styles.progress,
-            {
-              width: `${percentage}%`,
-              backgroundColor: isOverBudget ? '#ef4444' : budget.color,
-            },
-          ]}
-        />
-      </View>
+        <View style={styles.progressBar}>
+          <View
+            style={[
+              styles.progress,
+              {
+                width: `${percentage}%`,
+                backgroundColor: isOverBudget ? '#ef4444' : budget.color,
+              },
+            ]}
+          />
+        </View>
 
-      <Text
-        style={[
-          styles.budgetStatus,
-          isOverBudget ? styles.overBudget : styles.underBudget,
-        ]}
-      >
-        {isOverBudget
-          ? `$${(budget.spent - budget.total).toFixed(2)} over budget`
-          : `$${remaining.toFixed(2)} left`}
-      </Text>
-    </Card>
+        <View style={styles.budgetFooter}>
+          <Text
+            style={[
+              styles.budgetStatus,
+              isOverBudget ? styles.overBudget : styles.underBudget,
+            ]}
+          >
+            {isOverBudget
+              ? `$${(budget.spent - budget.amount).toFixed(2)} over budget`
+              : `$${remaining.toFixed(2)} left`}
+          </Text>
+          <Text style={styles.budgetPercentage}>
+            {percentage.toFixed(1)}%
+          </Text>
+        </View>
+      </Card>
+    </TouchableOpacity>
   );
 };
 
 const BudgetScreen: React.FC = () => {
-  const totalBudget = MOCK_BUDGETS.reduce((sum, b) => sum + b.total, 0);
-  const totalSpent = MOCK_BUDGETS.reduce((sum, b) => sum + b.spent, 0);
+  const [budgets, setBudgets] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>(null);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    loadBudgetData();
+  }, []);
+
+  const loadBudgetData = async () => {
+    try {
+      setLoading(true);
+      const [budgetData, summaryData, alertData] = await Promise.all([
+        getAllBudgets(),
+        getBudgetSummary(),
+        checkBudgetAlerts(),
+      ]);
+      
+      setBudgets(budgetData);
+      setSummary(summaryData);
+      setAlerts(alertData);
+    } catch (error) {
+      console.error('Error loading budget data:', error);
+      Alert.alert('Error', 'Failed to load budget data');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadBudgetData();
+  };
+
+  const handleDeleteBudget = async (id: string) => {
+    try {
+      await deleteBudget(id);
+      await loadBudgetData(); // Reload after deletion
+    } catch (error) {
+      console.error('Error deleting budget:', error);
+      Alert.alert('Error', 'Failed to delete budget');
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <Text style={styles.loadingText}>Loading budgets...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <ScrollView>
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
         <Text style={styles.heading}>Budgets</Text>
+
+        {alerts.length > 0 && (
+          <Card style={styles.alertCard}>
+            <View style={styles.alertHeader}>
+              <AlertTriangle size={20} color="#f59e0b" />
+              <Text style={styles.alertTitle}>Budget Alerts</Text>
+            </View>
+            {alerts.slice(0, 3).map((alert) => (
+              <Text key={alert.id} style={styles.alertText}>
+                • {alert.message}
+              </Text>
+            ))}
+          </Card>
+        )}
 
         <Card style={styles.summaryCard}>
           <View style={styles.summaryContent}>
             <Target size={28} color="#4f46e5" />
             <View>
-              <Text style={styles.summaryTitle}>Monthly Budget Summary</Text>
+              <Text style={styles.summaryTitle}>Budget Summary</Text>
               <Text style={styles.summaryAmount}>
-                ${totalSpent.toFixed(2)}{' '}
+                ${summary?.totalSpent?.toFixed(2) || '0.00'}{' '}
                 <Text style={styles.summaryTotal}>
-                  / ${totalBudget.toFixed(2)}
+                  / ${summary?.totalBudgeted?.toFixed(2) || '0.00'}
                 </Text>
               </Text>
+              <View style={styles.summaryStats}>
+                <Text style={styles.statText}>
+                  {summary?.exceededBudgets || 0} exceeded • {summary?.warningBudgets || 0} warning • {summary?.onTrackBudgets || 0} on track
+                </Text>
+              </View>
             </View>
           </View>
         </Card>
 
         <View style={styles.grid}>
-          {MOCK_BUDGETS.map((budget) => (
-            <BudgetCard key={budget.id} budget={budget} />
-          ))}
+          {budgets.length > 0 ? (
+            budgets.map((budget) => (
+              <BudgetCard 
+                key={budget.id} 
+                budget={budget} 
+                onDelete={handleDeleteBudget}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No budgets yet</Text>
+              <Text style={styles.emptySubtext}>Create your first budget to start tracking your spending</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={styles.addButton}>
+      <TouchableOpacity 
+        style={styles.addButton}
+        onPress={() => setShowForm(true)}
+      >
         <PlusCircle size={28} color="white" />
       </TouchableOpacity>
+
+      <BudgetForm
+        visible={showForm}
+        onClose={() => setShowForm(false)}
+        onSuccess={loadBudgetData}
+      />
     </View>
   );
 };
@@ -98,11 +232,39 @@ const styles = StyleSheet.create({
     padding: 16,
     position: 'relative',
   },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#9ca3af',
+    fontSize: 16,
+  },
   heading: {
     fontSize: 26,
     fontWeight: '700',
     color: '#f9fafb',
     marginBottom: 20,
+  },
+  alertCard: {
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    marginBottom: 16,
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  alertTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#f59e0b',
+  },
+  alertText: {
+    fontSize: 14,
+    color: '#d97706',
+    marginBottom: 4,
   },
   summaryCard: {
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
@@ -131,14 +293,36 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingBottom: 72,
   },
+  summaryStats: {
+    marginTop: 4,
+  },
+  statText: {
+    fontSize: 12,
+    color: '#9ca3af',
+  },
   budgetCard: {
+    marginBottom: 8,
+  },
+  budgetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
   budgetTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#f3f4f6',
-    marginBottom: 8,
+  },
+  budgetFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  budgetPercentage: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9ca3af',
   },
   budgetAmounts: {
     flexDirection: 'row',
@@ -190,6 +374,22 @@ const styles = StyleSheet.create({
     elevation: 6,
     transform: [{ scale: 1 }],
   },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#9ca3af',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
 });
 
 export default BudgetScreen;
+
