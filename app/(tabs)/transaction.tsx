@@ -1,71 +1,140 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  FlatList,
-  Dimensions,
-} from 'react-native';
-import { ArrowDownLeft, ArrowUpRight, Search } from 'lucide-react-native';
-import { Transaction } from '@/types';
+import TransactionForm from '@/app/components/TransactionForm';
+import { deleteTransaction, getAllTransactions, searchTransactions } from '@/app/services/transactionService';
 import Card from '@/components/ui/card';
-import { MOCK_TRANSACTIONS } from '@/constants/mockData';
+import { Transaction } from '@/types';
+import { ArrowDownLeft, ArrowUpRight, Plus, Search } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import {
+    Alert,
+    Dimensions,
+    FlatList,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
 const screenWidth = Dimensions.get('window').width;
 
-const TransactionItem = ({ transaction }: { transaction: Transaction }) => {
+const TransactionItem = ({ 
+  transaction, 
+  onDelete 
+}: { 
+  transaction: Transaction; 
+  onDelete: (id: string) => void;
+}) => {
   const isIncome = transaction.type === 'income';
   const Icon = isIncome ? ArrowDownLeft : ArrowUpRight;
-  const formattedDate = new Date(transaction.date).toLocaleDateString('en-US', {
+  const formattedDate = new Date(transaction.createdAt || transaction.date).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
 
-  return (
-    <Card style={styles.transactionCard}>
-      <View style={styles.transactionRow}>
-        <View style={styles.leftGroup}>
-          <View
-            style={[
-              styles.iconBox,
-              isIncome ? styles.incomeIcon : styles.expenseIcon,
-            ]}
-          >
-            <Icon
-              size={20}
-              color={isIncome ? '#22c55e' : '#ef4444'}
-              strokeWidth={2}
-            />
-          </View>
-          <View>
-            <Text style={styles.vendor}>{transaction.vendor}</Text>
-            <Text style={styles.date}>{formattedDate}</Text>
-          </View>
-        </View>
+  const handleLongPress = () => {
+    Alert.alert(
+      'Delete Transaction',
+      'Are you sure you want to delete this transaction?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => onDelete(transaction.id) },
+      ]
+    );
+  };
 
-        <View style={styles.rightGroup}>
-          <Text style={[styles.amount, isIncome ? styles.income : styles.expense]}>
-            {isIncome ? '+' : '-'}${transaction.amount.toFixed(2)}
-          </Text>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{transaction.category}</Text>
+  return (
+    <TouchableOpacity onLongPress={handleLongPress}>
+      <Card style={styles.transactionCard}>
+        <View style={styles.transactionRow}>
+          <View style={styles.leftGroup}>
+            <View
+              style={[
+                styles.iconBox,
+                isIncome ? styles.incomeIcon : styles.expenseIcon,
+              ]}
+            >
+              <Icon
+                size={20}
+                color={isIncome ? '#22c55e' : '#ef4444'}
+                strokeWidth={2}
+              />
+            </View>
+            <View>
+              <Text style={styles.vendor}>{transaction.vendor}</Text>
+              <Text style={styles.date}>{formattedDate}</Text>
+            </View>
+          </View>
+
+          <View style={styles.rightGroup}>
+            <Text style={[styles.amount, isIncome ? styles.income : styles.expense]}>
+              {isIncome ? '+' : '-'}${transaction.amount.toFixed(2)}
+            </Text>
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryText}>{transaction.category}</Text>
+            </View>
           </View>
         </View>
-      </View>
-    </Card>
+      </Card>
+    </TouchableOpacity>
   );
 };
 
 const TransactionsScreen: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
 
-  const filteredTransactions = MOCK_TRANSACTIONS.filter(
-    (t) =>
-      t.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    loadTransactions();
+  }, []);
+
+  useEffect(() => {
+    filterTransactions();
+  }, [searchTerm, transactions]);
+
+  const loadTransactions = async () => {
+    try {
+      setLoading(true);
+      const allTransactions = await getAllTransactions();
+      setTransactions(allTransactions);
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+      Alert.alert('Error', 'Failed to load transactions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterTransactions = async () => {
+    if (searchTerm.trim() === '') {
+      setFilteredTransactions(transactions);
+    } else {
+      try {
+        const searchResults = await searchTransactions(searchTerm);
+        setFilteredTransactions(searchResults);
+      } catch (error) {
+        console.error('Error searching transactions:', error);
+        setFilteredTransactions(transactions.filter(
+          (t) =>
+            t.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            t.category.toLowerCase().includes(searchTerm.toLowerCase())
+        ));
+      }
+    }
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
+    try {
+      await deleteTransaction(id);
+      await loadTransactions(); // Reload transactions after deletion
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      Alert.alert('Error', 'Failed to delete transaction');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -82,11 +151,43 @@ const TransactionsScreen: React.FC = () => {
         />
       </View>
 
-      <FlatList
-        data={filteredTransactions}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => <TransactionItem transaction={item} />}
-        contentContainerStyle={{ paddingTop: 8, paddingBottom: 64 }}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading transactions...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredTransactions}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <TransactionItem 
+              transaction={item} 
+              onDelete={handleDeleteTransaction}
+            />
+          )}
+          contentContainerStyle={{ paddingTop: 8, paddingBottom: 64 }}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No transactions found</Text>
+              <Text style={styles.emptySubtext}>
+                {searchTerm ? 'Try adjusting your search' : 'Add your first transaction to get started'}
+              </Text>
+            </View>
+          }
+        />
+      )}
+
+      <TouchableOpacity 
+        style={styles.addButton}
+        onPress={() => setShowForm(true)}
+      >
+        <Plus size={28} color="white" />
+      </TouchableOpacity>
+
+      <TransactionForm
+        visible={showForm}
+        onClose={() => setShowForm(false)}
+        onSuccess={loadTransactions}
       />
     </View>
   );
@@ -183,6 +284,46 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 12,
     color: '#e5e7eb',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  loadingText: {
+    color: '#9ca3af',
+    fontSize: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  emptyText: {
+    color: '#f9fafb',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    color: '#9ca3af',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  addButton: {
+    position: 'absolute',
+    right: 24,
+    bottom: 32,
+    backgroundColor: '#4f46e5',
+    borderRadius: 999,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 6,
   },
 });
 
