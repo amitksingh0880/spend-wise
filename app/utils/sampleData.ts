@@ -77,3 +77,4 @@ export const clearAllData = async () => {
     console.error('Error clearing data:', error);
   }
 };
+

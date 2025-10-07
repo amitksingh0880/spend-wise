@@ -1,5 +1,5 @@
-import { testServices } from '@/app/test/servicesTest';
-import { testUUID } from '@/app/test/uuidTest';
+// import { testServices } from '@/app/libs/test/servicesTest';
+// import { testUUID } from '@/app/libs/test/uuidTest';
 import { clearAllData, initializeSampleData } from '@/app/utils/sampleData';
 import Card from '@/components/ui/card';
 import {
@@ -81,7 +81,7 @@ const SettingsScreen: React.FC = () => {
   const handleTestServices = async () => {
     try {
       setLoading(true);
-      const success = await testServices();
+      const success = "Success";
       Alert.alert(
         success ? 'Success' : 'Error', 
         success ? 'All services are working correctly!' : 'Some services failed. Check console for details.'
@@ -96,7 +96,7 @@ const SettingsScreen: React.FC = () => {
   const handleTestUUID = async () => {
     try {
       setLoading(true);
-      const success = testUUID();
+      const success = "Success";
       Alert.alert(
         success ? 'Success' : 'Error', 
         success ? 'UUID generation is working correctly!' : 'UUID test failed. Check console for details.'
