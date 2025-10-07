@@ -1,8 +1,13 @@
 import TransactionForm from '@/app/components/TransactionForm';
-import { deleteTransaction, getAllTransactions, searchTransactions } from '@/app/services/transactionService';
+import SMSImport from '@/app/components/SMSImport';
+import { 
+  deleteTransaction, 
+  getAllTransactions, 
+  searchTransactions,
+  Transaction
+} from '@/app/services/transactionService';
 import Card from '@/components/ui/card';
-import { Transaction } from '@/types';
-import { ArrowDownLeft, ArrowUpRight, Plus, Search } from 'lucide-react-native';
+import { ArrowDownLeft, ArrowUpRight, Plus, Search, MessageCircle } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
@@ -13,6 +18,7 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    Modal,
 } from 'react-native';
 
 const screenWidth = Dimensions.get('window').width;
@@ -26,7 +32,7 @@ const TransactionItem = ({
 }) => {
   const isIncome = transaction.type === 'income';
   const Icon = isIncome ? ArrowDownLeft : ArrowUpRight;
-  const formattedDate = new Date(transaction.createdAt || transaction.date).toLocaleDateString('en-US', {
+  const formattedDate = new Date(transaction.createdAt).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -86,6 +92,7 @@ const TransactionsScreen: React.FC = () => {
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showSMSImport, setShowSMSImport] = useState(false);
 
   useEffect(() => {
     loadTransactions();
@@ -177,18 +184,56 @@ const TransactionsScreen: React.FC = () => {
         />
       )}
 
-      <TouchableOpacity 
-        style={styles.addButton}
-        onPress={() => setShowForm(true)}
-      >
-        <Plus size={28} color="white" />
-      </TouchableOpacity>
+      <View style={styles.actionButtons}>
+        <TouchableOpacity 
+          style={styles.smsImportButton}
+          onPress={() => setShowSMSImport(true)}
+        >
+          <MessageCircle size={24} color="white" />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => setShowForm(true)}
+        >
+          <Plus size={28} color="white" />
+        </TouchableOpacity>
+      </View>
 
       <TransactionForm
         visible={showForm}
         onClose={() => setShowForm(false)}
         onSuccess={loadTransactions}
       />
+
+      <Modal
+        visible={showSMSImport}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowSMSImport(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Import from SMS</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowSMSImport(false)}
+            >
+              <Text style={styles.closeButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <SMSImport
+            onImportComplete={(result) => {
+              setShowSMSImport(false);
+              loadTransactions(); // Refresh the transaction list
+              Alert.alert(
+                'Import Complete',
+                `Successfully imported ${result.expenses.length} expenses from SMS.`
+              );
+            }}
+          />
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -312,10 +357,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  addButton: {
+  actionButtons: {
     position: 'absolute',
     right: 24,
     bottom: 32,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  smsImportButton: {
+    backgroundColor: '#06b6d4',
+    borderRadius: 999,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  addButton: {
     backgroundColor: '#4f46e5',
     borderRadius: 999,
     padding: 16,
@@ -324,6 +383,35 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowRadius: 6,
     elevation: 6,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1f2937',
+    backgroundColor: '#0f172a',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#f9fafb',
+  },
+  closeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+  },
+  closeButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 

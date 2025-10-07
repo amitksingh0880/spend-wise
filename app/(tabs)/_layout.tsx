@@ -56,6 +56,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="sms-import"
+        options={{
+          href: null, // Hide from tab bar but keep accessible
+          title: 'SMS Import',
+        }}
+      />
+      <Tabs.Screen
         name="explore"
         options={{
           href: null, // Hide from tab bar but keep accessible
