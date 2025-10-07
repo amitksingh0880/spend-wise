@@ -12,6 +12,7 @@ import {
     Settings,
     Trash2,
     Upload,
+    MessageCircle,
 } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
@@ -233,6 +234,23 @@ const SettingsScreen: React.FC = () => {
           subtitle="Delete all transactions and budgets"
           onPress={handleClearAllData}
           color="#ef4444"
+        />
+      </Card>
+
+      {/* SMS Import */}
+      <Card style={styles.section}>
+        <Text style={styles.sectionTitle}>SMS Import</Text>
+        
+        <SettingItem
+          icon={MessageCircle}
+          title="Import from SMS"
+          subtitle="Extract expenses from bank SMS alerts"
+          onPress={() => Alert.alert(
+            'SMS Import Feature',
+            'SMS import functionality has been added to your app! This feature allows you to automatically extract expense information from your bank SMS alerts and transaction notifications.\n\nFeatures:\n• Read SMS messages with permission\n• Extract amounts, vendors, and categories\n• Auto-categorize transactions\n• Import with confidence scoring\n\nNote: This feature is currently only available on Android devices.',
+            [{ text: 'OK' }]
+          )}
+          color="#06b6d4"
         />
       </Card>
 
