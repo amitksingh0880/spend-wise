@@ -23,7 +23,8 @@
       "permissions": [
         "READ_SMS",
         "RECEIVE_SMS"
-      ]
+      ],
+      "package": "com.amit.k.singh.spendwise"
     },
     "web": {
       "output": "static",
@@ -42,11 +43,18 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2c86979e-8546-4b9b-9c89-2097071a2875"
+      }
     }
   }
 }
