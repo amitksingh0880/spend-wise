@@ -1,24 +1,24 @@
-import TransactionForm from '@/app/components/TransactionForm';
 import SMSImport from '@/app/components/SMSImport';
-import { 
-  deleteTransaction, 
-  getAllTransactions, 
-  searchTransactions,
-  Transaction
+import TransactionForm from '@/app/components/TransactionForm';
+import {
+    deleteTransaction,
+    getAllTransactions,
+    searchTransactions,
+    Transaction
 } from '@/app/services/transactionService';
 import Card from '@/components/ui/card';
-import { ArrowDownLeft, ArrowUpRight, Plus, Search, MessageCircle } from 'lucide-react-native';
+import { ArrowDownLeft, ArrowUpRight, MessageCircle, Plus, Search } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
     Dimensions,
     FlatList,
+    Modal,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View,
-    Modal,
 } from 'react-native';
 
 const screenWidth = Dimensions.get('window').width;
@@ -240,36 +240,42 @@ const TransactionsScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
+    padding: 20,
     backgroundColor: '#0f172a',
     flex: 1,
   },
   heading: {
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     color: '#f9fafb',
-    marginBottom: 12,
+    marginBottom: 20,
+    letterSpacing: -0.5,
   },
   searchWrapper: {
     position: 'relative',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   searchIcon: {
     position: 'absolute',
-    top: 14,
-    left: 12,
+    top: 18,
+    left: 16,
     zIndex: 10,
   },
   searchInput: {
     backgroundColor: '#1e293b',
     borderColor: '#334155',
     borderWidth: 1,
-    borderRadius: 12,
-    paddingLeft: 40,
-    paddingRight: 16,
-    paddingVertical: 12,
+    borderRadius: 16,
+    paddingLeft: 44,
+    paddingRight: 20,
+    paddingVertical: 16,
     fontSize: 16,
     color: '#f3f4f6',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
   },
   transactionCard: {
     marginBottom: 12,

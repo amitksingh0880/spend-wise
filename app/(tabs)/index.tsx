@@ -225,7 +225,7 @@ const DashboardScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
+    padding: 20,
     backgroundColor: '#0f172a',
     flex: 1,
   },
@@ -241,17 +241,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
+    paddingTop: 8,
   },
   heading: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     color: '#f9fafb',
+    letterSpacing: -0.5,
   },
   cardGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
+    gap: 16,
+    marginBottom: 24,
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
