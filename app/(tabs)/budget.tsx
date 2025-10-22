@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0f172a',
-    padding: 16,
+    padding: 20,
     position: 'relative',
   },
   loadingContainer: {
@@ -241,10 +241,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   heading: {
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     color: '#f9fafb',
-    marginBottom: 20,
+    marginBottom: 24,
+    letterSpacing: -0.5,
   },
   alertCard: {
     backgroundColor: 'rgba(245, 158, 11, 0.1)',
