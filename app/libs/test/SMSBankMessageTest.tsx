@@ -11,140 +11,140 @@ import { extractAmount, extractVendor, isBankSMS, isTransactionSMS, parseTransac
 // Sample bank SMS messages for testing
 const SAMPLE_BANK_MESSAGES: SMSMessage[] = [
   {
-    id: '1',
+    _id: '1',
     address: 'SBI',
     body: 'Dear Customer, Rs.500.00 debited from A/c **1234 on 15-Jan-24 at 10:30 AM. Available balance: Rs.25,000.00. - SBI',
     date: Date.now(),
     type: 1
   },
   {
-    id: '2',
+    _id: '2',
     address: 'HDFCBK',
     body: 'Your HDFC Bank Credit Card ending 5678 has been charged Rs.1,250.00 at AMAZON INDIA on 15-Jan-24. Available credit limit: Rs.45,000.00',
     date: Date.now(),
     type: 1
   },
   {
-    id: '3',
+    _id: '3',
     address: 'ICICI',
     body: 'Rs.2,500.00 credited to your ICICI Bank A/c **9876 on 15-Jan-24. UPI Ref: 123456789012. Available balance: Rs.50,000.00',
     date: Date.now(),
     type: 1
   },
   {
-    id: '4',
+    _id: '4',
     address: 'KOTAK',
     body: 'Kotak Bank: Rs.750.00 debited from your account **5432 for UPI payment to SWIGGY on 15-Jan-24. Balance: Rs.15,000.00',
     date: Date.now(),
     type: 1
   },
   {
-    id: '5',
+    _id: '5',
     address: 'AXIS',
     body: 'Axis Bank: Your card ending 1234 was used for Rs.3,200.00 at FLIPKART on 15-Jan-24. Available limit: Rs.20,000.00',
     date: Date.now(),
     type: 1
   },
   {
-    id: '6',
+    _id: '6',
     address: 'PAYTM',
     body: 'Payment of Rs.150.00 successful to UBER via Paytm UPI on 15-Jan-24. Transaction ID: PTM123456789',
     date: Date.now(),
     type: 1
   },
   {
-    id: '7',
+    _id: '7',
     address: 'GOOGLEPAY',
     body: 'Rs.500.00 sent to ZOMATO via Google Pay UPI on 15-Jan-24. UPI Ref: 987654321098',
     date: Date.now(),
     type: 1
   },
   {
-    id: '8',
+    _id: '8',
     address: 'PHONEPE',
     body: 'Rs.2,000.00 transferred to BOOKMYSHOW via PhonePe UPI on 15-Jan-24. Transaction successful.',
     date: Date.now(),
     type: 1
   },
   {
-    id: '9',
+    _id: '9',
     address: 'BHIM',
     body: 'Rs.1,500.00 paid to NETFLIX via BHIM UPI on 15-Jan-24. UPI Ref: 112233445566',
     date: Date.now(),
     type: 1
   },
   {
-    id: '10',
+    _id: '10',
     address: 'AMAZONPAY',
     body: 'Rs.800.00 added to Amazon Pay balance on 15-Jan-24. New balance: Rs.1,200.00',
     date: Date.now(),
     type: 1
   },
   {
-    id: '11',
+    _id: '11',
     address: 'JIO',
     body: 'Rs.299.00 debited for Jio Postpaid bill payment on 15-Jan-24. Next due: 15-Feb-24',
     date: Date.now(),
     type: 1
   },
   {
-    id: '12',
+    _id: '12',
     address: 'AIRTEL',
     body: 'Rs.199.00 recharged successfully to your Airtel number on 15-Jan-24. Validity: 28 days',
     date: Date.now(),
     type: 1
   },
   {
-    id: '13',
+    _id: '13',
     address: 'SPOTIFY',
     body: 'Rs.99.00 charged for Spotify Premium subscription on 15-Jan-24. Next billing: 15-Feb-24',
     date: Date.now(),
     type: 1
   },
   {
-    id: '14',
+    _id: '14',
     address: 'YOUTUBE',
     body: 'Rs.129.00 charged for YouTube Premium subscription on 15-Jan-24. Auto-renewal enabled.',
     date: Date.now(),
     type: 1
   },
   {
-    id: '15',
+    _id: '15',
     address: 'UBER',
     body: 'Rs.180.00 charged for your Uber ride on 15-Jan-24. Trip completed successfully.',
     date: Date.now(),
     type: 1
   },
   {
-    id: '16',
+    _id: '16',
     address: 'OLA',
     body: 'Rs.220.00 charged for your Ola ride on 15-Jan-24. Payment successful via UPI.',
     date: Date.now(),
     type: 1
   },
   {
-    id: '17',
+    _id: '17',
     address: 'SWIGGY',
     body: 'Rs.350.00 charged for your Swiggy order on 15-Jan-24. Order delivered successfully.',
     date: Date.now(),
     type: 1
   },
   {
-    id: '18',
+    _id: '18',
     address: 'ZOMATO',
     body: 'Rs.280.00 charged for your Zomato order on 15-Jan-24. Food delivered successfully.',
     date: Date.now(),
     type: 1
   },
   {
-    id: '19',
+    _id: '19',
     address: 'FLIPKART',
     body: 'Rs.1,800.00 charged for your Flipkart purchase on 15-Jan-24. Order confirmed.',
     date: Date.now(),
     type: 1
   },
   {
-    id: '20',
+    _id: '20',
     address: 'AMAZON',
     body: 'Rs.2,500.00 charged for your Amazon purchase on 15-Jan-24. Order shipped.',
     date: Date.now(),
@@ -169,7 +169,7 @@ export default function SMSBankMessageTest() {
         const parsedExpense = parseTransactionSMS(message);
 
         testResults.push({
-          id: message.id,
+          id: message._id,
           sender: message.address,
           message: message.body,
           isBank,
@@ -181,7 +181,7 @@ export default function SMSBankMessageTest() {
         });
       } catch (error) {
         testResults.push({
-          id: message.id,
+          id: message._id,
           sender: message.address,
           message: message.body,
           error: error instanceof Error ? error.message : 'Unknown error',

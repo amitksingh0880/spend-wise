@@ -1,4 +1,4 @@
-import { PermissionsAndroid, Platform } from 'react-native';
+import { PermissionsAndroid, Platform, NativeModules } from 'react-native';
 import { saveTransaction, TransactionType } from './transactionService';
 
 // Simple type for SMS Android (fallback to any to avoid type errors)
@@ -7,34 +7,33 @@ let SmsAndroid: any = null;
 // Function to initialize SMS Android package
 const initializeSmsAndroid = () => {
   if (Platform.OS !== 'android') {
+    console.log('Platform is not Android, SMS functionality not available');
     return false;
   }
 
   try {
-    // Try different import methods
-    let smsPackage;
-    
-    try {
-      // Method 1: Default import
-      smsPackage = require('react-native-get-sms-android').default;
-    } catch (e1) {
+    // The package exports NativeModules.Sms directly
+    // Try to get it from NativeModules first
+    if (NativeModules.Sms) {
+      SmsAndroid = NativeModules.Sms;
+      console.log('SMS Android loaded from NativeModules.Sms');
+    } else {
+      // Fallback to require if NativeModules doesn't have it
       try {
-        // Method 2: Direct import
-        smsPackage = require('react-native-get-sms-android');
-      } catch (e2) {
-        try {
-          // Method 3: Try with .default
-          const pkg = require('react-native-get-sms-android');
-          smsPackage = pkg.default || pkg;
-        } catch (e3) {
-          throw new Error(`All import methods failed: ${e1.message}, ${e2.message}, ${e3.message}`);
-        }
+        SmsAndroid = require('react-native-get-sms-android');
+        console.log('SMS Android loaded via require');
+      } catch (e) {
+        throw new Error(`Failed to load SMS package: ${e instanceof Error ? e.message : 'Unknown error'}`);
       }
     }
     
-    SmsAndroid = smsPackage;
-    console.log('SMS Android package loaded successfully:', typeof SmsAndroid);
-    console.log('SMS Android methods:', Object.keys(SmsAndroid || {}));
+    // Validate that we have the list method
+    if (!SmsAndroid || typeof SmsAndroid.list !== 'function') {
+      throw new Error('SMS Android package loaded but list method not available');
+    }
+    
+    console.log('SMS Android package loaded successfully');
+    console.log('SMS Android methods available:', Object.keys(SmsAndroid || {}));
     return true;
   } catch (error) {
     console.error('Failed to load SMS Android package:', error);
@@ -50,7 +49,7 @@ const initializeSmsAndroid = () => {
 const isSmsAndroidAvailable = initializeSmsAndroid();
 
 export interface SMSMessage {
-  id: string;
+  _id: string; // Note: react-native-get-sms-android uses _id, not id
   address: string; // sender's phone number
   body: string;
   date: number;
@@ -311,7 +310,6 @@ export const checkSMSPermission = async (): Promise<boolean> => {
  */
 export const readSMSMessages = async (options: {
   maxCount?: number;
-  indexFrom?: number;
   minDate?: number; // timestamp
   maxDate?: number; // timestamp
 }): Promise<SMSMessage[]> => {
@@ -330,21 +328,34 @@ export const readSMSMessages = async (options: {
       const reinitialized = initializeSmsAndroid();
       if (!reinitialized) {
         console.error('Failed to initialize SMS Android package');
-        reject(new Error('SMS Android package not available. Please check if react-native-get-sms-android is properly installed.'));
+        reject(new Error('SMS Android package not available. Please check if react-native-get-sms-android is properly installed and linked.'));
         return;
       }
     }
 
-    const filter = {
+    // Validate that list method exists
+    if (typeof SmsAndroid.list !== 'function') {
+      console.error('SMS Android list method is not a function');
+      reject(new Error('SMS Android list method is not available'));
+      return;
+    }
+
+    // Build filter - note: indexFrom is not supported by react-native-get-sms-android
+    const filter: any = {
       box: 'inbox', // 'inbox', 'sent', 'draft', 'outbox', 'failed', 'queued'
       maxCount: options.maxCount || 100,
-      indexFrom: options.indexFrom || 0,
-      minDate: options.minDate,
-      maxDate: options.maxDate,
     };
 
+    // Only add date filters if they are provided
+    if (options.minDate !== undefined) {
+      filter.minDate = options.minDate;
+    }
+    if (options.maxDate !== undefined) {
+      filter.maxDate = options.maxDate;
+    }
+
     console.log('SMS filter:', JSON.stringify(filter));
-    console.log('SMS Android object:', SmsAndroid);
+    console.log('Calling SmsAndroid.list...');
 
     try {
       SmsAndroid.list(
@@ -355,15 +366,34 @@ export const readSMSMessages = async (options: {
         },
         (count: number, smsList: string) => {
           try {
-            console.log(`Received ${count} SMS messages`);
-            console.log('SMS list preview:', smsList.substring(0, 200) + '...');
+            console.log(`Received ${count} SMS messages from SmsAndroid.list`);
+            
+            if (!smsList || smsList.trim() === '') {
+              console.log('Empty SMS list returned');
+              resolve([]);
+              return;
+            }
+            
+            console.log('SMS list preview (first 200 chars):', smsList.substring(0, 200) + '...');
             
             const messages: SMSMessage[] = JSON.parse(smsList);
             console.log(`Parsed ${messages.length} SMS messages successfully`);
+            
+            // Log first message for debugging
+            if (messages.length > 0) {
+              console.log('First SMS sample:', {
+                _id: messages[0]._id,
+                address: messages[0].address,
+                body: messages[0].body?.substring(0, 50),
+                date: messages[0].date,
+                type: messages[0].type
+              });
+            }
+            
             resolve(messages);
           } catch (error) {
             console.error('Failed to parse SMS messages:', error);
-            console.error('SMS list that failed to parse:', smsList);
+            console.error('SMS list that failed to parse (first 500 chars):', smsList?.substring(0, 500));
             reject(new Error(`Failed to parse SMS messages: ${error instanceof Error ? error.message : 'Unknown error'}`));
           }
         }
