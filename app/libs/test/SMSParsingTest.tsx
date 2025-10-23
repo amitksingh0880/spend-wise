@@ -25,35 +25,35 @@ export default function SMSTestScreen() {
   // Sample SMS messages for testing
   const sampleSMSMessages = [
     {
-      id: '1',
+      _id: '1',
       address: 'HD-SBIINB',
       body: 'Dear Customer, Rs.2,500.00 debited from A/c XX1234 on 08-Oct-24 to SWIGGY DELHI for UPI transaction. Avl Bal Rs.15,000.00',
       date: Date.now(),
       type: 1,
     },
     {
-      id: '2',
+      _id: '2',
       address: 'AX-HDFCBK',
       body: 'Rs 1200 spent at AMAZON INDIA using HDFC Card ending 5678 on 08-Oct-24. Available limit Rs 85000. SMS BLOCK 5678 to 5676712 to block card.',
       date: Date.now(),
       type: 1,
     },
     {
-      id: '3',
+      _id: '3',
       address: 'VM-ICICIBC',
       body: 'Amount of Rs.500.00 credited to A/c XX9876 on 08-Oct-24. Salary credited by COMPANY ABC. Available Balance Rs.50,000.00',
       date: Date.now(),
       type: 1,
     },
     {
-      id: '4',
+      _id: '4',
       address: 'BP-KOTAKB',
       body: 'Your UPI payment of Rs.150 to UBER INDIA has been successful. Transaction ID: 123456789. Balance: Rs.25,000',
       date: Date.now(),
       type: 1,
     },
     {
-      id: '5',
+      _id: '5',
       address: 'VM-SBICARD',
       body: 'Purchase of Rs.3500 made using SBI Card 1234 at BIG BAZAAR on 08-OCT-24. Outstanding: Rs.15000. Min due: Rs.500',
       date: Date.now(),
