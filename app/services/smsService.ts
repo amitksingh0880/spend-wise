@@ -4,14 +4,50 @@ import { saveTransaction, TransactionType } from './transactionService';
 // Simple type for SMS Android (fallback to any to avoid type errors)
 let SmsAndroid: any = null;
 
-try {
-  // Only import on Android platform
-  if (Platform.OS === 'android') {
-    SmsAndroid = require('react-native-get-sms-android').default;
+// Function to initialize SMS Android package
+const initializeSmsAndroid = () => {
+  if (Platform.OS !== 'android') {
+    return false;
   }
-} catch (error) {
-  console.warn('SMS Android package not available');
-}
+
+  try {
+    // Try different import methods
+    let smsPackage;
+    
+    try {
+      // Method 1: Default import
+      smsPackage = require('react-native-get-sms-android').default;
+    } catch (e1) {
+      try {
+        // Method 2: Direct import
+        smsPackage = require('react-native-get-sms-android');
+      } catch (e2) {
+        try {
+          // Method 3: Try with .default
+          const pkg = require('react-native-get-sms-android');
+          smsPackage = pkg.default || pkg;
+        } catch (e3) {
+          throw new Error(`All import methods failed: ${e1.message}, ${e2.message}, ${e3.message}`);
+        }
+      }
+    }
+    
+    SmsAndroid = smsPackage;
+    console.log('SMS Android package loaded successfully:', typeof SmsAndroid);
+    console.log('SMS Android methods:', Object.keys(SmsAndroid || {}));
+    return true;
+  } catch (error) {
+    console.error('Failed to load SMS Android package:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    return false;
+  }
+};
+
+// Initialize on module load
+const isSmsAndroidAvailable = initializeSmsAndroid();
 
 export interface SMSMessage {
   id: string;
@@ -238,6 +274,22 @@ export const requestSMSPermission = async (): Promise<boolean> => {
 };
 
 /**
+ * Check if SMS Android package is available
+ */
+export const checkSMSAndroidAvailable = (): boolean => {
+  if (Platform.OS !== 'android') {
+    return false;
+  }
+  
+  if (!SmsAndroid) {
+    const reinitialized = initializeSmsAndroid();
+    return reinitialized;
+  }
+  
+  return true;
+};
+
+/**
  * Check if SMS permission is already granted
  */
 export const checkSMSPermission = async (): Promise<boolean> => {
@@ -264,14 +316,23 @@ export const readSMSMessages = async (options: {
   maxDate?: number; // timestamp
 }): Promise<SMSMessage[]> => {
   return new Promise((resolve, reject) => {
+    console.log('Starting SMS read process...');
+    
     if (Platform.OS !== 'android') {
+      console.log('Platform is not Android:', Platform.OS);
       reject(new Error('SMS reading is only supported on Android'));
       return;
     }
 
+    // Try to reinitialize if not available
     if (!SmsAndroid) {
-      reject(new Error('SMS Android package not available'));
-      return;
+      console.log('SMS Android not available, trying to reinitialize...');
+      const reinitialized = initializeSmsAndroid();
+      if (!reinitialized) {
+        console.error('Failed to initialize SMS Android package');
+        reject(new Error('SMS Android package not available. Please check if react-native-get-sms-android is properly installed.'));
+        return;
+      }
     }
 
     const filter = {
@@ -282,21 +343,35 @@ export const readSMSMessages = async (options: {
       maxDate: options.maxDate,
     };
 
-    SmsAndroid.list(
-      JSON.stringify(filter),
-      (fail: any) => {
-        console.error('Failed to get SMS list:', fail);
-        reject(new Error('Failed to read SMS messages'));
-      },
-      (count: number, smsList: string) => {
-        try {
-          const messages: SMSMessage[] = JSON.parse(smsList);
-          resolve(messages);
-        } catch (error) {
-          reject(new Error('Failed to parse SMS messages'));
+    console.log('SMS filter:', JSON.stringify(filter));
+    console.log('SMS Android object:', SmsAndroid);
+
+    try {
+      SmsAndroid.list(
+        JSON.stringify(filter),
+        (fail: any) => {
+          console.error('Failed to get SMS list:', fail);
+          reject(new Error(`Failed to read SMS messages: ${JSON.stringify(fail)}`));
+        },
+        (count: number, smsList: string) => {
+          try {
+            console.log(`Received ${count} SMS messages`);
+            console.log('SMS list preview:', smsList.substring(0, 200) + '...');
+            
+            const messages: SMSMessage[] = JSON.parse(smsList);
+            console.log(`Parsed ${messages.length} SMS messages successfully`);
+            resolve(messages);
+          } catch (error) {
+            console.error('Failed to parse SMS messages:', error);
+            console.error('SMS list that failed to parse:', smsList);
+            reject(new Error(`Failed to parse SMS messages: ${error instanceof Error ? error.message : 'Unknown error'}`));
+          }
         }
-      }
-    );
+      );
+    } catch (error) {
+      console.error('Error calling SmsAndroid.list:', error);
+      reject(new Error(`Error calling SMS Android: ${error instanceof Error ? error.message : 'Unknown error'}`));
+    }
   });
 };
 
@@ -526,6 +601,11 @@ export const importExpensesFromSMS = async (options: {
   autoSave?: boolean;
 }): Promise<SMSParsingResult> => {
   try {
+    // Check if SMS Android package is available
+    if (!checkSMSAndroidAvailable()) {
+      throw new Error('SMS Android package is not available. Please ensure react-native-get-sms-android is properly installed and linked.');
+    }
+
     // Check permissions
     const hasPermission = await checkSMSPermission();
     if (!hasPermission) {
@@ -539,11 +619,15 @@ export const importExpensesFromSMS = async (options: {
     const daysBack = options.daysBack || 30;
     const minDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
 
+    console.log(`Importing SMS from last ${daysBack} days (since ${new Date(minDate).toISOString()})`);
+
     // Read SMS messages
     const messages = await readSMSMessages({
       maxCount: options.maxCount || 200,
       minDate,
     });
+
+    console.log(`Found ${messages.length} SMS messages to process`);
 
     // Process messages
     const result = await processSMSMessages(messages);
@@ -568,6 +652,7 @@ export const importExpensesFromSMS = async (options: {
 
     return result;
   } catch (error) {
+    console.error('SMS import error:', error);
     return {
       success: false,
       expenses: [],
