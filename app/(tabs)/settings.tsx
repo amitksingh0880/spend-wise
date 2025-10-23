@@ -3,26 +3,26 @@
 import { clearAllData, initializeSampleData } from '@/app/utils/sampleData';
 import Card from '@/components/ui/card';
 import {
-    Bell,
-    Database,
-    DollarSign,
-    Download,
-    Info,
-    Moon,
-    Settings,
-    Trash2,
-    Upload,
-    MessageCircle,
+  Bell,
+  Database,
+  DollarSign,
+  Download,
+  Info,
+  MessageCircle,
+  Moon,
+  Settings,
+  Trash2,
+  Upload,
 } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const SettingsScreen: React.FC = () => {
