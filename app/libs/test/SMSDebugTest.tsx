@@ -70,9 +70,12 @@ export default function SMSDebugTest() {
     addDebugInfo('Testing SMS reading...');
     
     try {
+      // Calculate minDate for last 7 days
+      const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+      
       const messages = await readSMSMessages({
         maxCount: 10,
-        daysBack: 7,
+        minDate: sevenDaysAgo,
       });
       
       addDebugInfo(`✅ Successfully read ${messages.length} SMS messages`);
