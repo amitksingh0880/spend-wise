@@ -1,23 +1,23 @@
+import {
+    checkSMSPermission,
+    ExtractedExpense,
+    importExpensesFromSMS,
+    requestSMSPermission,
+    SMSParsingResult,
+} from '@/app/services/smsService';
+import Card from '@/components/ui/card';
+import { AlertCircle, CheckCircle, Download, Info, MessageCircle } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  ScrollView,
-  Platform,
+    ActivityIndicator,
+    Alert,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { MessageCircle, Download, CheckCircle, AlertCircle, Info } from 'lucide-react-native';
-import Card from '@/components/ui/card';
-import {
-  checkSMSPermission,
-  requestSMSPermission,
-  importExpensesFromSMS,
-  SMSParsingResult,
-  ExtractedExpense,
-} from '@/app/services/smsService';
 
 interface SMSImportProps {
   onImportComplete?: (result: SMSParsingResult) => void;
@@ -82,7 +82,7 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
     
     try {
       const result = await importExpensesFromSMS({
-        maxCount: 100,
+        maxCount: 200, // Increased to get more messages
         daysBack: 30,
         autoSave: true,
       });
@@ -92,13 +92,13 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
       if (result.success && result.expenses.length > 0) {
         Alert.alert(
           'Import Successful',
-          `Successfully imported ${result.expenses.length} expenses from your SMS messages.`,
+          `Successfully imported ${result.expenses.length} expenses from your SMS messages.\n\nDebug info: ${result.errors.join('\n')}`,
           [{ text: 'OK' }]
         );
       } else if (result.success && result.expenses.length === 0) {
         Alert.alert(
           'No Expenses Found',
-          'No transaction-related SMS messages were found in the last 30 days.',
+          `No transaction-related SMS messages were found in the last 30 days.\n\nDebug info: ${result.errors.join('\n')}`,
           [{ text: 'OK' }]
         );
       } else {
