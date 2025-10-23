@@ -1,6 +1,5 @@
-import { Platform, PermissionsAndroid } from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
 import { saveTransaction, TransactionType } from './transactionService';
-import { uuidv4 } from '../utils/uuid';
 
 // Simple type for SMS Android (fallback to any to avoid type errors)
 let SmsAndroid: any = null;
@@ -43,23 +42,160 @@ export interface SMSParsingResult {
 const TRANSACTION_KEYWORDS = [
   'debited', 'credited', 'paid', 'received', 'transaction', 'purchase', 'spent',
   'withdrawn', 'deposit', 'transfer', 'upi', 'card', 'atm', 'payment',
-  'bill', 'recharge', 'refund', 'cashback', 'charged'
+  'bill', 'recharge', 'refund', 'cashback', 'charged', 'debit', 'credit',
+  'balance', 'account', 'bank', 'wallet', 'money', 'rs.', 'inr', '₹',
+  'purchase', 'spent', 'withdrawal', 'deposited', 'transferred', 'sent',
+  'received', 'salary', 'bonus', 'interest', 'dividend', 'cashback',
+  'reward', 'refund', 'reversal', 'charge', 'fee', 'commission',
+  'loan', 'emi', 'installment', 'prepaid', 'postpaid', 'subscription',
+  'renewal', 'activation', 'deactivation', 'upgrade', 'downgrade'
 ];
 
-// Common vendor patterns
+// Indian bank sender numbers and patterns
+const BANK_SENDER_PATTERNS = [
+  // Major Indian Banks
+  'SBI', 'SBICARD', 'SBICR', 'SBINET', 'SBIUPI', 'SBIPAY',
+  'HDFC', 'HDFCBK', 'HDFCBANK', 'HDFCUPI', 'HDFCPAY',
+  'ICICI', 'ICICIBK', 'ICICIBANK', 'ICICICR', 'ICICIUPI',
+  'KOTAK', 'KOTAKBK', 'KOTAKBANK', 'KOTAKUPI', 'KOTAKPAY',
+  'AXIS', 'AXISBANK', 'AXISBK', 'AXISUPI', 'AXISPAY',
+  'PNB', 'PNBBANK', 'PNBUPI', 'PNBPAY',
+  'BOI', 'BOIBANK', 'BOIUPI', 'BOIPAY',
+  'CANARA', 'CANARABK', 'CANARABANK', 'CANARAUPI',
+  'UNION', 'UNIONBANK', 'UNIONBK', 'UNIONUPI',
+  'BANDHAN', 'BANDHANBANK', 'BANDHANUPI',
+  'INDUS', 'INDUSIND', 'INDUSINDBK', 'INDUSUPI',
+  'YES', 'YESBANK', 'YESBK', 'YESUPI', 'YESPAY',
+  'FEDERAL', 'FEDERALBANK', 'FEDERALBK', 'FEDERALUPI',
+  'IDFC', 'IDFCBANK', 'IDFCBK', 'IDFCUPI', 'IDFCPAY',
+  'RBL', 'RBLBANK', 'RBLBK', 'RBLUPI', 'RBLPAY',
+  'DCB', 'DCBBANK', 'DCBBK', 'DCBUPI', 'DCBPAY',
+  'CITY', 'CITYBANK', 'CITYBK', 'CITYUPI',
+  'SOUTH', 'SOUTHBANK', 'SOUTHBK', 'SOUTHUPI',
+  'UCO', 'UCOBANK', 'UCOBK', 'UCOUPI', 'UCOPAY',
+  'BANK', 'BANKING', 'BANKSMS', 'BANKALERT',
+  // UPI and Payment Services
+  'UPI', 'UPIPAY', 'UPITRANS', 'UPITXN',
+  'PAYTM', 'PAYTMUPI', 'PAYTMQR', 'PAYTMWALLET',
+  'PHONEPE', 'PHONEPEUPI', 'PHONEPEPAY',
+  'GOOGLEPAY', 'GPAY', 'GOOGLEPAYUPI',
+  'BHIM', 'BHIMUPI', 'BHIMPAY',
+  'AMAZONPAY', 'AMAZONUPI', 'AMAZONPAYUPI',
+  'JIO', 'JIOPAY', 'JIOMONEY', 'JIOWALLET',
+  'AIRTEL', 'AIRTELPAY', 'AIRTELMONEY', 'AIRTELUPI',
+  'FREECHARGE', 'FREECHARGEUPI', 'FREECHARGEPAY',
+  'MOBIKWIK', 'MOBIKWIKUPI', 'MOBIKWIKPAY',
+  'CRED', 'CREDUPI', 'CREDPAY',
+  'ZERODHA', 'ZERODHAUPI', 'ZERODHAPAY',
+  'GROWW', 'GROWWUPI', 'GROWWPAY',
+  'KUVERA', 'KUVERAUPI', 'KUVERAPAY',
+  // Credit Card Companies
+  'AMEX', 'AMERICANEXPRESS', 'AMEXCARD',
+  'MASTERCARD', 'MASTERCARDUPI',
+  'VISA', 'VISAUPI', 'VISACARD',
+  'RUPAY', 'RUPAYUPI', 'RUPAYCARD',
+  'DINERS', 'DINERSCLUB', 'DINERSCARD',
+  // E-commerce and Services
+  'AMAZON', 'AMAZONIN', 'AMAZONPAY',
+  'FLIPKART', 'FLIPKARTPAY', 'FLIPKARTUPI',
+  'SWIGGY', 'SWIGGYPAY', 'SWIGGYUPI',
+  'ZOMATO', 'ZOMATOPAY', 'ZOMATOUPI',
+  'UBER', 'UBERPAY', 'UBERUPI',
+  'OLA', 'OLAPAY', 'OLAUPI',
+  'BOOKMYSHOW', 'BMS', 'BMSPAY',
+  'NETFLIX', 'NETFLIXPAY', 'NETFLIXUPI',
+  'SPOTIFY', 'SPOTIFYPAY', 'SPOTIFYUPI',
+  'YOUTUBE', 'YOUTUBEPAY', 'YOUTUBEUPI',
+  'GOOGLE', 'GOOGLEPAY', 'GOOGLEUPI',
+  'MICROSOFT', 'MICROSOFTPAY', 'MICROSOFTUPI',
+  'APPLE', 'APPLEPAY', 'APPLEUPI',
+  'ADOBE', 'ADOBEPAY', 'ADOBEUPI',
+  'ADOBE', 'ADOBEPAY', 'ADOBEUPI',
+  'SALESFORCE', 'SALESFORCEPAY', 'SALESFORCEUPI',
+  'ZOOM', 'ZOOMPAY', 'ZOOMUPI',
+  'SLACK', 'SLACKPAY', 'SLACKUPI',
+  'DISCORD', 'DISCORDPAY', 'DISCORDUPI',
+  'TWITTER', 'TWITTERPAY', 'TWITTERUPI',
+  'FACEBOOK', 'FACEBOOKPAY', 'FACEBOOKUPI',
+  'INSTAGRAM', 'INSTAGRAMPAY', 'INSTAGRAMUPI',
+  'WHATSAPP', 'WHATSAPPPAY', 'WHATSAPPUPI',
+  'TELEGRAM', 'TELEGRAMPAY', 'TELEGRAMUPI',
+  'SIGNAL', 'SIGNALPAY', 'SIGNALUPI',
+  'WIRE', 'WIREPAY', 'WIREUPI',
+  'SKYPE', 'SKYPEUPI', 'SKYPEUPI',
+  'TEAMS', 'TEAMSUPI', 'TEAMSUPI',
+  'OUTLOOK', 'OUTLOOKUPI', 'OUTLOOKUPI',
+  'GMAIL', 'GMAILUPI', 'GMAILUPI',
+  'YAHOO', 'YAHOOUPI', 'YAHOOUPI',
+  'HOTMAIL', 'HOTMAILUPI', 'HOTMAILUPI',
+  'LIVE', 'LIVEUPI', 'LIVEUPI',
+  'MSN', 'MSNUPI', 'MSNUPI',
+  'AOL', 'AOLUPI', 'AOLUPI',
+  'ICLOUD', 'ICLOUDUPI', 'ICLOUDUPI',
+  'DROPBOX', 'DROPBOXUPI', 'DROPBOXUPI',
+  'ONEDRIVE', 'ONEDRIVEUPI', 'ONEDRIVEUPI',
+  'GOOGLEDRIVE', 'GOOGLEDRIVEUPI', 'GOOGLEDRIVEUPI',
+  'MEGA', 'MEGAUPI', 'MEGAUPI',
+  'PCLOUD', 'PCLOUDUPI', 'PCLOUDUPI',
+  'BOX', 'BOXUPI', 'BOXUPI',
+  'MEDIAFIRE', 'MEDIAFIREUPI', 'MEDIAFIREUPI',
+  '4SHARED', '4SHAREDUPI', '4SHAREDUPI',
+  'RAPIDSHARE', 'RAPIDSHAREUPI', 'RAPIDSHAREUPI',
+  'MEGAUPLOAD', 'MEGAUPLOADUPI', 'MEGAUPLOADUPI',
+  'FILESERVE', 'FILESERVEUPI', 'FILESERVEUPI',
+  'FILESONIC', 'FILESONICUPI', 'FILESONICUPI',
+  'WUPLOAD', 'WUPLOADUPI', 'WUPLOADUPI',
+  'UPLOADED', 'UPLOADEDUPI', 'UPLOADEDUPI',
+  'TURBOBIT', 'TURBOBITUPI', 'TURBOBITUPI',
+  'RAPIDGATOR', 'RAPIDGATORUPI', 'RAPIDGATORUPI',
+  'NITROFLARE', 'NITROFLAREUPI', 'NITROFLAREUPI',
+  'UPLOADGIG', 'UPLOADGIGUPI', 'UPLOADGIGUPI',
+  'UPLOADED', 'UPLOADEDUPI', 'UPLOADEDUPI',
+  'TURBOBIT', 'TURBOBITUPI', 'TURBOBITUPI',
+  'RAPIDGATOR', 'RAPIDGATORUPI', 'RAPIDGATORUPI',
+  'NITROFLARE', 'NITROFLAREUPI', 'NITROFLAREUPI',
+  'UPLOADGIG', 'UPLOADGIGUPI', 'UPLOADGIGUPI'
+];
+
+// Enhanced vendor patterns for better merchant detection
 const VENDOR_PATTERNS = [
-  /(?:at|to|from)\s+([A-Z][A-Za-z\s&]+?)(?:\s|$|\.)/i,
-  /merchant\s*:?\s*([A-Za-z\s&]+?)(?:\s|$|\.)/i,
-  /(?:paid|payment)\s+(?:to\s+)?([A-Za-z\s&]+?)(?:\s|$|\.)/i,
+  // Standard patterns
+  /(?:at|to|from)\s+([A-Z][A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+  /merchant\s*:?\s*([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+  /(?:paid|payment)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+  // UPI patterns
+  /(?:upi|pay)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+  /(?:sent|transferred)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+  // Card patterns
+  /(?:card|purchase)\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+  // Bank specific patterns
+  /(?:purchase|payment)\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+  // Generic patterns
+  /(?:to|from)\s+([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+  // Amount followed by vendor
+  /(?:rs\.?|inr|₹)\s*[0-9,]+(?:\.[0-9]{2})?\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+  // Vendor followed by amount
+  /([A-Za-z\s&\.\-]+?)\s+(?:rs\.?|inr|₹)\s*[0-9,]+(?:\.[0-9]{2})?/i,
 ];
 
-// Amount patterns (supports various currency formats)
+// Enhanced amount patterns (supports various currency formats and number styles)
 const AMOUNT_PATTERNS = [
+  // Indian Rupee patterns
   /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{2})?)/i,
   /([0-9,]+(?:\.[0-9]{2})?)\s*(?:rs\.?|inr|₹)/i,
+  // USD patterns
   /\$\s*([0-9,]+(?:\.[0-9]{2})?)/i,
   /([0-9,]+(?:\.[0-9]{2})?)\s*\$/i,
-  /([0-9,]+(?:\.[0-9]{2})?)\s*(?:usd|eur|gbp)/i,
+  // Other currencies
+  /([0-9,]+(?:\.[0-9]{2})?)\s*(?:usd|eur|gbp|cad|aud|jpy|chf|sek|nok|dkk|pln|czk|huf|ron|bgn|hrk|rsd|mkd|all|bam|mkn|mdl|uah|byn|rub|kzt|uzs|kgs|tjs|tmt|azn|amd|gel|azn|amd|gel|azn|amd|gel)/i,
+  // Generic number patterns
+  /([0-9,]+(?:\.[0-9]{2})?)\s*(?:lakh|crore|thousand|million|billion)/i,
+  // Amount with commas and decimals
+  /([0-9,]+(?:\.[0-9]{2})?)/i,
+  // Amount in words (basic)
+  /(?:rupees?|rs\.?)\s*([0-9,]+(?:\.[0-9]{2})?)/i,
+  // Amount with currency symbol
+  /([0-9,]+(?:\.[0-9]{2})?)\s*(?:rupees?|rs\.?)/i,
 ];
 
 // Category mapping based on keywords
@@ -165,6 +301,28 @@ export const readSMSMessages = async (options: {
 };
 
 /**
+ * Check if an SMS is from a bank or financial institution
+ */
+export const isBankSMS = (sender: string, message: string): boolean => {
+  const upperSender = sender.toUpperCase();
+  const upperMessage = message.toUpperCase();
+  
+  // Check if sender matches bank patterns
+  const isBankSender = BANK_SENDER_PATTERNS.some(pattern => 
+    upperSender.includes(pattern) || upperSender.includes(pattern.replace(/[^A-Z0-9]/g, ''))
+  );
+  
+  // Check if message contains bank-related keywords
+  const hasBankKeywords = [
+    'bank', 'banking', 'account', 'balance', 'transaction', 'debit', 'credit',
+    'upi', 'card', 'atm', 'payment', 'transfer', 'deposit', 'withdrawal',
+    'rs.', 'inr', '₹', 'rupees', 'amount', 'balance', 'available'
+  ].some(keyword => upperMessage.includes(keyword));
+  
+  return isBankSender || hasBankKeywords;
+};
+
+/**
  * Check if an SMS contains transaction information
  */
 export const isTransactionSMS = (message: string): boolean => {
@@ -242,17 +400,40 @@ export const categorizeTransaction = (vendor: string | null, message: string): s
 export const calculateConfidence = (expense: Partial<ExtractedExpense>): number => {
   let confidence = 0;
   
-  // Amount found
-  if (expense.amount && expense.amount > 0) confidence += 0.4;
+  // Amount found (most important)
+  if (expense.amount && expense.amount > 0) {
+    confidence += 0.5;
+    
+    // Bonus for reasonable amounts (not too small or too large)
+    if (expense.amount >= 1 && expense.amount <= 1000000) {
+      confidence += 0.1;
+    }
+  }
   
   // Vendor found
-  if (expense.vendor && expense.vendor.length > 2) confidence += 0.3;
+  if (expense.vendor && expense.vendor.length > 2 && expense.vendor !== 'Unknown') {
+    confidence += 0.25;
+    
+    // Bonus for known vendor patterns
+    if (expense.vendor.match(/^[A-Z][A-Za-z\s&\.\-]+$/)) {
+      confidence += 0.05;
+    }
+  }
   
   // Category identified
-  if (expense.category && expense.category !== 'other') confidence += 0.2;
+  if (expense.category && expense.category !== 'other') {
+    confidence += 0.15;
+  }
   
   // Transaction type determined
-  if (expense.type) confidence += 0.1;
+  if (expense.type) {
+    confidence += 0.05;
+  }
+  
+  // Bonus for complete information
+  if (expense.amount && expense.vendor && expense.vendor !== 'Unknown' && expense.category && expense.category !== 'other') {
+    confidence += 0.1;
+  }
   
   return Math.min(confidence, 1.0);
 };
@@ -261,6 +442,12 @@ export const calculateConfidence = (expense: Partial<ExtractedExpense>): number 
  * Parse a single SMS message to extract expense information
  */
 export const parseTransactionSMS = (message: SMSMessage): ExtractedExpense | null => {
+  // First check if it's a bank SMS
+  if (!isBankSMS(message.address, message.body)) {
+    return null;
+  }
+  
+  // Then check if it contains transaction information
   if (!isTransactionSMS(message.body)) {
     return null;
   }
@@ -300,16 +487,32 @@ export const processSMSMessages = async (messages: SMSMessage[]): Promise<SMSPar
     errors: [],
   };
 
+  let bankSMSCount = 0;
+  let transactionSMSCount = 0;
+
   for (const message of messages) {
     try {
+      // Count bank SMS for debugging
+      if (isBankSMS(message.address, message.body)) {
+        bankSMSCount++;
+      }
+      
+      // Count transaction SMS for debugging
+      if (isTransactionSMS(message.body)) {
+        transactionSMSCount++;
+      }
+      
       const expense = parseTransactionSMS(message);
-      if (expense && expense.confidence > 0.3) { // Only include high-confidence extractions
+      if (expense && expense.confidence > 0.2) { // Lowered threshold for better detection
         result.expenses.push(expense);
       }
     } catch (error) {
       result.errors.push(`Error processing message: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+
+  // Add debug information
+  result.errors.push(`Debug: Found ${bankSMSCount} bank SMS, ${transactionSMSCount} transaction SMS, extracted ${result.expenses.length} expenses`);
 
   return result;
 };
