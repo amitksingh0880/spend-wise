@@ -1,18 +1,20 @@
+import { useCurrency } from '@/app/contexts/CurrencyContext';
 import { getAllCategories } from '@/app/services/categoryService';
 import { saveTransaction } from '@/app/services/transactionService';
-import { DollarSign, FileText, Tag, X } from 'lucide-react-native';
+import { getCurrencySymbol } from '@/app/utils/currency';
+import { FileText, Tag, X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface TransactionFormProps {
@@ -26,6 +28,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { currency } = useCurrency();
   const [amount, setAmount] = useState('');
   const [vendor, setVendor] = useState('');
   const [category, setCategory] = useState('');
@@ -162,7 +165,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Amount *</Text>
             <View style={styles.inputWrapper}>
-              <DollarSign size={20} color="#9ca3af" style={styles.inputIcon} />
+              <Text style={styles.currencySymbol}>{getCurrencySymbol(currency)}</Text>
               <TextInput
                 style={styles.input}
                 value={amount}
@@ -328,6 +331,13 @@ const styles = StyleSheet.create({
   inputIcon: {
     marginLeft: 16,
     marginRight: 12,
+  },
+  currencySymbol: {
+    marginLeft: 16,
+    marginRight: 12,
+    fontSize: 16,
+    color: '#9ca3af',
+    fontWeight: '600',
   },
   input: {
     flex: 1,

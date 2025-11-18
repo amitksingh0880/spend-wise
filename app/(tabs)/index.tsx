@@ -1,3 +1,4 @@
+import { useCurrency } from '@/app/contexts/CurrencyContext';
 import { generateFinancialInsights } from '@/app/services/analyticsService';
 import { getRecentTransactions, getTransactionSummary } from '@/app/services/transactionService';
 import Card from '@/components/ui/card';
@@ -12,6 +13,7 @@ import { BarChart } from 'react-native-chart-kit';
 const screenWidth = Dimensions.get('window').width;
 
 const TransactionItem = ({ transaction }: { transaction: Transaction }) => {
+  const { formatAmount } = useCurrency();
   const isIncome = transaction.type === 'income';
   const Icon = isIncome ? ArrowDownLeft : ArrowUpRight;
 
@@ -27,13 +29,14 @@ const TransactionItem = ({ transaction }: { transaction: Transaction }) => {
         </View>
       </View>
       <Text style={[styles.transactionAmount, isIncome ? styles.incomeText : styles.expenseText]}>
-        {isIncome ? '+' : '-'}${transaction.amount.toFixed(2)}
+        {isIncome ? '+' : '-'}{formatAmount(transaction.amount)}
       </Text>
     </View>
   );
 };
 
 const DashboardScreen: React.FC = () => {
+  const { formatAmount } = useCurrency();
   const [summary, setSummary] = useState<any>(null);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [insights, setInsights] = useState<any[]>([]);
@@ -115,7 +118,7 @@ const DashboardScreen: React.FC = () => {
             <TrendingUp color="#ef4444" />
           </View>
           <Text style={styles.cardValue}>
-            ${summary?.totalExpenses?.toFixed(2) || '0.00'}
+            {formatAmount(summary?.totalExpenses || 0)}
           </Text>
         </Card>
 
@@ -125,7 +128,7 @@ const DashboardScreen: React.FC = () => {
             <PiggyBank color="#22c55e" />
           </View>
           <Text style={styles.cardValue}>
-            ${summary?.totalIncome?.toFixed(2) || '0.00'}
+            {formatAmount(summary?.totalIncome || 0)}
           </Text>
         </Card>
       </View>
@@ -140,7 +143,7 @@ const DashboardScreen: React.FC = () => {
             styles.cardValue,
             { color: summary?.netAmount >= 0 ? "#22c55e" : "#ef4444" }
           ]}>
-            ${summary?.netAmount?.toFixed(2) || '0.00'}
+            {formatAmount(summary?.netAmount || 0)}
           </Text>
         </Card>
 

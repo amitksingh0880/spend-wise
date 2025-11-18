@@ -221,7 +221,7 @@ export default function SMSBankMessageTest() {
       {result.parsedExpense && (
         <View style={styles.parsedExpense}>
           <Text style={styles.parsedTitle}>Parsed Expense:</Text>
-          <Text style={styles.parsedText}>Amount: ₹{result.parsedExpense.amount}</Text>
+          <Text style={styles.parsedText}>Amount: ${result.parsedExpense.amount}</Text>
           <Text style={styles.parsedText}>Vendor: {result.parsedExpense.vendor}</Text>
           <Text style={styles.parsedText}>Type: {result.parsedExpense.type}</Text>
           <Text style={styles.parsedText}>Category: {result.parsedExpense.category}</Text>

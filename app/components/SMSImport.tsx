@@ -125,7 +125,7 @@
 //     <View key={index} style={styles.expenseItem}>
 //       <View style={styles.expenseHeader}>
 //         <Text style={styles.expenseAmount}>
-//           {expense.type === 'income' ? '+' : '-'}₹{expense.amount.toFixed(2)}
+//           {expense.type === 'income' ? '+' : '-'}${expense.amount.toFixed(2)}
 //         </Text>
 //         <View style={[
 //           styles.confidenceBadge,
@@ -552,13 +552,13 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
       if (result.success && result.expenses.length > 0) {
         Alert.alert(
           'Import Successful',
-          `Imported ${result.expenses.length} expenses.\n\nDebug:\n${result.errors.join('\n')}`,
+          `Imported ₹{result.expenses.length} expenses.\n\nDebug:\n₹{result.errors.join('\n')}`,
           [{ text: 'OK' }]
         );
       } else if (result.success && result.expenses.length === 0) {
         Alert.alert(
           'No Expenses Found',
-          `No transaction-related SMS messages were found in the last 30 days.\n\nDebug:\n${result.errors.join('\n')}`,
+          `No transaction-related SMS messages were found in the last 30 days.\n\nDebug:\n₹{result.errors.join('\n')}`,
           [{ text: 'OK' }]
         );
       } else {
@@ -583,7 +583,7 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
     <View key={index} style={styles.expenseItem}>
       <View style={styles.expenseHeader}>
         <Text style={styles.expenseAmount}>
-          {expense.type === 'income' ? '+' : '-'}₹{expense.amount.toFixed(2)}
+          {expense.type === 'income' ? '+' : '-'}${expense.amount.toFixed(2)}
         </Text>
         <View
           style={[

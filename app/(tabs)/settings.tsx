@@ -1,6 +1,8 @@
 // import { testServices } from '@/app/libs/test/servicesTest';
 // import { testUUID } from '@/app/libs/test/uuidTest';
-import { clearAllData, initializeSampleData } from '@/app/utils/sampleData';
+import { useCurrency } from '@/app/contexts/CurrencyContext';
+import { getCurrency, updateCurrency } from '@/app/services/preferencesService';
+import { CURRENCIES, Currency } from '@/app/utils/currency';
 import Card from '@/components/ui/card';
 import {
   Bell,
@@ -14,9 +16,10 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Switch,
@@ -29,6 +32,34 @@ const SettingsScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
+  const [currency, setCurrency] = useState<Currency>('USD');
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const { refreshCurrency } = useCurrency();
+
+  useEffect(() => {
+    loadCurrency();
+  }, []);
+
+  const loadCurrency = async () => {
+    try {
+      const savedCurrency = await getCurrency();
+      setCurrency(savedCurrency);
+    } catch (error) {
+      console.error('Error loading currency:', error);
+    }
+  };
+
+  const handleCurrencyChange = async (newCurrency: Currency) => {
+    try {
+      await updateCurrency(newCurrency);
+      setCurrency(newCurrency);
+      await refreshCurrency();
+      setShowCurrencyModal(false);
+      Alert.alert('Success', 'Currency updated successfully!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update currency');
+    }
+  };
 
   const handleInitializeSampleData = async () => {
     Alert.alert(
@@ -41,7 +72,7 @@ const SettingsScreen: React.FC = () => {
           onPress: async () => {
             try {
               setLoading(true);
-              await initializeSampleData();
+              await handleInitializeSampleData();
               Alert.alert('Success', 'Sample data has been added successfully!');
             } catch (error) {
               Alert.alert('Error', 'Failed to initialize sample data');
@@ -66,7 +97,7 @@ const SettingsScreen: React.FC = () => {
           onPress: async () => {
             try {
               setLoading(true);
-              await clearAllData();
+              await handleClearAllData();
               Alert.alert('Success', 'All data has been cleared successfully!');
             } catch (error) {
               Alert.alert('Error', 'Failed to clear data');
@@ -181,7 +212,8 @@ const SettingsScreen: React.FC = () => {
         <SettingItem
           icon={DollarSign}
           title="Currency"
-          subtitle="USD ($)"
+          subtitle={`${CURRENCIES[currency].name} (${CURRENCIES[currency].symbol})`}
+          onPress={() => setShowCurrencyModal(true)}
           color="#22c55e"
         />
       </Card>
@@ -273,6 +305,62 @@ const SettingsScreen: React.FC = () => {
         </View>
       </Card>
 
+      {/* Currency Selection Modal */}
+      <Modal
+        visible={showCurrencyModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCurrencyModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Currency</Text>
+            {Object.values(CURRENCIES).map((curr) => (
+              <TouchableOpacity
+                key={curr.code}
+                style={[
+                  styles.currencyOption,
+                  currency === curr.code && styles.selectedCurrencyOption,
+                ]}
+                onPress={() => handleCurrencyChange(curr.code)}
+              >
+                <Text style={[
+                  styles.currencySymbol,
+                  currency === curr.code && styles.selectedCurrencyText,
+                ]}>
+                  {curr.symbol}
+                </Text>
+                <View style={styles.currencyInfo}>
+                  <Text style={[
+                    styles.currencyName,
+                    currency === curr.code && styles.selectedCurrencyText,
+                  ]}>
+                    {curr.name}
+                  </Text>
+                  <Text style={[
+                    styles.currencyCode,
+                    currency === curr.code && styles.selectedCurrencyText,
+                  ]}>
+                    {curr.code}
+                  </Text>
+                </View>
+                {currency === curr.code && (
+                  <View style={styles.checkmark}>
+                    <Text style={styles.checkmarkText}>✓</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowCurrencyModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {loading && (
         <View style={styles.loadingOverlay}>
           <Text style={styles.loadingText}>Processing...</Text>
@@ -353,6 +441,86 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loadingText: {
+    color: '#f9fafb',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxWidth: 300,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#f9fafb',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  currencyOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#374151',
+  },
+  selectedCurrencyOption: {
+    backgroundColor: '#4f46e5',
+  },
+  currencySymbol: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#f9fafb',
+    marginRight: 12,
+    minWidth: 30,
+    textAlign: 'center',
+  },
+  currencyInfo: {
+    flex: 1,
+  },
+  currencyName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#f9fafb',
+  },
+  currencyCode: {
+    fontSize: 14,
+    color: '#9ca3af',
+  },
+  selectedCurrencyText: {
+    color: '#ffffff',
+  },
+  checkmark: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#22c55e',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkmarkText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cancelButton: {
+    marginTop: 20,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    borderRadius: 8,
+  },
+  cancelButtonText: {
     color: '#f9fafb',
     fontSize: 16,
     fontWeight: '600',

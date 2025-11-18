@@ -1,5 +1,6 @@
 import SMSImport from '@/app/components/SMSImport';
 import TransactionForm from '@/app/components/TransactionForm';
+import { useCurrency } from '@/app/contexts/CurrencyContext';
 import {
     deleteTransaction,
     getAllTransactions,
@@ -30,6 +31,7 @@ const TransactionItem = ({
   transaction: Transaction; 
   onDelete: (id: string) => void;
 }) => {
+  const { formatAmount } = useCurrency();
   const isIncome = transaction.type === 'income';
   const Icon = isIncome ? ArrowDownLeft : ArrowUpRight;
   const formattedDate = new Date(transaction.createdAt).toLocaleDateString('en-US', {
@@ -74,7 +76,7 @@ const TransactionItem = ({
 
           <View style={styles.rightGroup}>
             <Text style={[styles.amount, isIncome ? styles.income : styles.expense]}>
-              {isIncome ? '+' : '-'}${transaction.amount.toFixed(2)}
+              {isIncome ? '+' : '-'}{formatAmount(transaction.amount)}
             </Text>
             <View style={styles.categoryBadge}>
               <Text style={styles.categoryText}>{transaction.category}</Text>

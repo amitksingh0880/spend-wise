@@ -73,8 +73,10 @@ export interface NotificationSettings {
     pushNotifications: boolean;
 }
 
+export type Currency = 'USD' | 'INR';
+
 export interface UserPreferences {
-    currency: string;
+    currency: Currency;
     dateFormat: string;
     theme: Theme;
     notifications: NotificationSettings;
