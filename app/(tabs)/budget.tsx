@@ -1,4 +1,5 @@
 import BudgetForm from '@/app/components/BudgetForm';
+import { useCurrency } from '@/app/contexts/CurrencyContext';
 import {
     checkBudgetAlerts,
     deleteBudget,
@@ -26,6 +27,7 @@ const BudgetCard = ({
   budget: any; 
   onDelete: (id: string) => void;
 }) => {
+  const { formatAmount } = useCurrency();
   const percentage = Math.min((budget.spent / budget.amount) * 100, 100);
   const isOverBudget = budget.spent > budget.amount;
   const remaining = budget.amount - budget.spent;
@@ -56,8 +58,8 @@ const BudgetCard = ({
         </View>
 
         <View style={styles.budgetAmounts}>
-          <Text style={styles.budgetSpent}>${budget.spent.toFixed(2)}</Text>
-          <Text style={styles.budgetTotal}>of ${budget.amount.toFixed(2)}</Text>
+          <Text style={styles.budgetSpent}>{formatAmount(budget.spent)}</Text>
+          <Text style={styles.budgetTotal}>of {formatAmount(budget.amount)}</Text>
         </View>
 
         <View style={styles.progressBar}>
@@ -80,8 +82,8 @@ const BudgetCard = ({
             ]}
           >
             {isOverBudget
-              ? `$${(budget.spent - budget.amount).toFixed(2)} over budget`
-              : `$${remaining.toFixed(2)} left`}
+              ? `${formatAmount(budget.spent - budget.amount)} over budget`
+              : `${formatAmount(remaining)} left`}
           </Text>
           <Text style={styles.budgetPercentage}>
             {percentage.toFixed(1)}%
@@ -93,6 +95,7 @@ const BudgetCard = ({
 };
 
 const BudgetScreen: React.FC = () => {
+  const { formatAmount } = useCurrency();
   const [budgets, setBudgets] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
@@ -177,9 +180,9 @@ const BudgetScreen: React.FC = () => {
             <View>
               <Text style={styles.summaryTitle}>Budget Summary</Text>
               <Text style={styles.summaryAmount}>
-                ${summary?.totalSpent?.toFixed(2) || '0.00'}{' '}
+                {formatAmount(summary?.totalSpent || 0)}{' '}
                 <Text style={styles.summaryTotal}>
-                  / ${summary?.totalBudgeted?.toFixed(2) || '0.00'}
+                  / {formatAmount(summary?.totalBudgeted || 0)}
                 </Text>
               </Text>
               <View style={styles.summaryStats}>

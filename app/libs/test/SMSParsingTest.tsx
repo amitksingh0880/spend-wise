@@ -1,23 +1,23 @@
+import {
+    categorizeTransaction,
+    determineTransactionType,
+    extractAmount,
+    extractVendor,
+    isTransactionSMS,
+    parseTransactionSMS,
+} from '@/app/services/smsService';
+import Card from '@/components/ui/card';
+import { MessageCircle, TestTube } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ScrollView,
-  Platform,
+    Alert,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { MessageCircle, TestTube, CheckCircle } from 'lucide-react-native';
-import Card from '@/components/ui/card';
-import {
-  parseTransactionSMS,
-  extractAmount,
-  extractVendor,
-  categorizeTransaction,
-  determineTransactionType,
-  isTransactionSMS,
-} from '@/app/services/smsService';
 
 export default function SMSTestScreen() {
   const [testResults, setTestResults] = useState<any[]>([]);
@@ -115,7 +115,7 @@ export default function SMSTestScreen() {
         <View style={styles.extractedInfo}>
           <Text style={styles.extractedTitle}>Extracted Information:</Text>
           <Text style={styles.extractedDetail}>
-            Amount: ₹{result.expense.amount}
+            Amount: ${result.expense.amount}
           </Text>
           <Text style={styles.extractedDetail}>
             Vendor: {result.expense.vendor}

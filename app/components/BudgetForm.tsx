@@ -1,6 +1,8 @@
+import { useCurrency } from '@/app/contexts/CurrencyContext';
 import { createBudget, generateBudgetPeriod, getDefaultBudgetColors } from '@/app/services/budgetService';
 import { getAllCategories } from '@/app/services/categoryService';
-import { DollarSign, Target, X } from 'lucide-react-native';
+import { getCurrencySymbol } from '@/app/utils/currency';
+import { Target, X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
@@ -26,6 +28,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { currency } = useCurrency();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
@@ -143,7 +146,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Budget Amount *</Text>
             <View style={styles.inputWrapper}>
-              <DollarSign size={20} color="#9ca3af" style={styles.inputIcon} />
+              <Text style={styles.currencySymbol}>{getCurrencySymbol(currency)}</Text>
               <TextInput
                 style={styles.input}
                 value={amount}
@@ -297,6 +300,13 @@ const styles = StyleSheet.create({
   inputIcon: {
     marginLeft: 16,
     marginRight: 12,
+  },
+  currencySymbol: {
+    marginLeft: 16,
+    marginRight: 12,
+    fontSize: 16,
+    color: '#9ca3af',
+    fontWeight: '600',
   },
   input: {
     flex: 1,

@@ -27,7 +27,7 @@
 //           const pkg = require('react-native-get-sms-android');
 //           smsPackage = pkg.default || pkg;
 //         } catch (e3) {
-//           throw new Error(`All import methods failed: ${e1.message}, ${e2.message}, ${e3.message}`);
+//           throw new Error(`All import methods failed: ₹{e1.message}, ₹{e2.message}, ₹{e3.message}`);
 //         }
 //       }
 //     }
@@ -198,20 +198,20 @@
 // // Enhanced vendor patterns for better merchant detection
 // const VENDOR_PATTERNS = [
 //   // Standard patterns
-//   /(?:at|to|from)\s+([A-Z][A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
-//   /merchant\s*:?\s*([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
-//   /(?:paid|payment)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+//   /(?:at|to|from)\s+([A-Z][A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
+//   /merchant\s*:?\s*([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
+//   /(?:paid|payment)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
 //   // UPI patterns
-//   /(?:upi|pay)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
-//   /(?:sent|transferred)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+//   /(?:upi|pay)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
+//   /(?:sent|transferred)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
 //   // Card patterns
-//   /(?:card|purchase)\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+//   /(?:card|purchase)\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
 //   // Bank specific patterns
-//   /(?:purchase|payment)\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+//   /(?:purchase|payment)\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
 //   // Generic patterns
-//   /(?:to|from)\s+([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+//   /(?:to|from)\s+([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
 //   // Amount followed by vendor
-//   /(?:rs\.?|inr|₹)\s*[0-9,]+(?:\.[0-9]{2})?\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+//   /(?:rs\.?|inr|₹)\s*[0-9,]+(?:\.[0-9]{2})?\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
 //   // Vendor followed by amount
 //   /([A-Za-z\s&\.\-]+?)\s+(?:rs\.?|inr|₹)\s*[0-9,]+(?:\.[0-9]{2})?/i,
 // ];
@@ -222,8 +222,8 @@
 //   /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{2})?)/i,
 //   /([0-9,]+(?:\.[0-9]{2})?)\s*(?:rs\.?|inr|₹)/i,
 //   // USD patterns
-//   /\$\s*([0-9,]+(?:\.[0-9]{2})?)/i,
-//   /([0-9,]+(?:\.[0-9]{2})?)\s*\$/i,
+//   /\₹\s*([0-9,]+(?:\.[0-9]{2})?)/i,
+//   /([0-9,]+(?:\.[0-9]{2})?)\s*\₹/i,
 //   // Other currencies
 //   /([0-9,]+(?:\.[0-9]{2})?)\s*(?:usd|eur|gbp|cad|aud|jpy|chf|sek|nok|dkk|pln|czk|huf|ron|bgn|hrk|rsd|mkd|all|bam|mkn|mdl|uah|byn|rub|kzt|uzs|kgs|tjs|tmt|azn|amd|gel|azn|amd|gel|azn|amd|gel)/i,
 //   // Generic number patterns
@@ -353,26 +353,26 @@
 //         JSON.stringify(filter),
 //         (fail: any) => {
 //           console.error('Failed to get SMS list:', fail);
-//           reject(new Error(`Failed to read SMS messages: ${JSON.stringify(fail)}`));
+//           reject(new Error(`Failed to read SMS messages: ₹{JSON.stringify(fail)}`));
 //         },
 //         (count: number, smsList: string) => {
 //           try {
-//             console.log(`Received ${count} SMS messages`);
+//             console.log(`Received ₹{count} SMS messages`);
 //             console.log('SMS list preview:', smsList.substring(0, 200) + '...');
             
 //             const messages: SMSMessage[] = JSON.parse(smsList);
-//             console.log(`Parsed ${messages.length} SMS messages successfully`);
+//             console.log(`Parsed ₹{messages.length} SMS messages successfully`);
 //             resolve(messages);
 //           } catch (error) {
 //             console.error('Failed to parse SMS messages:', error);
 //             console.error('SMS list that failed to parse:', smsList);
-//             reject(new Error(`Failed to parse SMS messages: ${error instanceof Error ? error.message : 'Unknown error'}`));
+//             reject(new Error(`Failed to parse SMS messages: ₹{error instanceof Error ? error.message : 'Unknown error'}`));
 //           }
 //         }
 //       );
 //     } catch (error) {
 //       console.error('Error calling SmsAndroid.list:', error);
-//       reject(new Error(`Error calling SMS Android: ${error instanceof Error ? error.message : 'Unknown error'}`));
+//       reject(new Error(`Error calling SMS Android: ₹{error instanceof Error ? error.message : 'Unknown error'}`));
 //     }
 //   });
 // };
@@ -492,7 +492,7 @@
 //     confidence += 0.25;
     
 //     // Bonus for known vendor patterns
-//     if (expense.vendor.match(/^[A-Z][A-Za-z\s&\.\-]+$/)) {
+//     if (expense.vendor.match(/^[A-Z][A-Za-z\s&\.\-]+₹/)) {
 //       confidence += 0.05;
 //     }
 //   }
@@ -584,12 +584,12 @@
 //         result.expenses.push(expense);
 //       }
 //     } catch (error) {
-//       result.errors.push(`Error processing message: ${error instanceof Error ? error.message : 'Unknown error'}`);
+//       result.errors.push(`Error processing message: ₹{error instanceof Error ? error.message : 'Unknown error'}`);
 //     }
 //   }
 
 //   // Add debug information
-//   result.errors.push(`Debug: Found ${bankSMSCount} bank SMS, ${transactionSMSCount} transaction SMS, extracted ${result.expenses.length} expenses`);
+//   result.errors.push(`Debug: Found ₹{bankSMSCount} bank SMS, ₹{transactionSMSCount} transaction SMS, extracted ₹{result.expenses.length} expenses`);
 
 //   return result;
 // };
@@ -621,7 +621,7 @@
 //     const daysBack = options.daysBack || 30;
 //     const minDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
 
-//     console.log(`Importing SMS from last ${daysBack} days (since ${new Date(minDate).toISOString()})`);
+//     console.log(`Importing SMS from last ₹{daysBack} days (since ₹{new Date(minDate).toISOString()})`);
 
 //     // Read SMS messages
 //     const messages = await readSMSMessages({
@@ -629,7 +629,7 @@
 //       minDate,
 //     });
 
-//     console.log(`Found ${messages.length} SMS messages to process`);
+//     console.log(`Found ₹{messages.length} SMS messages to process`);
 
 //     // Process messages
 //     const result = await processSMSMessages(messages);
@@ -643,11 +643,11 @@
 //             type: expense.type,
 //             vendor: expense.vendor || 'Unknown',
 //             category: expense.category || 'other',
-//             description: `SMS Import: ${expense.description}`,
-//             tags: ['sms-import', `confidence:${Math.round(expense.confidence * 100)}%`],
+//             description: `SMS Import: ₹{expense.description}`,
+//             tags: ['sms-import', `confidence:₹{Math.round(expense.confidence * 100)}%`],
 //           });
 //         } catch (error) {
-//           result.errors.push(`Failed to save transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+//           result.errors.push(`Failed to save transaction: ₹{error instanceof Error ? error.message : 'Unknown error'}`);
 //         }
 //       }
 //     }
@@ -829,20 +829,20 @@
 // // Enhanced vendor patterns for better merchant detection
 // const VENDOR_PATTERNS = [
 //   // Standard patterns
-//   /(?:at|to|from)\s+([A-Z][A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
-//   /merchant\s*:?\s*([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
-//   /(?:paid|payment)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+//   /(?:at|to|from)\s+([A-Z][A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
+//   /merchant\s*:?\s*([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
+//   /(?:paid|payment)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
 //   // UPI patterns
-//   /(?:upi|pay)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
-//   /(?:sent|transferred)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+//   /(?:upi|pay)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
+//   /(?:sent|transferred)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
 //   // Card patterns
-//   /(?:card|purchase)\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+//   /(?:card|purchase)\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
 //   // Bank specific patterns
-//   /(?:purchase|payment)\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+//   /(?:purchase|payment)\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
 //   // Generic patterns
-//   /(?:to|from)\s+([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+//   /(?:to|from)\s+([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
 //   // Amount followed by vendor
-//   /(?:rs\.?|inr|₹)\s*[0-9,]+(?:\.[0-9]{2})?\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+//   /(?:rs\.?|inr|₹)\s*[0-9,]+(?:\.[0-9]{2})?\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
 //   // Vendor followed by amount
 //   /([A-Za-z\s&\.\-]+?)\s+(?:rs\.?|inr|₹)\s*[0-9,]+(?:\.[0-9]{2})?/i,
 // ];
@@ -853,8 +853,8 @@
 //   /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{2})?)/i,
 //   /([0-9,]+(?:\.[0-9]{2})?)\s*(?:rs\.?|inr|₹)/i,
 //   // USD patterns
-//   /\$\s*([0-9,]+(?:\.[0-9]{2})?)/i,
-//   /([0-9,]+(?:\.[0-9]{2})?)\s*\$/i,
+//   /\₹\s*([0-9,]+(?:\.[0-9]{2})?)/i,
+//   /([0-9,]+(?:\.[0-9]{2})?)\s*\₹/i,
 //   // Other currencies
 //   /([0-9,]+(?:\.[0-9]{2})?)\s*(?:usd|eur|gbp|cad|aud|jpy|chf|sek|nok|dkk|pln|czk|huf|ron|bgn|hrk|rsd|mkd|all|bam|mkn|mdl|uah|byn|rub|kzt|uzs|kgs|tjs|tmt|azn|amd|gel|azn|amd|gel|azn|amd|gel)/i,
 //   // Generic number patterns
@@ -969,7 +969,7 @@
 
 //       const rawMessages = await SmsList.readSMS(filterOptions);
       
-//       console.log(`Received ${rawMessages.length} raw SMS messages`);
+//       console.log(`Received ₹{rawMessages.length} raw SMS messages`);
       
 //       // Map to our SMSMessage format
 //       const messages: SMSMessage[] = rawMessages.map((sms: any) => ({
@@ -980,11 +980,11 @@
 //         type: box === 'inbox' ? 1 : 2, // 1 for received, 2 for sent
 //       })).filter(msg => !isNaN(msg.date)); // Filter invalid dates
 
-//       console.log(`Parsed and filtered ${messages.length} SMS messages successfully`);
+//       console.log(`Parsed and filtered ₹{messages.length} SMS messages successfully`);
 //       resolve(messages);
 //     } catch (error) {
 //       console.error('Error reading SMS messages:', error);
-//       reject(new Error(`Failed to read SMS messages: ${error instanceof Error ? error.message : 'Unknown error'}`));
+//       reject(new Error(`Failed to read SMS messages: ₹{error instanceof Error ? error.message : 'Unknown error'}`));
 //     }
 //   });
 // };
@@ -1104,7 +1104,7 @@
 //     confidence += 0.25;
     
 //     // Bonus for known vendor patterns
-//     if (expense.vendor.match(/^[A-Z][A-Za-z\s&\.\-]+$/)) {
+//     if (expense.vendor.match(/^[A-Z][A-Za-z\s&\.\-]+₹/)) {
 //       confidence += 0.05;
 //     }
 //   }
@@ -1196,12 +1196,12 @@
 //         result.expenses.push(expense);
 //       }
 //     } catch (error) {
-//       result.errors.push(`Error processing message: ${error instanceof Error ? error.message : 'Unknown error'}`);
+//       result.errors.push(`Error processing message: ₹{error instanceof Error ? error.message : 'Unknown error'}`);
 //     }
 //   }
 
 //   // Add debug information
-//   result.errors.push(`Debug: Found ${bankSMSCount} bank SMS, ${transactionSMSCount} transaction SMS, extracted ${result.expenses.length} expenses`);
+//   result.errors.push(`Debug: Found ₹{bankSMSCount} bank SMS, ₹{transactionSMSCount} transaction SMS, extracted ₹{result.expenses.length} expenses`);
 
 //   return result;
 // };
@@ -1233,7 +1233,7 @@
 //     const daysBack = options.daysBack || 30;
 //     const minDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
 
-//     console.log(`Importing SMS from last ${daysBack} days (since ${new Date(minDate).toISOString()})`);
+//     console.log(`Importing SMS from last ₹{daysBack} days (since ₹{new Date(minDate).toISOString()})`);
 
 //     // Read SMS messages
 //     const messages = await readSMSMessages({
@@ -1242,7 +1242,7 @@
 //       box: 'inbox',
 //     });
 
-//     console.log(`Found ${messages.length} SMS messages to process`);
+//     console.log(`Found ₹{messages.length} SMS messages to process`);
 
 //     // Process messages
 //     const result = await processSMSMessages(messages);
@@ -1256,11 +1256,11 @@
 //             type: expense.type,
 //             vendor: expense.vendor || 'Unknown',
 //             category: expense.category || 'other',
-//             description: `SMS Import: ${expense.description}`,
-//             tags: ['sms-import', `confidence:${Math.round(expense.confidence * 100)}%`],
+//             description: `SMS Import: ₹{expense.description}`,
+//             tags: ['sms-import', `confidence:₹{Math.round(expense.confidence * 100)}%`],
 //           });
 //         } catch (error) {
-//           result.errors.push(`Failed to save transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+//           result.errors.push(`Failed to save transaction: ₹{error instanceof Error ? error.message : 'Unknown error'}`);
 //         }
 //       }
 //     }
@@ -1410,22 +1410,22 @@ const BANK_SENDER_PATTERNS = [
 ];
 
 const VENDOR_PATTERNS: RegExp[] = [
-  /(?:at|to|from)\s+([A-Z][A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
-  /merchant\s*:?\s*([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
-  /(?:paid|payment)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
-  /(?:upi|pay)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
-  /(?:sent|transferred)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
-  /(?:card|purchase)\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
-  /(?:to|from)\s+([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
-  /(?:rs\.?|inr|₹)\s*[0-9,]+(?:\.[0-9]{2})?\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|$|\.|,)/i,
+  /(?:at|to|from)\s+([A-Z][A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
+  /merchant\s*:?\s*([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
+  /(?:paid|payment)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
+  /(?:upi|pay)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
+  /(?:sent|transferred)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
+  /(?:card|purchase)\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
+  /(?:to|from)\s+([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
+  /(?:rs\.?|inr|₹)\s*[0-9,]+(?:\.[0-9]{2})?\s+(?:at\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
   /([A-Za-z\s&\.\-]+?)\s+(?:rs\.?|inr|₹)\s*[0-9,]+(?:\.[0-9]{2})?/i,
 ];
 
 const AMOUNT_PATTERNS: RegExp[] = [
   /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{2})?)/i,
   /([0-9,]+(?:\.[0-9]{2})?)\s*(?:rs\.?|inr|₹)/i,
-  /\$\s*([0-9,]+(?:\.[0-9]{2})?)/i,
-  /([0-9,]+(?:\.[0-9]{2})?)\s*\$/i,
+  /\₹\s*([0-9,]+(?:\.[0-9]{2})?)/i,
+  /([0-9,]+(?:\.[0-9]{2})?)\s*\₹/i,
   /([0-9,]+(?:\.[0-9]{2})?)\s*(?:usd|eur|gbp|cad|aud|jpy)/i,
   /([0-9,]+(?:\.[0-9]{2})?)/i,
 ];
@@ -1640,7 +1640,7 @@ export const calculateConfidence = (expense: Partial<ExtractedExpense>): number 
   }
   if (expense.vendor && expense.vendor.length > 2 && expense.vendor !== 'Unknown') {
     confidence += 0.25;
-    if (/^[A-Z][A-Za-z\s&\.\-]+$/.test(expense.vendor)) confidence += 0.05;
+    if (/^[A-Z][A-Za-z\s&\.\-]+₹/.test(expense.vendor)) confidence += 0.05;
   }
   if (expense.category && expense.category !== 'other') confidence += 0.15;
   if (expense.type) confidence += 0.05;
@@ -1697,11 +1697,11 @@ export const processSMSMessages = async (messages: SMSMessage[]): Promise<SMSPar
         result.expenses.push(expense);
       }
     } catch (err: any) {
-      result.errors.push(`Error processing message: ${err?.message ?? err}`);
+      result.errors.push(`Error processing message: ₹{err?.message ?? err}`);
     }
   }
 
-  result.errors.push(`Debug: Found ${bankSMSCount} bank SMS, ${transactionSMSCount} transaction SMS, extracted ${result.expenses.length} expenses`);
+  result.errors.push(`Debug: Found ₹{bankSMSCount} bank SMS, ₹{transactionSMSCount} transaction SMS, extracted ₹{result.expenses.length} expenses`);
   return result;
 };
 
@@ -1747,11 +1747,11 @@ export const importExpensesFromSMS = async (options: {
             type: expense.type,
             vendor: expense.vendor ?? 'Unknown',
             category: expense.category ?? 'other',
-            description: `SMS Import: ${expense.description}`,
-            tags: ['sms-import', `confidence:${Math.round((expense.confidence ?? 0) * 100)}%`],
+            description: `SMS Import: ₹{expense.description}`,
+            tags: ['sms-import', `confidence:₹{Math.round((expense.confidence ?? 0) * 100)}%`],
           });
         } catch (err: any) {
-          result.errors.push(`Failed to save transaction: ${err?.message ?? err}`);
+          result.errors.push(`Failed to save transaction: ₹{err?.message ?? err}`);
         }
       }
     }
