@@ -1,6 +1,6 @@
 import { useCurrency } from '@/app/contexts/CurrencyContext';
 import { getAllCategories } from '@/app/services/categoryService';
-import { saveTransaction } from '@/app/services/transactionService';
+import { saveTransaction, Transaction, updateTransaction } from '@/app/services/transactionService';
 import { getCurrencySymbol } from '@/app/utils/currency';
 import { FileText, Tag, X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
@@ -21,12 +21,14 @@ interface TransactionFormProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  transaction?: Transaction | null; // Optional transaction for editing
 }
 
 const TransactionForm: React.FC<TransactionFormProps> = ({
   visible,
   onClose,
   onSuccess,
+  transaction = null,
 }) => {
   const { currency } = useCurrency();
   const [amount, setAmount] = useState('');
@@ -40,8 +42,18 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   useEffect(() => {
     if (visible) {
       loadCategories();
+      // Pre-fill form if editing existing transaction
+      if (transaction) {
+        setAmount((transaction as Transaction).amount.toString());
+        setVendor((transaction as Transaction).vendor);
+        setCategory((transaction as Transaction).category);
+        setDescription((transaction as Transaction).description || '');
+        setType((transaction as Transaction).type);
+      } else {
+        resetForm();
+      }
     }
-  }, [visible]);
+  }, [visible, transaction]);
 
   const loadCategories = async () => {
     try {
@@ -82,15 +94,29 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
 
     try {
       setLoading(true);
-      await saveTransaction({
-        amount: numAmount,
-        vendor,
-        category,
-        type,
-        description: description || undefined,
-      });
+      
+      if (transaction) {
+        // Update existing transaction
+        await updateTransaction((transaction as Transaction).id, {
+          amount: numAmount,
+          vendor,
+          category,
+          type,
+          description: description || undefined,
+        });
+        Alert.alert('Success', 'Transaction updated successfully');
+      } else {
+        // Create new transaction
+        await saveTransaction({
+          amount: numAmount,
+          vendor,
+          category,
+          type,
+          description: description || undefined,
+        });
+        Alert.alert('Success', 'Transaction added successfully');
+      }
 
-      Alert.alert('Success', 'Transaction added successfully');
       resetForm();
       onSuccess();
       onClose();
@@ -118,7 +144,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
         style={styles.container}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Add Transaction</Text>
+          <Text style={styles.title}>
+            {transaction ? 'Edit Transaction' : 'Add Transaction'}
+          </Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <X size={24} color="#9ca3af" />
           </TouchableOpacity>
@@ -237,6 +265,20 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
               />
             </View>
           </View>
+
+          {/* SMS Data (only show when editing and SMS data exists) */}
+          {transaction && (transaction as any).smsData && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Original SMS Data</Text>
+              <View style={styles.smsDataContainer}>
+                <ScrollView style={styles.smsJsonScroll} showsVerticalScrollIndicator={true}>
+                  <Text style={styles.smsJsonText}>
+                    {JSON.stringify((transaction as any).smsData, null, 2)}
+                  </Text>
+                </ScrollView>
+              </View>
+            </View>
+          )}
         </ScrollView>
 
         <View style={styles.footer}>
@@ -252,7 +294,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
             disabled={loading}
           >
             <Text style={styles.submitButtonText}>
-              {loading ? 'Saving...' : 'Add Transaction'}
+              {loading ? 'Saving...' : (transaction ? 'Update Transaction' : 'Add Transaction')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -414,6 +456,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',
+  },
+  smsDataContainer: {
+    backgroundColor: '#1e293b',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+    maxHeight: 200,
+  },
+  smsJsonScroll: {
+    padding: 12,
+  },
+  smsJsonText: {
+    fontSize: 12,
+    color: '#e2e8f0',
+    fontFamily: 'monospace',
+    lineHeight: 16,
   },
 });
 

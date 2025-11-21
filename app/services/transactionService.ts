@@ -12,6 +12,11 @@ export interface Transaction {
   createdAt: string;
   description?: string;
   tags?: string[];
+  smsData?: {
+    rawMessage: string;
+    sender: string;
+    timestamp: number;
+  };
 }
 
 export interface TransactionFilters {

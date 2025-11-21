@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { useState } from 'react';
 import {
     Platform,
@@ -8,11 +9,15 @@ import {
     View
 } from 'react-native';
 import {
-    checkSMSAndroidAvailable,
     checkSMSPermission,
+    importExpensesFromSMS,
+    isNativeAvailable,
+    parseTransactionSMS,
     readSMSMessages,
-    requestSMSPermission
+    requestSMSPermission,
+    SMSMessage,
 } from '../../services/smsService';
+// (parseTransactionSMS, SMSMessage already imported above)
 
 export default function SMSDebugTest() {
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
@@ -33,7 +38,7 @@ export default function SMSDebugTest() {
     addDebugInfo(`Platform: ${Platform.OS}`);
     
     // Check if package is available
-    const isAvailable = checkSMSAndroidAvailable();
+  const isAvailable = isNativeAvailable();
     addDebugInfo(`SMS Android package available: ${isAvailable}`);
     
     if (!isAvailable) {
@@ -70,12 +75,14 @@ export default function SMSDebugTest() {
     addDebugInfo('Testing SMS reading...');
     
     try {
+      // Only read messages from the last 7 days (compute minDate explicitly)
+      const minDate = Date.now() - (7 * 24 * 60 * 60 * 1000);
       const messages = await readSMSMessages({
         maxCount: 10,
-        daysBack: 7,
+        minDate,
       });
       
-      addDebugInfo(`✅ Successfully read ${messages.length} SMS messages`);
+  addDebugInfo(`✅ Successfully read ${messages.length} SMS messages`);
       
       if (messages.length > 0) {
         addDebugInfo('Sample messages:');
@@ -95,6 +102,19 @@ export default function SMSDebugTest() {
     }
   };
 
+  const testImportToday = async () => {
+    setIsLoading(true);
+    addDebugInfo('Testing importExpensesFromSMS for today...');
+    try {
+      const result = await importExpensesFromSMS({ maxCount: 50, onlyToday: true, autoSave: false });
+      addDebugInfo(`Import result: success=${result.success}, expenses=${result.expenses.length}, errors=${result.errors.length}`);
+    } catch (err) {
+      addDebugInfo(`Import today error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const runFullTest = async () => {
     clearDebugInfo();
     addDebugInfo('🚀 Starting full SMS test...');
@@ -102,8 +122,13 @@ export default function SMSDebugTest() {
     testSMSAndroidPackage();
     await testSMSPermissions();
     await testSMSReading();
-    
-    addDebugInfo('✅ Test completed');
+  // Additional small OTP parse test
+  addDebugInfo('Testing OTP message parsing:');
+  const otpMsg: SMSMessage = { id: 'otp-1', address: 'BANKOTP', body: 'Your OTP is 123456 for verification', date: Date.now(), type: 1 };
+  const parsed = parseTransactionSMS(otpMsg);
+  addDebugInfo(`OTP parse result: ${parsed ? 'Parsed as transaction' : 'Ignored (expected)'}`);
+
+  addDebugInfo('✅ Test completed');
   };
 
   return (
@@ -124,6 +149,14 @@ export default function SMSDebugTest() {
           onPress={testSMSPermissions}
         >
           <Text style={styles.buttonText}>Test Permissions</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.button}
+          onPress={testImportToday}
+          disabled={isLoading}
+        >
+          <Text style={styles.buttonText}>{isLoading ? 'Testing...' : 'Test Import Today'}</Text>
         </TouchableOpacity>
         
         <TouchableOpacity
