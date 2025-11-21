@@ -1,6 +1,7 @@
 // import { testServices } from '@/app/libs/test/servicesTest';
 // import { testUUID } from '@/app/libs/test/uuidTest';
 import { useCurrency } from '@/app/contexts/CurrencyContext';
+import { deleteKey } from '@/app/libs/storage';
 import { getCurrency, updateCurrency } from '@/app/services/preferencesService';
 import { CURRENCIES, Currency } from '@/app/utils/currency';
 import Card from '@/components/ui/card';
@@ -63,25 +64,9 @@ const SettingsScreen: React.FC = () => {
 
   const handleInitializeSampleData = async () => {
     Alert.alert(
-      'Initialize Sample Data',
-      'This will add sample transactions and budgets to help you explore the app. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Initialize', 
-          onPress: async () => {
-            try {
-              setLoading(true);
-              await handleInitializeSampleData();
-              Alert.alert('Success', 'Sample data has been added successfully!');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to initialize sample data');
-            } finally {
-              setLoading(false);
-            }
-          }
-        },
-      ]
+      'Feature Not Available',
+      'Sample data initialization is currently disabled. This feature will be available in a future update.',
+      [{ text: 'OK' }]
     );
   };
 
@@ -97,9 +82,24 @@ const SettingsScreen: React.FC = () => {
           onPress: async () => {
             try {
               setLoading(true);
-              await handleClearAllData();
+              
+              // Clear all storage keys
+              const storageKeys = [
+                'transactions',
+                'budgets', 
+                'budget_alerts',
+                'categories',
+                'user_preferences'
+              ];
+              
+              await Promise.all(storageKeys.map(key => deleteKey(key)));
+              
+              // Reset currency context
+              await refreshCurrency();
+              
               Alert.alert('Success', 'All data has been cleared successfully!');
             } catch (error) {
+              console.error('Error clearing data:', error);
               Alert.alert('Error', 'Failed to clear data');
             } finally {
               setLoading(false);

@@ -2,34 +2,37 @@ import SMSImport from '@/app/components/SMSImport';
 import TransactionForm from '@/app/components/TransactionForm';
 import { useCurrency } from '@/app/contexts/CurrencyContext';
 import {
-    deleteTransaction,
-    getAllTransactions,
-    searchTransactions,
-    Transaction
+  deleteTransaction,
+  getAllTransactions,
+  getFilteredTransactions,
+  Transaction
 } from '@/app/services/transactionService';
 import Card from '@/components/ui/card';
-import { ArrowDownLeft, ArrowUpRight, MessageCircle, Plus, Search } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { ArrowDownLeft, ArrowUpRight, Calendar, MessageCircle, Plus, Search } from 'lucide-react-native';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    FlatList,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Dimensions,
+  FlatList,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const screenWidth = Dimensions.get('window').width;
 
 const TransactionItem = ({ 
   transaction, 
-  onDelete 
+  onDelete,
+  onEdit
 }: { 
   transaction: Transaction; 
   onDelete: (id: string) => void;
+  onEdit: (transaction: Transaction) => void;
 }) => {
   const { formatAmount } = useCurrency();
   const isIncome = transaction.type === 'income';
@@ -52,7 +55,7 @@ const TransactionItem = ({
   };
 
   return (
-    <TouchableOpacity onLongPress={handleLongPress}>
+    <TouchableOpacity onPress={() => onEdit(transaction)} onLongPress={handleLongPress}>
       <Card style={styles.transactionCard}>
         <View style={styles.transactionRow}>
           <View style={styles.leftGroup}>
@@ -95,14 +98,22 @@ const TransactionsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showSMSImport, setShowSMSImport] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [showTodayOnly, setShowTodayOnly] = useState(false);
 
   useEffect(() => {
     loadTransactions();
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadTransactions();
+    }, [])
+  );
+
   useEffect(() => {
     filterTransactions();
-  }, [searchTerm, transactions]);
+  }, [searchTerm, transactions, showTodayOnly]);
 
   const loadTransactions = async () => {
     try {
@@ -118,20 +129,50 @@ const TransactionsScreen: React.FC = () => {
   };
 
   const filterTransactions = async () => {
-    if (searchTerm.trim() === '') {
-      setFilteredTransactions(transactions);
-    } else {
-      try {
-        const searchResults = await searchTransactions(searchTerm);
-        setFilteredTransactions(searchResults);
-      } catch (error) {
-        console.error('Error searching transactions:', error);
-        setFilteredTransactions(transactions.filter(
+    try {
+      if (searchTerm.trim() === '' && !showTodayOnly) {
+        setFilteredTransactions(transactions);
+      } else {
+        // Use advanced filtering for search and date filtering
+        const filters: any = {};
+        
+        if (searchTerm.trim() !== '') {
+          filters.vendor = searchTerm;
+        }
+        
+        if (showTodayOnly) {
+          const today = new Date();
+          const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+          const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+          filters.dateFrom = startOfDay.toISOString();
+          filters.dateTo = endOfDay.toISOString();
+        }
+        
+        const filtered = await getFilteredTransactions(filters);
+        setFilteredTransactions(filtered);
+      }
+    } catch (error) {
+      console.error('Error filtering transactions:', error);
+      // Fallback to basic filtering
+      let filtered = transactions;
+      
+      if (searchTerm.trim() !== '') {
+        filtered = transactions.filter(
           (t) =>
             t.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
             t.category.toLowerCase().includes(searchTerm.toLowerCase())
-        ));
+        );
       }
+      
+      if (showTodayOnly) {
+        const today = new Date();
+        const todayString = today.toDateString();
+        filtered = filtered.filter(t => 
+          new Date(t.createdAt).toDateString() === todayString
+        );
+      }
+      
+      setFilteredTransactions(filtered);
     }
   };
 
@@ -143,6 +184,16 @@ const TransactionsScreen: React.FC = () => {
       console.error('Error deleting transaction:', error);
       Alert.alert('Error', 'Failed to delete transaction');
     }
+  };
+
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setShowForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingTransaction(null);
   };
 
   return (
@@ -160,6 +211,19 @@ const TransactionsScreen: React.FC = () => {
         />
       </View>
 
+      {/* Today's Date Filter Toggle */}
+      <View style={styles.filterRow}>
+        <TouchableOpacity
+          style={[styles.filterButton, showTodayOnly && styles.filterButtonActive]}
+          onPress={() => setShowTodayOnly(!showTodayOnly)}
+        >
+          <Calendar size={16} color={showTodayOnly ? "#ffffff" : "#9ca3af"} />
+          <Text style={[styles.filterButtonText, showTodayOnly && styles.filterButtonTextActive]}>
+            Today's Transactions
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {loading ? (
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading transactions...</Text>
@@ -172,6 +236,7 @@ const TransactionsScreen: React.FC = () => {
             <TransactionItem 
               transaction={item} 
               onDelete={handleDeleteTransaction}
+              onEdit={handleEditTransaction}
             />
           )}
           contentContainerStyle={{ paddingTop: 8, paddingBottom: 64 }}
@@ -204,8 +269,9 @@ const TransactionsScreen: React.FC = () => {
 
       <TransactionForm
         visible={showForm}
-        onClose={() => setShowForm(false)}
+        onClose={handleCloseForm}
         onSuccess={loadTransactions}
+        transaction={editingTransaction}
       />
 
       <Modal
@@ -420,6 +486,33 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '500',
+  },
+  filterRow: {
+    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  filterButtonActive: {
+    backgroundColor: '#4f46e5',
+    borderColor: '#4f46e5',
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#9ca3af',
+    marginLeft: 8,
+  },
+  filterButtonTextActive: {
+    color: '#ffffff',
   },
 });
 
