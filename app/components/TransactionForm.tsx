@@ -428,6 +428,7 @@ const styles = StyleSheet.create({
     gap: 12,
     borderTopWidth: 1,
     borderTopColor: '#1f2937',
+    marginBottom: 40,
   },
   cancelButton: {
     flex: 1,

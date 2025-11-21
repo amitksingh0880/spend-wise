@@ -112,7 +112,7 @@ const DashboardScreen: React.FC = () => {
       </View>
 
       <View style={styles.cardGrid}>
-        <Card>
+        <Card style={styles.cardItem}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardSubheading}>Total Expenses</Text>
             <TrendingUp color="#ef4444" />
@@ -122,7 +122,7 @@ const DashboardScreen: React.FC = () => {
           </Text>
         </Card>
 
-        <Card>
+        <Card style={styles.cardItem}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardSubheading}>Total Income</Text>
             <PiggyBank color="#22c55e" />
@@ -134,7 +134,7 @@ const DashboardScreen: React.FC = () => {
       </View>
 
       <View style={styles.cardGrid}>
-        <Card>
+          <Card style={styles.cardItem}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardSubheading}>Net Amount</Text>
             <TrendingUp color={summary?.netAmount >= 0 ? "#22c55e" : "#ef4444"} />
@@ -147,7 +147,7 @@ const DashboardScreen: React.FC = () => {
           </Text>
         </Card>
 
-        <Card>
+  <Card style={styles.cardItem}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardSubheading}>Savings Rate</Text>
             <PiggyBank color="#0ea5e9" />
@@ -158,13 +158,16 @@ const DashboardScreen: React.FC = () => {
         </Card>
       </View>
 
-      {chartData.datasets[0].data.some(val => val > 0) && (
+  {chartData.datasets[0].data.some((val: number) => val > 0) && (
         <Card>
           <Text style={styles.sectionHeading}>Monthly Spending Trend</Text>
+          <View style={styles.chartWrapper}>
           <BarChart
             data={chartData}
-            width={screenWidth - 48}
+            width={Math.min(screenWidth - 48, 920)}
             height={220}
+            yAxisLabel=""
+            yAxisSuffix=""
             chartConfig={{
               backgroundColor: '#000',
               backgroundGradientFrom: '#1f2937',
@@ -179,6 +182,7 @@ const DashboardScreen: React.FC = () => {
             }}
             style={{ marginVertical: 8, borderRadius: 8 }}
           />
+          </View>
         </Card>
       )}
 
@@ -255,7 +259,6 @@ const styles = StyleSheet.create({
   },
   cardGrid: {
     flexDirection: 'row',
-    gap: 16,
     marginBottom: 24,
     flexWrap: 'wrap',
     justifyContent: 'space-between',
@@ -289,7 +292,7 @@ const styles = StyleSheet.create({
   transactionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    // gap removed - use margin on icon wrapper
   },
   iconWrapper: {
     width: 36,
@@ -297,6 +300,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 12,
   },
   incomeIcon: {
     backgroundColor: '#dcfce7',
@@ -337,7 +341,7 @@ const styles = StyleSheet.create({
   },
   insightItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
@@ -345,9 +349,10 @@ const styles = StyleSheet.create({
   },
   insightIndicator: {
     width: 4,
-    height: 40,
+    height: 24,
     borderRadius: 2,
     marginRight: 12,
+    alignSelf: 'center',
   },
   insightContent: {
     flex: 1,
@@ -376,6 +381,14 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: '#6b7280',
+  },
+  cardItem: {
+    width: '48%',
+    marginBottom: 12,
+  },
+  chartWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
