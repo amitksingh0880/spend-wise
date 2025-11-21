@@ -92,7 +92,7 @@ Automatic categorization based on vendor/message content:
    - Via Settings → "Import from SMS"
    - Via Transaction screen → SMS import button (message icon)
 3. **Import Process**: 
-   - Select time range (default: last 30 days)
+   - Select time range (default: today)
    - App automatically processes SMS messages
    - Review and confirm extracted transactions
 4. **Review Results**: Check confidence scores and edit if needed
