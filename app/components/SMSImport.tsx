@@ -4,7 +4,9 @@ import {
   checkSMSPermission,
   importExpensesFromSMS,
   requestSMSPermission,
+  parseTransactionSMS,
 } from '@/app/services/smsService';
+import { saveTransaction } from '@/app/services/transactionService';
 import Card from '@/components/ui/card';
 import { AlertCircle, CheckCircle, Download, Info, MessageCircle } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
@@ -142,13 +144,14 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
         },
       });
 
-      setLastResult(result);
+  setLastResult(result);
 
       if (result.success && result.expenses.length > 0) {
+        const suspiciousCount = result.suspicious?.length || 0;
         const errorsText = (result.errors && result.errors.length > 0) ? `\n\nDebug:\n${result.errors.join('\n')}` : '';
         Alert.alert(
           'Import Successful',
-          `Imported ${result.expenses.length} expenses.${errorsText}`,
+          `Imported ${result.expenses.length} expenses.${suspiciousCount > 0 ? `\n\nSuspicious held: ${suspiciousCount}` : ''}${errorsText}`,
           [{ text: 'OK' }]
         );
       } else if (result.success && result.expenses.length === 0) {
@@ -162,7 +165,7 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
         Alert.alert('Import Failed', result.errors.join('\n') || 'Unknown error', [{ text: 'OK' }]);
       }
 
-      onImportComplete?.(result, options);
+  onImportComplete?.(result, options);
     } catch (error) {
       console.error('importExpensesFromSMS error', error);
       // Friendly guidance if native module missing (common in Expo Go)
@@ -174,6 +177,69 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSaveSuspicious = async (expense: ExtractedExpense) => {
+    try {
+      setIsLoading(true);
+      const tx = await saveTransaction({
+        amount: expense.amount,
+        type: expense.type,
+        vendor: expense.vendor ?? 'Unknown',
+        category: expense.category ?? 'other',
+        description: `(Suspicious SMS) ${expense.description}`,
+        tags: ['sms-import', 'suspicious', `confidence:${Math.round((expense.confidence ?? 0) * 100)}%`],
+        smsData: {
+          rawMessage: expense.rawMessage,
+          sender: expense.sender || 'Unknown',
+          timestamp: expense.timestamp || Date.now(),
+        },
+      });
+
+      Alert.alert('Saved', `Saved suspicious transaction: ${tx.id}`);
+      // Remove saved expense from local list
+      setLastResult((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          suspicious: (prev.suspicious || []).filter((e) => e !== expense),
+        } as SMSParsingResult;
+      });
+    } catch (err: any) {
+      console.error('saveSuspicious error', err);
+      Alert.alert('Error', `Failed to save suspicious transaction: ${err?.message ?? err}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleIgnoreSuspicious = (expense: ExtractedExpense) => {
+    // Remove the item from the suspicious list only
+    setLastResult((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        suspicious: (prev.suspicious || []).filter((e) => e !== expense),
+      } as SMSParsingResult;
+    });
+  };
+
+  const handleRegenerateSuspicious = (expense: ExtractedExpense) => {
+    const sms = { id: `regen-${Date.now()}`, address: expense.sender, body: expense.rawMessage, date: expense.timestamp, type: 1 };
+    const parsed = parseTransactionSMS(sms as any);
+    if (!parsed) {
+      Alert.alert('No change', 'Re-parse did not extract a transaction or improved confidence.');
+      return;
+    }
+    // Replace in suspicious list
+    setLastResult((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        suspicious: (prev.suspicious || []).map((e) => (e === expense ? parsed : e)),
+      } as SMSParsingResult;
+    });
+    Alert.alert('Reparsed', `Re-parse found amount ₹${parsed.amount.toFixed(2)} (confidence ${(parsed.confidence ?? 0) * 100}%)`);
   };
 
   // ---------- Simple Calendar Modal Implementation ----------
@@ -521,6 +587,12 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
               <Text style={styles.statNumber}>{lastResult.errors.length}</Text>
               <Text style={styles.statLabel}>Errors</Text>
             </View>
+            {lastResult.suspicious && lastResult.suspicious.length > 0 && (
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{lastResult.suspicious.length}</Text>
+                <Text style={styles.statLabel}>Suspicious</Text>
+              </View>
+            )}
           </View>
 
           {lastResult.expenses.length > 0 && (
@@ -532,6 +604,43 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
                 </React.Fragment>
               ))}
               {lastResult.expenses.length > 5 && <Text style={styles.moreExpenses}>+{lastResult.expenses.length - 5} more expenses imported</Text>}
+            </View>
+          )}
+
+          {lastResult.suspicious && lastResult.suspicious.length > 0 && (
+            <View style={styles.suspiciousList}>
+              <Text style={styles.suspiciousTitle}>Suspicious Transactions (Amount &gt; 1,00,000)</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 8 }}>
+                <TouchableOpacity style={[styles.suspiciousSave, { marginRight: 8 }]} onPress={async () => {
+                  // Save all suspicious
+                  const items = lastResult.suspicious || [];
+                  for (const e of items) await handleSaveSuspicious(e);
+                }}>
+                  <Text style={{ color: '#fff' }}>Save All</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.suspiciousIgnore, { marginRight: 8 }]} onPress={() => { setLastResult((prev) => prev ? ({ ...prev, suspicious: [] }) : prev ); }}>
+                  <Text style={{ color: '#111' }}>Ignore All</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.suspiciousIgnore} onPress={async () => {
+                  // Regenerate all suspicious
+                  const items = lastResult.suspicious || [];
+                  for (const e of items) {
+                    handleRegenerateSuspicious(e);
+                  }
+                }}>
+                  <Text style={{ color: '#111' }}>Regenerate All</Text>
+                </TouchableOpacity>
+              </View>
+              {lastResult.suspicious.map((expense, idx) => (
+                <View key={`susp-${idx}`} style={styles.suspiciousItem}>
+                  <Text style={styles.suspiciousText}>{expense.vendor || 'Unknown'} — ₹{expense.amount.toFixed(2)}</Text>
+                  <View style={styles.suspiciousActions}>
+                    <TouchableOpacity style={styles.suspiciousSave} onPress={() => handleSaveSuspicious(expense)}><Text style={{color: '#fff'}}>Save</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.suspiciousIgnore} onPress={() => handleIgnoreSuspicious(expense)}><Text style={{color: '#111'}}>Ignore</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.suspiciousIgnore, { marginLeft: 8 }]} onPress={() => handleRegenerateSuspicious(expense)}><Text style={{color: '#111'}}>Regenerate</Text></TouchableOpacity>
+                  </View>
+                </View>
+              ))}
             </View>
           )}
 
@@ -936,5 +1045,50 @@ const styles = StyleSheet.create({
   dayTextSelected: {
     color: '#ffffff',
     fontWeight: '700',
+  },
+  suspiciousList: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    backgroundColor: '#fff8f7',
+  },
+  suspiciousTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 8,
+    color: '#b91c1c',
+  },
+  suspiciousItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#fdeceb',
+  },
+  suspiciousText: {
+    color: '#1f2937',
+    fontWeight: '600',
+  },
+  suspiciousActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  suspiciousSave: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  suspiciousIgnore: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginLeft: 8,
   },
 });

@@ -52,6 +52,7 @@ export interface SMSParsingResult {
   totalProcessed: number;
   errors: string[];
   lastSync?: number | null;
+  suspicious?: ExtractedExpense[]; // transactions that look suspicious (high amount)
 }
 
 /* ---------- Native modules (lazy-loaded) ---------- */
@@ -408,11 +409,10 @@ export const processSMSMessages = async (messages: SMSMessage[]): Promise<SMSPar
         result.expenses.push(expense);
       }
     } catch (err: any) {
-      result.errors.push(`Error processing message: ₹{err?.message ?? err}`);
+      result.errors.push(`Error processing message: ${err?.message ?? err}`);
     }
   }
-
-  result.errors.push(`Debug: Found ₹{bankSMSCount} bank SMS, ₹{transactionSMSCount} transaction SMS, extracted ₹{result.expenses.length} expenses`);
+  result.errors.push(`Debug: Found ${bankSMSCount} bank SMS, ${transactionSMSCount} transaction SMS, extracted ${result.expenses.length} expenses`);
   return result;
 };
 
@@ -426,6 +426,7 @@ export const importExpensesFromSMS = async (options: {
   onlyToday?: boolean;
   autoSave?: boolean;
   filter?: (expense: ExtractedExpense) => boolean;
+  suspiciousThreshold?: number;
 } = {}): Promise<SMSParsingResult> => {
   try {
     if (Platform.OS !== 'android') {
@@ -554,25 +555,31 @@ export const importExpensesFromSMS = async (options: {
     }
 
     if (options.autoSave !== false) {
-      for (const expense of result.expenses) {
-        try {
+  const SUSPICIOUS_THRESHOLD = options.suspiciousThreshold ?? 100000; // 1 lakh
+      // Split expenses into suspicious and saving candidate lists
+      result.suspicious = (result.expenses || []).filter(e => e.amount > SUSPICIOUS_THRESHOLD);
+      const toSave = (result.expenses || []).filter(e => e.amount <= SUSPICIOUS_THRESHOLD);
+  for (const expense of toSave) {
+          try {
           await saveTransaction({
             amount: expense.amount,
             type: expense.type,
             vendor: expense.vendor ?? 'Unknown',
             category: expense.category ?? 'other',
-            description: `SMS Import: ₹{expense.description}`,
-            tags: ['sms-import', `confidence:₹{Math.round((expense.confidence ?? 0) * 100)}%`],
+            description: `SMS Import: ${expense.description}`,
+            tags: ['sms-import', `confidence:${Math.round((expense.confidence ?? 0) * 100)}%`],
             smsData: {
               rawMessage: expense.rawMessage,
               sender: expense.sender || 'Unknown',
               timestamp: expense.timestamp || Date.now(),
             },
           });
-        } catch (err: any) {
-          result.errors.push(`Failed to save transaction: ₹{err?.message ?? err}`);
+            } catch (err: any) {
+              result.errors.push(`Failed to save transaction: ${err?.message ?? err}`);
         }
-      }
+  }
+  // Update result.expenses to only those actually saved (exclude suspicious)
+  result.expenses = toSave;
     }
 
     return result;
