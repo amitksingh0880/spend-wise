@@ -11,6 +11,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -173,6 +174,130 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
     }
   };
 
+  // ---------- Simple Calendar Modal Implementation ----------
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [calendarMode, setCalendarMode] = useState<'start' | 'end'>('start');
+  const [calendarMonth, setCalendarMonth] = useState<number>(() => new Date().getMonth());
+  const [calendarYear, setCalendarYear] = useState<number>(() => new Date().getFullYear());
+
+  const openCalendarFor = (mode: 'start' | 'end') => {
+    setCalendarMode(mode);
+    // If a date is already set, open to that month
+    const dateStr = mode === 'start' ? filterStart : filterEnd;
+    const d = dateStr ? new Date(dateStr) : new Date();
+    if (!isNaN(d.getTime())) {
+      setCalendarMonth(d.getMonth());
+      setCalendarYear(d.getFullYear());
+    }
+    setCalendarVisible(true);
+  };
+
+  const closeCalendar = () => setCalendarVisible(false);
+
+  const formatToYMD = (d: Date) => {
+    const yy = d.getFullYear();
+    const mm = `${d.getMonth() + 1}`.padStart(2, '0');
+    const dd = `${d.getDate()}`.padStart(2, '0');
+    return `${yy}-${mm}-${dd}`;
+  };
+
+  const handlePickDate = (d: Date) => {
+    const v = formatToYMD(d);
+    if (calendarMode === 'start') {
+      setFilterStart(v);
+      // If end is earlier than start, clear end
+      if (filterEnd && new Date(filterEnd) < new Date(v)) setFilterEnd('');
+    } else {
+      setFilterEnd(v);
+      // If start is later than end, clear start
+      if (filterStart && new Date(filterStart) > new Date(v)) setFilterStart('');
+    }
+    setCalendarVisible(false);
+  };
+
+  const getMonthDays = (year: number, month: number) => {
+    // returns array of date objects for the month grid starting on Sunday
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const prevDaysCount = firstDay.getDay(); // sunday=0
+    const days: Date[] = [];
+    // previous month's tail
+    for (let i = prevDaysCount - 1; i >= 0; i--) {
+      days.push(new Date(year, month, -i));
+    }
+    // current month
+    for (let d = 1; d <= lastDay.getDate(); d++) days.push(new Date(year, month, d));
+    // next month days to fill to 7*n
+    while (days.length % 7 !== 0) {
+      const nextIndex = days.length - prevDaysCount + 1;
+      days.push(new Date(year, month + 1, nextIndex));
+    }
+    return days;
+  };
+
+  const renderCalendar = () => {
+    const days = getMonthDays(calendarYear, calendarMonth);
+    const monthName = new Date(calendarYear, calendarMonth, 1).toLocaleString(undefined, { month: 'long' });
+    const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+    const selectedStart = filterStart ? new Date(filterStart) : null;
+    const selectedEnd = filterEnd ? new Date(filterEnd) : null;
+
+    const isSameDay = (a?: Date | null, b?: Date | null) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+    return (
+      <View style={styles.calendarContainer}>
+        <View style={styles.calendarHeaderRow}>
+          <TouchableOpacity
+            onPress={() => {
+              // prev month
+              const newMonth = calendarMonth === 0 ? 11 : calendarMonth - 1;
+              const newYear = calendarMonth === 0 ? calendarYear - 1 : calendarYear;
+              setCalendarMonth(newMonth);
+              setCalendarYear(newYear);
+            }}
+          >
+            <Text style={styles.calendarNav}>{'<'}</Text>
+          </TouchableOpacity>
+          <Text style={styles.calendarTitle}>{monthName} {calendarYear}</Text>
+          <TouchableOpacity
+            onPress={() => {
+              const newMonth = calendarMonth === 11 ? 0 : calendarMonth + 1;
+              const newYear = calendarMonth === 11 ? calendarYear + 1 : calendarYear;
+              setCalendarMonth(newMonth);
+              setCalendarYear(newYear);
+            }}
+          >
+            <Text style={styles.calendarNav}>{'>'}</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.weekRow}>
+          {weekDays.map((wd) => (
+            <Text key={wd} style={styles.weekDayText}>{wd}</Text>
+          ))}
+        </View>
+        <View style={styles.daysGrid}>
+          {days.map((d, idx) => {
+            const isOtherMonth = d.getMonth() !== calendarMonth;
+            const selected = calendarMode === 'start' ? isSameDay(d, selectedStart) : isSameDay(d, selectedEnd);
+            return (
+              <TouchableOpacity
+                key={`d-${idx}`}
+                onPress={() => handlePickDate(d)}
+                style={[
+                  styles.dayCell,
+                  isOtherMonth ? styles.dayCellFaded : {},
+                  selected ? styles.dayCellSelected : {},
+                ]}
+              >
+                <Text style={[styles.dayText, isOtherMonth ? styles.dayTextFaded : {}, selected ? styles.dayTextSelected : {}]}>{d.getDate()}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
   const renderExpenseItem = (expense: ExtractedExpense, index: number) => (
     <View style={styles.expenseItem}>
       <View style={styles.expenseHeader}>
@@ -227,6 +352,27 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
             <MessageCircle size={24} color="#3b82f6" />
             <Text style={styles.title}>Import from SMS</Text>
           </View>
+          {/* Calendar Modal */}
+          <Modal
+            visible={calendarVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={closeCalendar}
+          >
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalContent}>
+                {renderCalendar()}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+                  <TouchableOpacity onPress={() => { if (calendarMode === 'start') { setFilterStart(''); } else { setFilterEnd(''); } setCalendarVisible(false); }} style={styles.clearButton}>
+                    <Text style={styles.clearButtonText}>Clear</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={closeCalendar} style={styles.modalCloseButton}>
+                    <Text style={styles.modalCloseButtonText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
           <Text style={styles.description}>
             Automatically extract expense information from your bank SMS alerts and transaction notifications.
           </Text>
@@ -246,7 +392,7 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
               <Text style={{ marginRight: 8 }}>Days:</Text>
               <TextInput
                 value={String(customDays)}
-                onChangeText={(v) => setCustomDays(Math.max(1, parseInt(v || '1', 10) || 1))}
+                onChangeText={(v: string) => setCustomDays(Math.max(1, parseInt(v || '1', 10) || 1))}
                 style={styles.customDaysInput}
                 keyboardType="numeric"
               />
@@ -273,21 +419,21 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
           {/* Filter Controls */}
           <View style={styles.filterContainer}>
             <Text style={{ fontWeight: '600', marginBottom: 8 }}>Filter Transactions</Text>
-            <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-              <TextInput
-                style={[styles.dateInput, { marginRight: 8 }]}
-                placeholder="Start (YYYY-MM-DD)"
-                keyboardType="default"
-                value={filterStart}
-                onChangeText={setFilterStart}
-              />
-              <TextInput
-                style={styles.dateInput}
-                placeholder="End (YYYY-MM-DD)"
-                keyboardType="default"
-                value={filterEnd}
-                onChangeText={setFilterEnd}
-              />
+            <View style={{ flexDirection: 'row', marginBottom: 8, alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => openCalendarFor('start')}
+                style={[styles.dateButton, { marginRight: 8 }]}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.dateButtonText}>{filterStart || 'Start (YYYY-MM-DD)'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => openCalendarFor('end')}
+                style={styles.dateButton}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.dateButtonText}>{filterEnd || 'End (YYYY-MM-DD)'}</Text>
+              </TouchableOpacity>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={{ marginRight: 8 }}>Type:</Text>
@@ -679,5 +825,114 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     padding: 8,
     flex: 1,
+  },
+  dateButton: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 140,
+    alignItems: 'center',
+    backgroundColor: '#ffffff'
+  },
+  dateButtonText: {
+    color: '#374151',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    width: '100%',
+    maxWidth: 420,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  clearButton: {
+    backgroundColor: '#fde68a',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  clearButtonText: {
+    color: '#92400e',
+    fontWeight: '600',
+  },
+  modalCloseButton: {
+    backgroundColor: '#3b82f6',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  modalCloseButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  calendarContainer: {
+    backgroundColor: 'transparent',
+  },
+  calendarHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  calendarNav: {
+    fontSize: 18,
+    color: '#374151',
+    padding: 8,
+  },
+  calendarTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  weekRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  weekDayText: {
+    flex: 1,
+    textAlign: 'center',
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  dayCell: {
+    width: '14.2857%',
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayCellFaded: {
+    opacity: 0.35,
+  },
+  dayCellSelected: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 24,
+    padding: 6,
+  },
+  dayText: {
+    color: '#111827',
+  },
+  dayTextFaded: {
+    color: '#9ca3af',
+  },
+  dayTextSelected: {
+    color: '#ffffff',
+    fontWeight: '700',
   },
 });
