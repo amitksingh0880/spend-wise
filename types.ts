@@ -19,6 +19,11 @@ export interface Transaction {
     description?: string;
     tags?: string[];
     createdAt?: string;
+    smsData?: {
+        rawMessage: string;
+        sender: string;
+        timestamp: number;
+    };
 }
 
 export interface BudgetCategory {
