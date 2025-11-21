@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Dimensions, Easing, StyleSheet, Text, UIManager, View } from 'react-native';
+import { AccessibilityInfo, Animated, Dimensions, Easing, StyleSheet, UIManager, View } from 'react-native';
 
 interface StartupSplashProps {
   visible?: boolean;
@@ -122,7 +122,7 @@ export default function StartupSplash({ visible = true, onFinish }: StartupSplas
   const translateX = shimmerTranslate.interpolate({ inputRange: [-1, 1], outputRange: [-shimmerWidth, width + shimmerWidth] });
 
   return (
-    <Animated.View style={[styles.root, { opacity }]}> 
+    <Animated.View pointerEvents="auto" style={[styles.root, { opacity }]}> 
       {gradientAvailable ? (
         <LinearGradient colors={["#061a3f", "#0b3954", "#025f63"]} style={StyleSheet.absoluteFill} />
       ) : (
@@ -133,7 +133,7 @@ export default function StartupSplash({ visible = true, onFinish }: StartupSplas
         <Animated.Image source={require('@/assets/images/splash-icon.png')} style={[styles.logo, { transform: [{ rotate: rotateInterpolate }] }]} />
         <Animated.Text style={[styles.title, { transform: [{ translateY: titleY }] }]}>SpendWise</Animated.Text>
         <Animated.Text style={[styles.subtitle, { opacity: subtitleOpacity }]}>built by sher</Animated.Text>
-        <Animated.View style={[styles.accentBar, { width: logoPulse.interpolate({ inputRange: [0.96, 1.06], outputRange: [36, 78] }) }]} />
+  <Animated.View style={[styles.accentBar, { transform: [{ scaleX: logoPulse.interpolate({ inputRange: [0.96, 1.06], outputRange: [0.6, 1.25] }) }] }]} />
       </Animated.View>
 
       {/* Shimmer Overlay - diagonal animated gradient */}
@@ -172,7 +172,8 @@ const styles = StyleSheet.create({
     width,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 9999,
+  zIndex: 9999,
+  elevation: 9999,
     backgroundColor: '#0f172a',
   },
   card: {
@@ -219,6 +220,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#60a5fa',
     marginTop: 12,
+    width: 60,
   },
   shimmerContainer: {
     position: 'absolute',

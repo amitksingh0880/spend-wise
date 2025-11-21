@@ -145,15 +145,17 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
       setLastResult(result);
 
       if (result.success && result.expenses.length > 0) {
+        const errorsText = (result.errors && result.errors.length > 0) ? `\n\nDebug:\n${result.errors.join('\n')}` : '';
         Alert.alert(
           'Import Successful',
-          `Imported ₹{result.expenses.length} expenses.\n\nDebug:\n₹{result.errors.join('\n')}`,
+          `Imported ${result.expenses.length} expenses.${errorsText}`,
           [{ text: 'OK' }]
         );
       } else if (result.success && result.expenses.length === 0) {
+        const errorsText = (result.errors && result.errors.length > 0) ? `\n\nDebug:\n${result.errors.join('\n')}` : '';
         Alert.alert(
           'No Expenses Found',
-          `No transaction-related SMS messages were found for today.\n\nDebug:\n${result.errors.join('\n')}`,
+          `No transaction-related SMS messages were found for today.${errorsText}`,
           [{ text: 'OK' }]
         );
       } else {
