@@ -38,13 +38,14 @@
 //       setHasPermission(false);
 //       return;
 //     }
-    
+
 //     try {
 //       const granted = await checkSMSPermission();
 //       setHasPermission(granted);
 //     } catch (error) {
 //       console.error('Error checking SMS permission:', error);
 //       setHasPermission(false);
+
 //     }
 //   };
 
@@ -52,7 +53,7 @@
 //     try {
 //       const granted = await requestSMSPermission();
 //       setHasPermission(granted);
-      
+
 //       if (!granted) {
 //         Alert.alert(
 //           'Permission Required',
@@ -68,6 +69,7 @@
 //   const handleImportSMS = async () => {
 //     if (!hasPermission) {
 //       Alert.alert(
+import { TextInput } from 'react-native';
 //         'Permission Required',
 //         'Please grant SMS permission first to import expenses.',
 //         [
@@ -77,9 +79,13 @@
 //       );
 //       return;
 //     }
+// Filter state
+const [minAmount, setMinAmount] = useState('');
+const [maxAmount, setMaxAmount] = useState('');
+const [txnType, setTxnType] = useState<'all' | 'expense' | 'income'>('all');
 
 //     setIsLoading(true);
-    
+
 //     try {
 //       const result = await importExpensesFromSMS({
 //         maxCount: 200, // Increased to get more messages
@@ -88,7 +94,7 @@
 //       });
 
 //       setLastResult(result);
-      
+
 //       if (result.success && result.expenses.length > 0) {
 //         Alert.alert(
 //           'Import Successful',
@@ -165,7 +171,7 @@
 //           <MessageCircle size={24} color="#3b82f6" />
 //           <Text style={styles.title}>Import from SMS</Text>
 //         </View>
-        
+
 //         <Text style={styles.description}>
 //           Automatically extract expense information from your bank SMS alerts and transaction notifications.
 //         </Text>
@@ -182,7 +188,7 @@
 //               {hasPermission ? 'SMS Permission Granted' : 'SMS Permission Required'}
 //             </Text>
 //           </View>
-          
+
 //           {!hasPermission && (
 //             <TouchableOpacity
 //               style={styles.permissionButton}
@@ -213,7 +219,7 @@
 //         {lastResult && (
 //           <View style={styles.results}>
 //             <Text style={styles.resultsTitle}>Last Import Results</Text>
-            
+
 //             <View style={styles.resultStats}>
 //               <View style={styles.statItem}>
 //                 <Text style={styles.statNumber}>{lastResult.expenses.length}</Text>
@@ -470,17 +476,21 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 interface SMSImportProps {
-  onImportComplete?: (result: SMSParsingResult) => void;
+  onImportComplete?: (result: SMSParsingResult, options?: { minDate?: number; maxDate?: number; daysBack?: number; onlyToday?: boolean }) => void;
 }
 
 export default function SMSImport({ onImportComplete }: SMSImportProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [lastResult, setLastResult] = useState<SMSParsingResult | null>(null);
+  const [rangeOption, setRangeOption] = useState<'today' | '7' | '30' | 'customDays' | 'customRange'>('today');
+  const [customDays, setCustomDays] = useState<number>(7);
+  const [customStart, setCustomStart] = useState<string>(''); // 'YYYY-MM-DD'
+  const [customEnd, setCustomEnd] = useState<string>('');
 
   useEffect(() => {
     checkPermissionStatus();
@@ -501,6 +511,15 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
       setHasPermission(false);
     }
   };
+
+  const renderRangeOptionButton = (value: typeof rangeOption, label: string) => (
+    <TouchableOpacity
+      style={[styles.rangeButton, rangeOption === value ? styles.rangeButtonSelected : {}]}
+      onPress={() => setRangeOption(value)}
+    >
+      <Text style={[styles.rangeButtonText, rangeOption === value ? styles.rangeButtonTextSelected : {}]}>{label}</Text>
+    </TouchableOpacity>
+  );
 
   const handleRequestPermission = async () => {
     try {
@@ -541,11 +560,24 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
     setIsLoading(true);
 
     try {
-      const result = await importExpensesFromSMS({
-        maxCount: 200,
-        daysBack: 30,
-        autoSave: true,
-      });
+      const options: any = { maxCount: 200, autoSave: true };
+      if (rangeOption === 'today') {
+        options.onlyToday = true;
+      } else if (rangeOption === '7') {
+        options.daysBack = 7;
+      } else if (rangeOption === '30') {
+        options.daysBack = 30;
+      } else if (rangeOption === 'customDays') {
+        options.daysBack = Math.max(1, Math.floor(customDays) || 1);
+      } else if (rangeOption === 'customRange') {
+        // parse start/end
+        const start = customStart ? new Date(customStart) : null;
+        const end = customEnd ? new Date(customEnd) : null;
+        if (start && !isNaN(start.getTime())) options.minDate = start.getTime();
+        if (end && !isNaN(end.getTime())) options.maxDate = end.getTime() + (24 * 60 * 60 * 1000) - 1;
+      }
+
+      const result = await importExpensesFromSMS(options);
 
       setLastResult(result);
 
@@ -558,14 +590,14 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
       } else if (result.success && result.expenses.length === 0) {
         Alert.alert(
           'No Expenses Found',
-          `No transaction-related SMS messages were found in the last 30 days.\n\nDebug:\n₹{result.errors.join('\n')}`,
+          `No transaction-related SMS messages were found for today.\n\nDebug:\n${result.errors.join('\n')}`,
           [{ text: 'OK' }]
         );
       } else {
         Alert.alert('Import Failed', result.errors.join('\n') || 'Unknown error', [{ text: 'OK' }]);
       }
 
-      onImportComplete?.(result);
+      onImportComplete?.(result, options);
     } catch (error) {
       console.error('importExpensesFromSMS error', error);
       // Friendly guidance if native module missing (common in Expo Go)
@@ -580,7 +612,7 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   };
 
   const renderExpenseItem = (expense: ExtractedExpense, index: number) => (
-    <View key={index} style={styles.expenseItem}>
+    <View style={styles.expenseItem}>
       <View style={styles.expenseHeader}>
         <Text style={styles.expenseAmount}>
           {expense.type === 'income' ? '+' : '-'}${expense.amount.toFixed(2)}
@@ -629,96 +661,179 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
       <Card style={styles.card}>
-        <View style={styles.header}>
-          <MessageCircle size={24} color="#3b82f6" />
-          <Text style={styles.title}>Import from SMS</Text>
-        </View>
-
-        <Text style={styles.description}>
-          Automatically extract expense information from your bank SMS alerts and transaction notifications.
-        </Text>
-
-        {/* Permission Status */}
-        <View style={styles.permissionStatus}>
-          <View style={styles.statusRow}>
-            {permissionIcon}
-            <Text style={[styles.statusText, { color: hasPermission ? '#10b981' : '#ef4444' }]}>{permissionText}</Text>
+          <View style={styles.header}>
+            <MessageCircle size={24} color="#3b82f6" />
+            <Text style={styles.title}>Import from SMS</Text>
           </View>
+          <Text style={styles.description}>
+            Automatically extract expense information from your bank SMS alerts and transaction notifications.
+          </Text>
 
-          {!hasPermission && (
-            <TouchableOpacity
-              accessible
-              accessibilityLabel="Grant SMS permission"
-              style={styles.permissionButton}
-              onPress={handleRequestPermission}
-              disabled={isLoading}
-            >
-              <Text style={styles.permissionButtonText}>Grant Permission</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Import Button */}
-        <TouchableOpacity
-          accessible
-          accessibilityLabel="Import SMS transactions"
-          style={[
-            styles.importButton,
-            { opacity: hasPermission ? 1 : 0.5, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-          ]}
-          onPress={handleImportSMS}
-          disabled={!hasPermission || isLoading || hasPermission === null}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <>
-              <Download size={20} color="#ffffff" />
-              <Text style={styles.importButtonText}>Import Last 30 Days</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        {/* Results */}
-        {lastResult && (
-          <View style={styles.results}>
-            <Text style={styles.resultsTitle}>Last Import Results</Text>
-
-            <View style={styles.resultStats}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{lastResult.expenses.length}</Text>
-                <Text style={styles.statLabel}>Expenses Found</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{lastResult.totalProcessed}</Text>
-                <Text style={styles.statLabel}>Messages Processed</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{lastResult.errors.length}</Text>
-                <Text style={styles.statLabel}>Errors</Text>
-              </View>
+          {/* Filter Controls */}
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontWeight: '600', marginBottom: 8 }}>Filter Transactions</Text>
+            <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+              <TextInput
+                style={{ flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 6, padding: 8, marginRight: 8 }}
+                placeholder="Min Amount"
+                keyboardType="numeric"
+                value={minAmount}
+                onChangeText={setMinAmount}
+              />
+              <TextInput
+                style={{ flex: 1, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 6, padding: 8 }}
+                placeholder="Max Amount"
+                keyboardType="numeric"
+                value={maxAmount}
+                onChangeText={setMaxAmount}
+              />
             </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ marginRight: 8 }}>Type:</Text>
+              <TouchableOpacity
+                style={{ padding: 6, backgroundColor: txnType === 'all' ? '#10b981' : '#e5e7eb', borderRadius: 6, marginRight: 4 }}
+                onPress={() => setTxnType('all')}
+              >
+                <Text style={{ color: txnType === 'all' ? '#fff' : '#111' }}>All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ padding: 6, backgroundColor: txnType === 'expense' ? '#10b981' : '#e5e7eb', borderRadius: 6, marginRight: 4 }}
+                onPress={() => setTxnType('expense')}
+              >
+                <Text style={{ color: txnType === 'expense' ? '#fff' : '#111' }}>Expense</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ padding: 6, backgroundColor: txnType === 'income' ? '#10b981' : '#e5e7eb', borderRadius: 6 }}
+                onPress={() => setTxnType('income')}
+              >
+                <Text style={{ color: txnType === 'income' ? '#fff' : '#111' }}>Income</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
-            {lastResult.expenses.length > 0 && (
-              <View style={styles.expensesList}>
-                <Text style={styles.expensesTitle}>Imported Expenses:</Text>
-                {lastResult.expenses.slice(0, 5).map(renderExpenseItem)}
-                {lastResult.expenses.length > 5 && <Text style={styles.moreExpenses}>+{lastResult.expenses.length - 5} more expenses imported</Text>}
-              </View>
-            )}
-
-            {lastResult.errors.length > 0 && (
-              <View style={styles.errorsList}>
-                <Text style={styles.errorsTitle}>Errors:</Text>
-                {lastResult.errors.map((error, index) => (
-                  <Text key={index} style={styles.errorText}>
-                    • {error}
-                  </Text>
-                ))}
-              </View>
+          {/* Permission Status */}
+          <View style={styles.permissionStatus}>
+            <View style={styles.statusRow}>
+              {hasPermission ? (
+                <CheckCircle size={20} color="#10b981" />
+              ) : (
+                <AlertCircle size={20} color="#ef4444" />
+              )}
+              <Text style={[styles.statusText, { color: hasPermission ? '#10b981' : '#ef4444' }]}>
+                {hasPermission ? 'SMS Permission Granted' : 'SMS Permission Required'}
+              </Text>
+            </View>
+            {!hasPermission && (
+              <TouchableOpacity
+                style={styles.permissionButton}
+                onPress={handleRequestPermission}
+              >
+                <Text style={styles.permissionButtonText}>Grant Permission</Text>
+              </TouchableOpacity>
             )}
           </View>
-        )}
+
+          {/* Import Button */}
+          <TouchableOpacity
+            style={[styles.importButton, { opacity: hasPermission ? 1 : 0.5 }]}
+            onPress={async () => {
+              if (!hasPermission) {
+                Alert.alert(
+                  'Permission Required',
+                  'Please grant SMS permission first to import expenses.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Grant Permission', onPress: handleRequestPermission },
+                  ]
+                );
+                return;
+              }
+              setIsLoading(true);
+              try {
+                const result = await importExpensesFromSMS({
+                  maxCount: 200,
+                  daysBack: 30,
+                  autoSave: true,
+                  filter: (expense) => {
+                    let pass = true;
+                    if (minAmount && !isNaN(Number(minAmount))) pass = pass && expense.amount >= Number(minAmount);
+                    if (maxAmount && !isNaN(Number(maxAmount))) pass = pass && expense.amount <= Number(maxAmount);
+                    if (txnType !== 'all') pass = pass && expense.type === txnType;
+                    return pass;
+                  },
+                });
+                setLastResult(result);
+                onImportComplete?.(result);
+                if (result.success && result.expenses.length > 0) {
+                  Alert.alert('Import Successful', `Successfully imported ${result.expenses.length} expenses from your SMS messages.`, [{ text: 'OK' }]);
+                } else if (result.success && result.expenses.length === 0) {
+                  Alert.alert('No Expenses Found', 'No expense transactions were found in your recent SMS messages. Try checking messages from a longer time period.', [{ text: 'OK' }]);
+                } else {
+                  Alert.alert('Import Failed', 'Failed to import expenses from SMS. Please check your permissions and try again.', [{ text: 'OK' }]);
+                }
+              } catch (error) {
+                console.error('Error importing SMS:', error);
+                Alert.alert('Error', 'Failed to import expenses from SMS');
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+            disabled={!hasPermission || isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <>
+                <Download size={20} color="#ffffff" />
+                <Text style={styles.importButtonText}>Import Last 30 Days</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+      {/* Results */}
+      {lastResult && (
+        <View style={styles.results}>
+          <Text style={styles.resultsTitle}>Last Import Results</Text>
+
+          <View style={styles.resultStats}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{lastResult.expenses.length}</Text>
+              <Text style={styles.statLabel}>Expenses Found</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{lastResult.totalProcessed}</Text>
+              <Text style={styles.statLabel}>Messages Processed</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{lastResult.errors.length}</Text>
+              <Text style={styles.statLabel}>Errors</Text>
+            </View>
+          </View>
+
+          {lastResult.expenses.length > 0 && (
+            <View style={styles.expensesList}>
+              <Text style={styles.expensesTitle}>Imported Expenses:</Text>
+              {lastResult.expenses.slice(0, 5).map((expense, idx) => (
+                <React.Fragment key={`expense-${idx}`}>
+                  {renderExpenseItem(expense, idx)}
+                </React.Fragment>
+              ))}
+              {lastResult.expenses.length > 5 && <Text style={styles.moreExpenses}>+{lastResult.expenses.length - 5} more expenses imported</Text>}
+            </View>
+          )}
+
+          {lastResult.errors.length > 0 && (
+            <View style={styles.errorsList}>
+              <Text style={styles.errorsTitle}>Errors:</Text>
+              {lastResult.errors.map((error, index) => (
+                <React.Fragment key={`err-${index}`}>
+                  <Text style={styles.errorText}>• {error}</Text>
+                </React.Fragment>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
       </Card>
     </ScrollView>
   );
@@ -909,5 +1024,58 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  rangeSelector: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  rangeButton: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  rangeButtonSelected: {
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
+  },
+  rangeButtonText: {
+    color: '#374151',
+    fontSize: 14,
+  },
+  rangeButtonTextSelected: {
+    color: '#ffffff',
+  },
+  customDaysRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  customDaysInput: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    width: 84,
+    textAlign: 'center',
+  },
+  customRangeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  customRangeInput: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 6,
+    width: 140,
   },
 });
