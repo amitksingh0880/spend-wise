@@ -18,6 +18,7 @@ import {
   Upload,
 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
+import { Link } from 'expo-router';
 import {
   Alert,
   Modal,
@@ -266,6 +267,18 @@ const SettingsScreen: React.FC = () => {
           subtitle="Delete all transactions and budgets"
           onPress={handleClearAllData}
           color="#ef4444"
+        />
+        <SettingItem
+          icon={Settings}
+          title="Review Suspicious Transactions"
+          subtitle="View transactions tagged as suspicious"
+          onPress={undefined}
+          color="#ef4444"
+          rightElement={
+            <Link href="/suspicious">
+              <Text style={{ color: '#fff', backgroundColor: '#4f46e5', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 }}>Open</Text>
+            </Link>
+          }
         />
       </Card>
 
