@@ -3,11 +3,12 @@ import {
   SMSParsingResult,
   checkSMSPermission,
   importExpensesFromSMS,
-  requestSMSPermission,
   parseTransactionSMS,
+  requestSMSPermission,
 } from '@/app/services/smsService';
 import { saveTransaction } from '@/app/services/transactionService';
 import Card from '@/components/ui/card';
+import { Link } from 'expo-router';
 import { AlertCircle, CheckCircle, Download, Info, MessageCircle } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
@@ -609,7 +610,12 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
 
           {lastResult.suspicious && lastResult.suspicious.length > 0 && (
             <View style={styles.suspiciousList}>
-              <Text style={styles.suspiciousTitle}>Suspicious Transactions (Amount &gt; 1,00,000)</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.suspiciousTitle}>Suspicious Transactions (Amount &gt; 1,00,000)</Text>
+                <Link href="/suspicious">
+                  <Text style={{ color: '#4f46e5', fontWeight: '700' }}>Open Review</Text>
+                </Link>
+              </View>
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 8 }}>
                 <TouchableOpacity style={[styles.suspiciousSave, { marginRight: 8 }]} onPress={async () => {
                   // Save all suspicious

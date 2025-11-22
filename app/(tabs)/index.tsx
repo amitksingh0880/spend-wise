@@ -1,9 +1,10 @@
 import { useCurrency } from '@/app/contexts/CurrencyContext';
 import { generateFinancialInsights } from '@/app/services/analyticsService';
-import { getRecentTransactions, getTransactionSummary } from '@/app/services/transactionService';
+import { getRecentTransactions, getTransactionSummary, getFilteredTransactions } from '@/app/services/transactionService';
 import Card from '@/components/ui/card';
 import { Transaction } from '@/types';
 import { ArrowDownLeft, ArrowUpRight, PiggyBank, RefreshCw, TrendingUp } from 'lucide-react-native';
+import { Link } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
@@ -40,6 +41,7 @@ const DashboardScreen: React.FC = () => {
   const [summary, setSummary] = useState<any>(null);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [insights, setInsights] = useState<any[]>([]);
+  const [suspiciousCount, setSuspiciousCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -50,15 +52,17 @@ const DashboardScreen: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [summaryData, recentTxs, insightsData] = await Promise.all([
+      const [summaryData, recentTxs, insightsData, suspiciousTxs] = await Promise.all([
         getTransactionSummary(),
         getRecentTransactions(5),
         generateFinancialInsights(),
+        getFilteredTransactions({ tags: ['suspicious'] })
       ]);
       
       setSummary(summaryData);
       setRecentTransactions(recentTxs);
       setInsights(insightsData);
+  setSuspiciousCount((suspiciousTxs || []).length || 0);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -130,6 +134,16 @@ const DashboardScreen: React.FC = () => {
           <Text style={styles.cardValue}>
             {formatAmount(summary?.totalIncome || 0)}
           </Text>
+        </Card>
+
+        <Card style={styles.cardItem}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardSubheading}>Suspicious</Text>
+            <Link href="/suspicious">
+              <Text style={{ color: '#60a5fa' }}>Review</Text>
+            </Link>
+          </View>
+          <Text style={styles.cardValue}>{suspiciousCount}</Text>
         </Card>
       </View>
 
