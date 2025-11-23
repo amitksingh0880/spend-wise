@@ -1,12 +1,10 @@
 // import { testServices } from '@/app/libs/test/servicesTest';
 // import { testUUID } from '@/app/libs/test/uuidTest';
-import AuthLock from '@/app/components/AuthLock';
 import { useCurrency } from '@/app/contexts/CurrencyContext';
 import { useAppTheme } from '@/app/contexts/ThemeContext';
 import { emitter } from '@/app/libs/emitter';
 import { deleteKey } from '@/app/libs/storage';
-import authService from '@/app/services/authService';
-import { getCurrency, getUserPreferences, updateBiometricEnabled, updateCurrency, updateRequireAuthOnStartup } from '@/app/services/preferencesService';
+import { getCurrency, getUserPreferences, updateCurrency } from '@/app/services/preferencesService';
 import { CURRENCIES, Currency } from '@/app/utils/currency';
 import { GhostButton } from '@/components/ui/button';
 import Card from '@/components/ui/card';
@@ -41,10 +39,7 @@ const SettingsScreen: React.FC = () => {
     const [darkMode, setDarkMode] = useState(true);
     const { theme: currentTheme, setTheme } = useAppTheme();
   const [currency, setCurrency] = useState<Currency>('INR');
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
-  const [requireAuth, setRequireAuth] = useState(false);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const { refreshCurrency } = useCurrency();
 
   useEffect(() => {
@@ -52,14 +47,7 @@ const SettingsScreen: React.FC = () => {
     (async () => {
       try {
         const prefs = await getUserPreferences();
-  if (typeof prefs.biometricEnabled === 'boolean') setBiometricEnabled(prefs.biometricEnabled);
-  if (typeof prefs.requireAuthOnStartup === 'boolean') setRequireAuth(prefs.requireAuthOnStartup);
-      try {
-        const secureAvailable = await authService.isSecureStoreAvailable();
-        if (!secureAvailable) {
-          Alert.alert('Note', 'Secure storage is not available in this build. For secure PIN storage and biometric authentication, use a custom dev-client or a native build (expo prebuild / expo run:android)');
-        }
-      } catch (err) { /* ignore */ }
+        // Auth preferences removed
       } catch (err) {
         console.warn('Failed to load preferences', err);
       }
@@ -68,8 +56,7 @@ const SettingsScreen: React.FC = () => {
 
   useEffect(() => {
     const unsub = emitter.addListener('preferences:changed', (prefs: any) => {
-      if (prefs && typeof prefs.biometricEnabled === 'boolean') setBiometricEnabled(prefs.biometricEnabled);
-      if (prefs && typeof prefs.requireAuthOnStartup === 'boolean') setRequireAuth(prefs.requireAuthOnStartup);
+      // Auth preferences removed
     });
     return () => { unsub(); };
   }, []);
@@ -246,89 +233,7 @@ const SettingsScreen: React.FC = () => {
           }
         />
 
-        <SettingItem
-          icon={Settings}
-          title="Use Biometric Authentication"
-          subtitle="Allow fingerprint/face to unlock (requires PIN)"
-          rightElement={
-            <Switch
-              value={biometricEnabled}
-              onValueChange={async (v) => {
-                // require a PIN to enable biometric
-                try {
-                  const supported = await authService.isBiometricAvailable();
-                  const hasPin = await authService.hasPin();
-                  if (!hasPin) {
-                    Alert.alert('Set a PIN first', 'Biometric requires a backup PIN; set a 4-digit PIN in the Security settings.');
-                    return;
-                  }
-                  if (!supported && v) {
-                    Alert.alert('Not available', 'Biometric authentication is not available on this device.');
-                    return;
-                  }
-                  setBiometricEnabled(v);
-                  await updateBiometricEnabled(v);
-                } catch (err) {
-                  console.warn('Failed to toggle biometric', err);
-                }
-              }}
-              trackColor={{ false: '#374151', true: '#4f46e5' }}
-              thumbColor={biometricEnabled ? '#ffffff' : '#9ca3af'}
-            />
-          }
-        />
-        <SettingItem
-          icon={Settings}
-          title="Require Authentication on Startup"
-          subtitle="Require PIN or biometric on app start"
-          rightElement={
-            <Switch
-              value={requireAuth}
-          onValueChange={async (v) => {
-            // require a PIN to enable this
-            const hasPin = await authService.hasPin();
-                if (!hasPin && v) {
-                  Alert.alert('Set a PIN first', 'You must set a 4-digit PIN before enabling startup authentication.');
-                  return;
-                }
-                setRequireAuth(v);
-                await updateRequireAuthOnStartup(v);
-              }}
-              trackColor={{ false: '#374151', true: '#4f46e5' }}
-              thumbColor={requireAuth ? '#ffffff' : '#9ca3af'}
-            />
-          }
-        />
-        <SettingItem
-          icon={Settings}
-          title="Set / Change PIN"
-          subtitle="Configure your 4-digit PIN for app lock"
-          rightElement={
-            <GhostButton onPress={() => setShowAuthModal(true)} style={{ marginLeft: 8 }}>Set PIN</GhostButton>
-          }
-        />
-        <SettingItem
-          icon={Trash2}
-          title="Remove PIN"
-          subtitle="Remove existing PIN and disable authentication"
-          onPress={async () => {
-            const { default: auth } = await import('@/app/services/authService');
-            const has = await auth.hasPin();
-            if (!has) { Alert.alert('No PIN set', 'There is no PIN configured.'); return; }
-            Alert.alert('Remove PIN', 'Are you sure you want to remove your PIN? This will disable app lock.', [
-              { text: 'Cancel', style: 'cancel' },
-                { text: 'Remove', style: 'destructive', onPress: async () => { await auth.removePin(); await updateBiometricEnabled(false); await updateRequireAuthOnStartup(false); setBiometricEnabled(false); setRequireAuth(false); Alert.alert('Removed', 'PIN removed successfully'); } }
-            ]);
-          }}
-        />
-        <SettingItem
-          icon={Settings}
-          title="Lock App Now"
-          subtitle="Immediately lock the app for testing"
-          rightElement={
-            <GhostButton onPress={() => emitter.emit('auth:lock') } style={{ marginLeft: 8 }}>Lock</GhostButton>
-          }
-        />
+        {/* Authentication settings removed */}
 
         <SettingItem
           icon={DollarSign}
@@ -339,7 +244,7 @@ const SettingsScreen: React.FC = () => {
         />
       </Card>
 
-    <AuthLock visible={showAuthModal} onSuccess={() => { setShowAuthModal(false); Alert.alert('Success', 'PIN set'); }} onCancel={() => setShowAuthModal(false)} forceSetup={true} />
+  {/* AuthLock removed */}
 
       {/* Data Management */}
       <Card style={styles.section}>

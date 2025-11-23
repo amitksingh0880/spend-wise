@@ -17,8 +17,6 @@ const DEFAULT_PREFERENCES: UserPreferences = {
     pushNotifications: true,
   },
   defaultCategories: [],
-  biometricEnabled: false,
-  requireAuthOnStartup: false,
 };
 
 export const getUserPreferences = async (): Promise<UserPreferences> => {
@@ -53,13 +51,7 @@ export const updateTheme = async (theme: Theme): Promise<void> => {
 
 // Sidebar preference removed as nav was reverted to bottom tab bar.
 
-export const updateBiometricEnabled = async (enabled: boolean): Promise<void> => {
-  await saveUserPreferences({ biometricEnabled: enabled });
-};
-
-export const updateRequireAuthOnStartup = async (enabled: boolean): Promise<void> => {
-  await saveUserPreferences({ requireAuthOnStartup: enabled });
-};
+// Biometric and startup auth preferences removed
 
 export const getCurrency = async (): Promise<Currency> => {
   const preferences = await getUserPreferences();

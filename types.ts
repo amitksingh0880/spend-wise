@@ -86,6 +86,5 @@ export interface UserPreferences {
     theme: Theme;
     notifications: NotificationSettings;
     defaultCategories: string[];
-    biometricEnabled?: boolean;
-    requireAuthOnStartup?: boolean;
+    // authentication preferences removed
 }

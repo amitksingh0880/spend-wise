@@ -6,12 +6,10 @@ import { AppState } from 'react-native';
 import 'react-native-reanimated';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import AuthLock from '@/app/components/AuthLock';
 import StartupSplash from '@/app/components/StartupSplash';
 import { CurrencyProvider } from '@/app/contexts/CurrencyContext';
 import { ThemeProvider as AppThemeProvider, useAppTheme } from '@/app/contexts/ThemeContext';
-import { emitter } from '@/app/libs/emitter';
-import authService from '@/app/services/authService';
+// Auth code removed
 import { getUserPreferences } from '@/app/services/preferencesService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -24,44 +22,17 @@ export default function RootLayout() {
   const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const hasPin = await authService.hasPin();
-        const prefs = await getUserPreferences();
-        if (hasPin && prefs.requireAuthOnStartup) {
-          if (prefs.biometricEnabled) {
-            const available = await authService.isBiometricAvailable();
-            if (available) {
-              const ok = await authService.authenticateBiometric();
-              if (!ok) setIsLocked(true);
-            } else setIsLocked(true);
-          } else setIsLocked(true);
-        }
-      } catch (err) {
-        console.warn('Auth check failed', err);
-      }
-    })();
+    // Authentication flow removed for now
   }, []);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', async (state) => {
-      if (state === 'background') {
-        try {
-          const prefs = await getUserPreferences();
-          const hasPin = await authService.hasPin();
-          if (hasPin && prefs.requireAuthOnStartup) setIsLocked(true);
-        } catch (err) {
-          // ignore
-        }
-      }
+      // Background auth behavior removed
     });
     return () => subscription.remove();
   }, []);
 
-  useEffect(() => {
-    const unsub = emitter.addListener('auth:lock', () => setIsLocked(true));
-    return () => { unsub(); };
-  }, []);
+  // auth emitter removed
 
   function InnerApp() {
     const colorScheme = useColorScheme();
@@ -92,9 +63,7 @@ export default function RootLayout() {
             <InnerApp />
           </SafeAreaView>
         </SafeAreaProvider>
-        {!showStartup && isLocked && (
-          <AuthLock visible={true} onSuccess={() => setIsLocked(false)} onCancel={() => {}} />
-        )}
+        {/* Auth removed for now */}
       </AppThemeProvider>
     </CurrencyProvider>
   );
