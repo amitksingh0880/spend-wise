@@ -1,4 +1,6 @@
-import React from 'react';
+import ThemeContext from '@/app/contexts/ThemeContext';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import React, { useContext } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 interface CardProps {
@@ -7,7 +9,12 @@ interface CardProps {
 }
 
 const Card: React.FC<CardProps> = ({ children, style }) => {
-  return <View style={[styles.card, style]}>{children}</View>;
+  const ctx = useContext(ThemeContext);
+  const theme = ctx?.theme ?? 'light';
+  const background = useThemeColor({}, 'background');
+  const borderColor = useThemeColor({ light: '#e5e7eb', dark: '#334155' }, 'background');
+  const computedStyle = [styles.card, { backgroundColor: background, borderColor }, style];
+  return <View style={computedStyle}>{children}</View>;
 };
 
 const styles = StyleSheet.create({

@@ -1,11 +1,13 @@
 import BudgetForm from '@/app/components/BudgetForm';
 import { useCurrency } from '@/app/contexts/CurrencyContext';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { emitter } from '@/app/libs/emitter';
 import {
-    checkBudgetAlerts,
-    deleteBudget,
-    getAllBudgets,
-    getBudgetSummary
+  checkBudgetAlerts,
+  deleteBudget,
+  getAllBudgets,
+  getBudgetSummary,
+  createBudget
 } from '@/app/services/budgetService';
 import { IconButton } from '@/components/ui/button';
 import Card from '@/components/ui/card';
@@ -31,6 +33,9 @@ const BudgetCard = ({
   onDelete: (id: string) => void;
 }) => {
   const { formatAmount } = useCurrency();
+  const bg = useThemeColor({}, 'background');
+  const text = useThemeColor({}, 'text');
+  const tint = useThemeColor({}, 'tint');
   const percentage = Math.min((budget.spent / budget.amount) * 100, 100);
   const isOverBudget = budget.spent > budget.amount;
   const remaining = budget.amount - budget.spent;
@@ -104,6 +109,8 @@ const BudgetCard = ({
 
 const BudgetScreen: React.FC = () => {
   const { formatAmount } = useCurrency();
+  const bg = useThemeColor({}, 'background');
+  const text = useThemeColor({}, 'text');
   const [budgets, setBudgets] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
@@ -152,8 +159,32 @@ const BudgetScreen: React.FC = () => {
 
   const handleDeleteBudget = async (id: string) => {
     try {
+      const toDelete = budgets.find(b => b.id === id);
       await deleteBudget(id);
       await loadBudgetData(); // Reload after deletion
+      // Allow Undo via an alert
+      Alert.alert('Budget Deleted', 'The budget was deleted.', [
+        { text: 'Undo', onPress: async () => {
+          if (!toDelete) return;
+          try {
+            await createBudget({
+              name: toDelete.name,
+              category: toDelete.category,
+              amount: toDelete.amount,
+              period: toDelete.period,
+              startDate: toDelete.startDate,
+              endDate: toDelete.endDate,
+              color: toDelete.color,
+              isActive: toDelete.isActive,
+            });
+            await loadBudgetData();
+          } catch (err) {
+            console.error('Undo create budget failed', err);
+            Alert.alert('Error', 'Failed to restore budget');
+          }
+        } },
+        { text: 'OK' }
+      ]);
     } catch (error) {
       console.error('Error deleting budget:', error);
       Alert.alert('Error', 'Failed to delete budget');
@@ -162,20 +193,20 @@ const BudgetScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <Text style={styles.loadingText}>Loading budgets...</Text>
+      <View style={[styles.container, { backgroundColor: bg }, styles.loadingContainer]}>
+        <Text style={[styles.loadingText, { color: text }]}>Loading budgets...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+  <View style={[styles.container, { backgroundColor: bg }]}>
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        <Text style={styles.heading}>Budgets</Text>
+  <Text style={[styles.heading, { color: text }]}>Budgets</Text>
 
         {alerts.length > 0 && (
           <Card style={styles.alertCard}>
