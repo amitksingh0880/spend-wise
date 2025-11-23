@@ -5,7 +5,7 @@ import { UserPreferences } from '@/types';
 const PREFERENCES_KEY = 'user_preferences';
 
 const DEFAULT_PREFERENCES: UserPreferences = {
-  currency: 'USD',
+  currency: 'INR',
   dateFormat: 'MM/dd/yyyy',
   theme: 'dark',
   notifications: {
