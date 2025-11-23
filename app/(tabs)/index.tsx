@@ -1,10 +1,10 @@
 import { useCurrency } from '@/app/contexts/CurrencyContext';
 import { generateFinancialInsights } from '@/app/services/analyticsService';
-import { getRecentTransactions, getTransactionSummary, getFilteredTransactions } from '@/app/services/transactionService';
+import { getFilteredTransactions, getRecentTransactions, getTransactionSummary, Transaction } from '@/app/services/transactionService';
+import { GhostButton } from '@/components/ui/button';
 import Card from '@/components/ui/card';
-import { Transaction } from '@/types';
-import { ArrowDownLeft, ArrowUpRight, PiggyBank, RefreshCw, TrendingUp } from 'lucide-react-native';
 import { Link } from 'expo-router';
+import { ArrowDownLeft, ArrowUpRight, PiggyBank, RefreshCw, TrendingUp } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
@@ -140,7 +140,7 @@ const DashboardScreen: React.FC = () => {
           <View style={styles.cardHeader}>
             <Text style={styles.cardSubheading}>Suspicious</Text>
             <Link href="/suspicious">
-              <Text style={{ color: '#60a5fa' }}>Review</Text>
+              <GhostButton style={{ borderColor: '#60a5fa' }}>Review</GhostButton>
             </Link>
           </View>
           <Text style={styles.cardValue}>{suspiciousCount}</Text>

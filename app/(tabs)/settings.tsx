@@ -4,7 +4,9 @@ import { useCurrency } from '@/app/contexts/CurrencyContext';
 import { deleteKey } from '@/app/libs/storage';
 import { getCurrency, updateCurrency } from '@/app/services/preferencesService';
 import { CURRENCIES, Currency } from '@/app/utils/currency';
+import { GhostButton } from '@/components/ui/button';
 import Card from '@/components/ui/card';
+import { Link } from 'expo-router';
 import {
   Bell,
   Database,
@@ -18,7 +20,6 @@ import {
   Upload,
 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Link } from 'expo-router';
 import {
   Alert,
   Modal,
@@ -276,7 +277,7 @@ const SettingsScreen: React.FC = () => {
           color="#ef4444"
           rightElement={
             <Link href="/suspicious">
-              <Text style={{ color: '#fff', backgroundColor: '#4f46e5', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 }}>Open</Text>
+              <GhostButton style={{ marginLeft: 8 }}>Open</GhostButton>
             </Link>
           }
         />

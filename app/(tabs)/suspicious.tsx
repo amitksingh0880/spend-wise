@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
-import Card from '@/components/ui/card';
-import { Edit2, Trash2, CheckCircle } from 'lucide-react-native';
-import { getFilteredTransactions, deleteTransaction, updateTransaction } from '@/app/services/transactionService';
 import TransactionForm from '@/app/components/TransactionForm';
-import { Transaction } from '@/app/services/transactionService';
+import { deleteTransaction, getFilteredTransactions, Transaction, updateTransaction } from '@/app/services/transactionService';
+import { IconButton, PrimaryButton } from '@/components/ui/button';
+import Card from '@/components/ui/card';
 import { useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import { CheckCircle, Edit2, Trash2 } from 'lucide-react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 
 const SuspiciousScreen: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -63,7 +62,7 @@ const SuspiciousScreen: React.FC = () => {
       </Card>
 
       <View style={{ padding: 16, flexDirection: 'row', justifyContent: 'flex-end' }}>
-        <TouchableOpacity
+        <PrimaryButton
           style={[styles.bulkButton, { marginRight: 8 }]}
           onPress={() => {
             Alert.alert('Mark All Reviewed', 'Mark all suspicious transactions as reviewed?', [
@@ -84,9 +83,9 @@ const SuspiciousScreen: React.FC = () => {
           }}
         >
           <Text style={{ color: '#fff' }}>Mark All Reviewed</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.bulkButton}
+        </PrimaryButton>
+        <PrimaryButton
+          style={[styles.bulkButton, { backgroundColor: '#ef4444' }]}
           onPress={() => {
             Alert.alert('Delete All Suspicious', 'Delete all suspicious transactions?', [
               { text: 'Cancel', style: 'cancel' },
@@ -103,7 +102,7 @@ const SuspiciousScreen: React.FC = () => {
           }}
         >
           <Text style={{ color: '#fff' }}>Delete All</Text>
-        </TouchableOpacity>
+  </PrimaryButton>
       </View>
 
       {transactions.length === 0 && !loading ? (
@@ -118,21 +117,26 @@ const SuspiciousScreen: React.FC = () => {
             <Card style={styles.cardItem}>
               <View style={styles.row}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.vendor}>{item.vendor}</Text>
-                  <Text style={styles.date}>{new Date(item.createdAt).toLocaleString()}</Text>
-                  <Text style={styles.amount}>₹{item.amount.toFixed(2)}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={styles.vendor}>{item.vendor}</Text>
+                    <Text style={styles.amount}>₹{item.amount.toFixed(2)}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+                    <Text style={styles.date}>{new Date(item.createdAt).toLocaleString()}</Text>
+                    <Text style={styles.confidence}>{(item.tags || []).find(t => t.startsWith('confidence:')) ?? ''}</Text>
+                  </View>
                 </View>
 
                 <View style={styles.actions}>
-                  <TouchableOpacity style={styles.actionBtn} onPress={() => handleMarkReviewed(item)}>
-                    <CheckCircle size={18} color="#10b981" />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.actionBtn} onPress={() => handleEdit(item)}>
-                    <Edit2 size={18} color="#4f46e5" />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item.id)}>
-                    <Trash2 size={18} color="#ef4444" />
-                  </TouchableOpacity>
+                    <IconButton onPress={() => handleMarkReviewed(item)}>
+                      <CheckCircle size={18} color="#10b981" />
+                    </IconButton>
+                    <IconButton onPress={() => handleEdit(item)}>
+                      <Edit2 size={18} color="#4f46e5" />
+                    </IconButton>
+                    <IconButton onPress={() => handleDelete(item.id)}>
+                      <Trash2 size={18} color="#ef4444" />
+                    </IconButton>
                 </View>
               </View>
             </Card>
@@ -156,11 +160,12 @@ const styles = StyleSheet.create({
   heading: { fontSize: 24, fontWeight: '800', color: '#f9fafb', marginTop: 18, marginLeft: 16, marginBottom: 8 },
   infoCard: { margin: 16, padding: 12 },
   infoText: { color: '#94a3b8', fontSize: 14 },
-  cardItem: { marginBottom: 12 },
+  cardItem: { marginBottom: 12, padding: 12 },
   row: { flexDirection: 'row', alignItems: 'center' },
   vendor: { color: '#f9fafb', fontSize: 16, fontWeight: '700' },
   date: { color: '#9ca3af', fontSize: 12, marginTop: 2 },
   amount: { color: '#ef4444', fontSize: 18, fontWeight: '800', marginTop: 6 },
+  confidence: { color: '#94a3b8', fontSize: 12, fontWeight: '600' },
   actions: { flexDirection: 'row', alignItems: 'center' },
   actionBtn: { padding: 8, marginLeft: 8, borderRadius: 6, backgroundColor: 'transparent' },
   emptyContainer: { padding: 16 },
