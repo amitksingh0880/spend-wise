@@ -7,6 +7,7 @@ import {
   requestSMSPermission,
 } from '@/app/services/smsService';
 import { saveTransaction } from '@/app/services/transactionService';
+import { GhostButton, PrimaryButton } from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import { Link } from 'expo-router';
 import { AlertCircle, CheckCircle, Download, Info, MessageCircle } from 'lucide-react-native';
@@ -550,24 +551,16 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
           </View>
 
           {/* Import Button */}
-           <TouchableOpacity
-  style={[
-    styles.importButton,
-    !hasPermission || isLoading ? styles.disabledButton : {},
-  ]}
-  onPress={handleImportSMS}
-  disabled={!hasPermission || isLoading}
-  activeOpacity={0.8}
->
-  {isLoading ? (
-    <ActivityIndicator color="#fff" />
-  ) : (
-    <View style={styles.btnContent}>
-      <Download size={20} color="#fff" />
-      <Text style={styles.importButtonText}>Import Last 30 Days</Text>
-    </View>
-  )}
-</TouchableOpacity>
+          <PrimaryButton onPress={handleImportSMS} disabled={!hasPermission || isLoading} style={{ width: '100%' }}>
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <View style={styles.btnContent}>
+                <Download size={20} color="#fff" style={styles.btnIcon} />
+                <Text style={styles.importButtonText}>Import Last 30 Days</Text>
+              </View>
+            )}
+          </PrimaryButton>
 
 
       {/* Results */}
@@ -613,37 +606,37 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={styles.suspiciousTitle}>Suspicious Transactions (Amount &gt; 1,00,000)</Text>
                 <Link href="/suspicious">
-                  <Text style={{ color: '#4f46e5', fontWeight: '700' }}>Open Review</Text>
+                  <GhostButton style={{ backgroundColor: 'transparent', borderColor: '#4f46e5' }}>Open Review</GhostButton>
                 </Link>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 8 }}>
-                <TouchableOpacity style={[styles.suspiciousSave, { marginRight: 8 }]} onPress={async () => {
+                <PrimaryButton style={[{ paddingVertical: 8 }, { marginRight: 8 }]} onPress={async () => {
                   // Save all suspicious
                   const items = lastResult.suspicious || [];
                   for (const e of items) await handleSaveSuspicious(e);
                 }}>
-                  <Text style={{ color: '#fff' }}>Save All</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.suspiciousIgnore, { marginRight: 8 }]} onPress={() => { setLastResult((prev) => prev ? ({ ...prev, suspicious: [] }) : prev ); }}>
-                  <Text style={{ color: '#111' }}>Ignore All</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.suspiciousIgnore} onPress={async () => {
+                  Save All
+                </PrimaryButton>
+                <GhostButton style={[{ marginRight: 8 }]} onPress={() => { setLastResult((prev) => prev ? ({ ...prev, suspicious: [] }) : prev ); }}>
+                  Ignore All
+                </GhostButton>
+                <GhostButton onPress={async () => {
                   // Regenerate all suspicious
                   const items = lastResult.suspicious || [];
                   for (const e of items) {
                     handleRegenerateSuspicious(e);
                   }
                 }}>
-                  <Text style={{ color: '#111' }}>Regenerate All</Text>
-                </TouchableOpacity>
+                  Regenerate All
+                </GhostButton>
               </View>
               {lastResult.suspicious.map((expense, idx) => (
                 <View key={`susp-${idx}`} style={styles.suspiciousItem}>
                   <Text style={styles.suspiciousText}>{expense.vendor || 'Unknown'} — ₹{expense.amount.toFixed(2)}</Text>
                   <View style={styles.suspiciousActions}>
-                    <TouchableOpacity style={styles.suspiciousSave} onPress={() => handleSaveSuspicious(expense)}><Text style={{color: '#fff'}}>Save</Text></TouchableOpacity>
-                    <TouchableOpacity style={styles.suspiciousIgnore} onPress={() => handleIgnoreSuspicious(expense)}><Text style={{color: '#111'}}>Ignore</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.suspiciousIgnore, { marginLeft: 8 }]} onPress={() => handleRegenerateSuspicious(expense)}><Text style={{color: '#111'}}>Regenerate</Text></TouchableOpacity>
+                    <PrimaryButton style={{ paddingVertical: 6, paddingHorizontal: 10 }} onPress={() => handleSaveSuspicious(expense)}>Save</PrimaryButton>
+                    <GhostButton style={{ marginLeft: 8 }} onPress={() => handleIgnoreSuspicious(expense)}>Ignore</GhostButton>
+                    <GhostButton style={{ marginLeft: 8 }} onPress={() => handleRegenerateSuspicious(expense)}>Regenerate</GhostButton>
                   </View>
                 </View>
               ))}
@@ -694,7 +687,9 @@ const styles = StyleSheet.create({
   btnContent: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+  },
+  btnIcon: {
+    marginRight: 10,
   },
 
   importButtonText: {
@@ -949,7 +944,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    minWidth: 140,
+    minWidth: 160,
     alignItems: 'center',
     backgroundColor: '#ffffff'
   },
