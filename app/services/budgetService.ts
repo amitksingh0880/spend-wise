@@ -1,3 +1,4 @@
+import { emitter } from '@/app/libs/emitter';
 import { readJson, writeJson } from '../libs/storage';
 import { uuidv4 } from '../utils/uuid';
 import { getAllTransactions } from './transactionService';
@@ -68,6 +69,7 @@ export const createBudget = async (budgetData: Omit<Budget, 'id' | 'spent' | 'cr
   };
   
   await writeJson(BUDGETS_STORAGE_KEY, [newBudget, ...budgets]);
+  try { emitter.emit('budgets:changed', newBudget); } catch (err) { /* ignore */ }
   return newBudget;
 };
 
@@ -79,6 +81,7 @@ export const updateBudget = async (id: string, updates: Partial<Omit<Budget, 'id
       : budget
   );
   await writeJson(BUDGETS_STORAGE_KEY, updatedBudgets);
+  try { emitter.emit('budgets:changed'); } catch (err) { /* ignore */ }
 };
 
 export const deleteBudget = async (id: string): Promise<void> => {
@@ -90,6 +93,7 @@ export const deleteBudget = async (id: string): Promise<void> => {
   const alerts = await getAllBudgetAlerts();
   const filteredAlerts = alerts.filter(alert => alert.budgetId !== id);
   await writeJson(BUDGET_ALERTS_STORAGE_KEY, filteredAlerts);
+  try { emitter.emit('budgets:changed'); } catch (err) { /* ignore */ }
 };
 
 // Budget Calculation and Updates
