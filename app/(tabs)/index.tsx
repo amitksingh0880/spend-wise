@@ -1,11 +1,12 @@
 import { useCurrency } from '@/app/contexts/CurrencyContext';
+import { emitter } from '@/app/libs/emitter';
 import { generateFinancialInsights } from '@/app/services/analyticsService';
 import { getFilteredTransactions, getRecentTransactions, getTransactionSummary, Transaction } from '@/app/services/transactionService';
 import { GhostButton } from '@/components/ui/button';
 import Card from '@/components/ui/card';
-import { Link } from 'expo-router';
+import { Link, useFocusEffect } from 'expo-router';
 import { ArrowDownLeft, ArrowUpRight, PiggyBank, RefreshCw, TrendingUp } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Dimensions, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
 
@@ -47,6 +48,17 @@ const DashboardScreen: React.FC = () => {
 
   useEffect(() => {
     loadDashboardData();
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    loadDashboardData();
+  }, []));
+
+  useEffect(() => {
+    const unsub = emitter.addListener('transactions:changed', () => {
+      loadDashboardData();
+    });
+    return () => { unsub(); };
   }, []);
 
   const loadDashboardData = async () => {
