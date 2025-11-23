@@ -1,6 +1,9 @@
 import TransactionForm from '@/app/components/TransactionForm';
 import { useCurrency } from '@/app/contexts/CurrencyContext';
-import { deleteTransaction, getFilteredTransactions, Transaction, updateTransaction } from '@/app/services/transactionService';
+import { emitter } from '@/app/libs/emitter';
+import { readJson, writeJson } from '@/app/libs/storage';
+import { ExtractedExpense, parseTransactionSMS } from '@/app/services/smsService';
+import { deleteTransaction, getFilteredTransactions, saveTransaction, Transaction, updateTransaction } from '@/app/services/transactionService';
 import { IconButton, PrimaryButton } from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import { useFocusEffect } from 'expo-router';
@@ -10,6 +13,7 @@ import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 
 const SuspiciousScreen: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [heldSuspicious, setHeldSuspicious] = useState<ExtractedExpense[]>([]);
   const { formatAmount } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Transaction | null>(null);
@@ -28,15 +32,28 @@ const SuspiciousScreen: React.FC = () => {
     }
   };
 
+  const loadHeldSuspicious = async () => {
+    try {
+      const held = await readJson<ExtractedExpense[]>('held_suspicious');
+      setHeldSuspicious(held || []);
+    } catch (err) {
+      console.warn('Failed to load held suspicious items', err);
+    }
+  };
+
   useEffect(() => { loadSuspicious(); }, []);
   useFocusEffect(
     useCallback(() => { loadSuspicious(); }, [])
+  );
+  useEffect(() => { loadHeldSuspicious(); }, []);
+  useFocusEffect(
+    useCallback(() => { loadHeldSuspicious(); }, [])
   );
 
   const handleDelete = async (id: string) => {
     Alert.alert('Delete Transaction', 'Are you sure you want to delete this suspicious transaction?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => { await deleteTransaction(id); await loadSuspicious(); } }
+  { text: 'Delete', style: 'destructive', onPress: async () => { await deleteTransaction(id); await loadSuspicious(); emitter.emit('transactions:changed'); } }
     ]);
   };
 
@@ -44,7 +61,8 @@ const SuspiciousScreen: React.FC = () => {
     try {
       const tags = (tx.tags || []).filter(t => t !== 'suspicious');
       await updateTransaction(tx.id, { tags: tags.length ? tags : undefined });
-      await loadSuspicious();
+  await loadSuspicious();
+  emitter.emit('transactions:changed');
     } catch (error) {
       console.error('Error marking reviewed', error);
       Alert.alert('Error', 'Failed to mark as reviewed');
@@ -52,6 +70,58 @@ const SuspiciousScreen: React.FC = () => {
   };
 
   const handleEdit = (tx: Transaction) => { setEditing(tx); setShowForm(true); };
+
+  // Held Suspicious handlers
+  const handleSaveHeldSuspicious = async (expense: ExtractedExpense) => {
+    try {
+      setLoading(true);
+      const tx = await saveTransaction({
+        amount: expense.amount,
+        type: expense.type,
+        vendor: expense.vendor ?? 'Unknown',
+        category: expense.category ?? 'other',
+        description: `(Suspicious SMS) ${expense.description}`,
+        tags: ['sms-import', 'suspicious', `confidence:${Math.round((expense.confidence ?? 0) * 100)}%`],
+        smsData: {
+          rawMessage: expense.rawMessage,
+          sender: expense.sender || 'Unknown',
+          timestamp: expense.timestamp || Date.now(),
+        },
+      });
+      // remove from held list
+      const updated = (heldSuspicious || []).filter((e) => e !== expense);
+      setHeldSuspicious(updated);
+    emitter.emit('transactions:changed');
+      await writeJson('held_suspicious', updated);
+      Alert.alert('Saved', `Saved suspicious transaction: ${tx.id}`);
+      await loadSuspicious();
+    } catch (err) {
+      console.error('Save held suspicious failed', err);
+      Alert.alert('Error', 'Failed to save transaction');
+    } finally { setLoading(false); }
+  };
+
+  const handleIgnoreHeldSuspicious = async (expense: ExtractedExpense) => {
+    const updated = (heldSuspicious || []).filter((e) => e !== expense);
+    setHeldSuspicious(updated);
+    await writeJson('held_suspicious', updated);
+  emitter.emit('transactions:changed');
+  };
+
+  const handleRegenerateHeldSuspicious = async (expense: ExtractedExpense) => {
+    try {
+      const sms = { id: `regen-${Date.now()}`, address: expense.sender, body: expense.rawMessage, date: expense.timestamp, type: 1 };
+      const parsed = parseTransactionSMS(sms as any);
+      if (!parsed) { Alert.alert('No change', 'Re-parse did not extract a transaction or improved confidence.'); return; }
+      const updated = (heldSuspicious || []).map((e) => (e === expense ? parsed : e));
+      setHeldSuspicious(updated);
+      await writeJson('held_suspicious', updated);
+      Alert.alert('Reparsed', `Re-parse found amount ${formatAmount(parsed.amount)} (confidence ${(parsed.confidence ?? 0) * 100}%)`);
+    } catch (err) {
+      console.warn('Reparse failed', err);
+      Alert.alert('Error', 'Failed to re-parse message');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -62,6 +132,35 @@ const SuspiciousScreen: React.FC = () => {
           These transactions are flagged as suspicious (high amount). You can review, edit, mark them as reviewed, or delete them.
         </Text>
       </Card>
+
+      {heldSuspicious.length > 0 && (
+        <Card style={[{ paddingHorizontal: 16, paddingVertical: 12, marginBottom: 12 }]}>
+          <Text style={{ fontWeight: '700', color: '#f9fafb', marginBottom: 8 }}>Held Suspicious (Pending)</Text>
+          {heldSuspicious.map((item, idx) => (
+            <View key={`held-${idx}`} style={{ marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View>
+                  <Text style={styles.vendor}>{item.vendor}</Text>
+                  <Text style={styles.date}>{new Date(item.timestamp).toLocaleString()}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <IconButton onPress={() => handleSaveHeldSuspicious(item)}>
+                    <CheckCircle size={18} color="#10b981" />
+                  </IconButton>
+                  <IconButton onPress={() => handleRegenerateHeldSuspicious(item)}>
+                    <Edit2 size={18} color="#4f46e5" />
+                  </IconButton>
+                  <IconButton onPress={() => handleIgnoreHeldSuspicious(item)}>
+                    <Trash2 size={18} color="#ef4444" />
+                  </IconButton>
+                </View>
+              </View>
+              <Text style={styles.amount}>{formatAmount(item.amount)}</Text>
+              <Text style={styles.confidence}>Confidence: {(item.confidence ?? 0) * 100}%</Text>
+            </View>
+          ))}
+        </Card>
+      )}
 
       <View style={{ padding: 16, flexDirection: 'row', justifyContent: 'flex-end' }}>
         <PrimaryButton

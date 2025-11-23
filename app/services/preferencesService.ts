@@ -1,6 +1,6 @@
 import { readJson, writeJson } from '@/app/libs/storage';
 import { Currency } from '@/app/utils/currency';
-import { UserPreferences } from '@/types';
+import { Theme, UserPreferences } from '@/types';
 
 const PREFERENCES_KEY = 'user_preferences';
 
@@ -41,6 +41,10 @@ export const saveUserPreferences = async (preferences: Partial<UserPreferences>)
 
 export const updateCurrency = async (currency: Currency): Promise<void> => {
   await saveUserPreferences({ currency });
+};
+
+export const updateTheme = async (theme: Theme): Promise<void> => {
+  await saveUserPreferences({ theme });
 };
 
 export const getCurrency = async (): Promise<Currency> => {
