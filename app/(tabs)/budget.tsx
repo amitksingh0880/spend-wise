@@ -1,14 +1,17 @@
 import BudgetForm from '@/app/components/BudgetForm';
 import { useCurrency } from '@/app/contexts/CurrencyContext';
+import { emitter } from '@/app/libs/emitter';
 import {
     checkBudgetAlerts,
     deleteBudget,
     getAllBudgets,
     getBudgetSummary
 } from '@/app/services/budgetService';
+import { IconButton } from '@/components/ui/button';
 import Card from '@/components/ui/card';
-import { AlertTriangle, PlusCircle, Target, TrendingUp } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { AlertTriangle, PlusCircle, Target, Trash2, TrendingUp } from 'lucide-react-native';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     Alert,
     RefreshControl,
@@ -54,7 +57,12 @@ const BudgetCard = ({
       <Card style={styles.budgetCard}>
         <View style={styles.budgetHeader}>
           <Text style={styles.budgetTitle}>{budget.name}</Text>
-          {getStatusIcon()}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {getStatusIcon()}
+            <IconButton onPress={() => handleLongPress()} accessibilityLabel={`Delete budget ${budget.name}`}>
+              <Trash2 size={18} color="#ef4444" />
+            </IconButton>
+          </View>
         </View>
 
         <View style={styles.budgetAmounts}>
@@ -105,6 +113,15 @@ const BudgetScreen: React.FC = () => {
 
   useEffect(() => {
     loadBudgetData();
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    loadBudgetData();
+  }, []));
+
+  useEffect(() => {
+    const unsub = emitter.addListener('budgets:changed', () => loadBudgetData());
+    return () => { unsub(); };
   }, []);
 
   const loadBudgetData = async () => {

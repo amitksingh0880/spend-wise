@@ -1,3 +1,4 @@
+import { emitter } from '@/app/libs/emitter';
 import { readJson, writeJson } from '../libs/storage';
 import { uuidv4 } from '../utils/uuid';
 
@@ -60,6 +61,8 @@ export const saveTransaction = async (tx: Omit<Transaction, 'id' | 'createdAt'>)
     ...tx,
   };
   await writeJson(STORAGE_KEY, [newTx, ...all]);
+  // Notify listeners
+  try { emitter.emit('transactions:changed', newTx); } catch (err) { /* ignore */ }
   return newTx;
 };
 
@@ -69,16 +72,19 @@ export const updateTransaction = async (id: string, updates: Partial<Omit<Transa
     tx.id === id ? { ...tx, ...updates } : tx
   );
   await writeJson(STORAGE_KEY, updated);
+  try { emitter.emit('transactions:changed'); } catch (err) { /* ignore */ }
 };
 
 export const deleteTransaction = async (id: string): Promise<void> => {
   const all = await getAllTransactions();
   const filtered = all.filter(tx => tx.id !== id);
   await writeJson(STORAGE_KEY, filtered);
+  try { emitter.emit('transactions:changed'); } catch (err) { /* ignore */ }
 };
 
 export const clearAllTransactions = async (): Promise<void> => {
   await writeJson(STORAGE_KEY, []);
+  try { emitter.emit('transactions:changed'); } catch (err) { /* ignore */ }
 };
 
 // Advanced Filtering and Search
@@ -219,6 +225,7 @@ export const importTransactions = async (transactions: Omit<Transaction, 'id' | 
   }));
   
   await writeJson(STORAGE_KEY, [...newTransactions, ...existing]);
+  try { emitter.emit('transactions:changed', newTransactions); } catch (err) { /* ignore */ }
 };
 
 export const exportTransactions = async (format: 'json' | 'csv' = 'json'): Promise<string> => {

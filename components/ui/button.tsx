@@ -1,7 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, TouchableOpacityProps, View } from 'react-native';
 
-export const PrimaryButton = ({ children, onPress, style, disabled }: { children: React.ReactNode; onPress?: () => void; style?: any; disabled?: boolean; }) => (
+export const PrimaryButton = ({ children, onPress, style, disabled, ...rest }: TouchableOpacityProps & { children: React.ReactNode; onPress?: () => void; style?: any; disabled?: boolean; }) => (
   <TouchableOpacity
     style={[styles.primary, style, disabled ? styles.disabled : null]}
     onPress={onPress}
@@ -12,14 +12,14 @@ export const PrimaryButton = ({ children, onPress, style, disabled }: { children
   </TouchableOpacity>
 );
 
-export const IconButton = ({ children, onPress, style }: { children: React.ReactNode; onPress?: () => void; style?: any }) => (
-  <TouchableOpacity style={[styles.iconBtn, style]} onPress={onPress} activeOpacity={0.8}>
+export const IconButton = ({ children, onPress, style, ...rest }: TouchableOpacityProps & { children: React.ReactNode; onPress?: () => void; style?: any }) => (
+  <TouchableOpacity style={[styles.iconBtn, style]} onPress={onPress} activeOpacity={0.8} {...rest}>
     <View>{children}</View>
   </TouchableOpacity>
 );
 
-export const GhostButton = ({ children, onPress, style, color = '#4f46e5' }: { children: React.ReactNode; onPress?: () => void; style?: any; color?: string }) => (
-  <TouchableOpacity style={[styles.ghost, { borderColor: color }, style]} onPress={onPress} activeOpacity={0.8}>
+export const GhostButton = ({ children, onPress, style, color = '#4f46e5', ...rest }: TouchableOpacityProps & { children: React.ReactNode; onPress?: () => void; style?: any; color?: string }) => (
+  <TouchableOpacity style={[styles.ghost, { borderColor: color }, style]} onPress={onPress} activeOpacity={0.8} {...rest}>
     <Text style={[styles.ghostText, { color }]}>{children}</Text>
   </TouchableOpacity>
 );

@@ -1,3 +1,4 @@
+import { emitter } from '@/app/libs/emitter';
 import { getFilteredTransactions } from '@/app/services/transactionService';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -22,6 +23,18 @@ export default function TabLayout() {
       }
     })();
     return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    const unsub = emitter.addListener('transactions:changed', async () => {
+      try {
+        const tx = await getFilteredTransactions({ tags: ['suspicious'] });
+        setSuspiciousCount((tx || []).length || 0);
+      } catch (err) {
+        console.warn('Failed to refresh suspicious badge', err);
+      }
+    });
+    return () => { unsub(); };
   }, []);
 
   return (
