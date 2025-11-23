@@ -35,7 +35,7 @@ const SettingsScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
-  const [currency, setCurrency] = useState<Currency>('USD');
+  const [currency, setCurrency] = useState<Currency>('INR');
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const { refreshCurrency } = useCurrency();
 
