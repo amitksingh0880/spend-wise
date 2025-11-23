@@ -1,3 +1,4 @@
+import { emitter } from '@/app/libs/emitter';
 import { readJson, writeJson } from '@/app/libs/storage';
 import { Currency } from '@/app/utils/currency';
 import { Theme, UserPreferences } from '@/types';
@@ -16,6 +17,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
     pushNotifications: true,
   },
   defaultCategories: [],
+  sidebarCollapsed: false,
 };
 
 export const getUserPreferences = async (): Promise<UserPreferences> => {
@@ -33,6 +35,7 @@ export const saveUserPreferences = async (preferences: Partial<UserPreferences>)
     const currentPreferences = await getUserPreferences();
     const updatedPreferences = { ...currentPreferences, ...preferences };
     await writeJson(PREFERENCES_KEY, updatedPreferences);
+    try { emitter.emit('preferences:changed', updatedPreferences); } catch (err) { /* ignore */ }
   } catch (error) {
     console.error('Error saving user preferences:', error);
     throw error;
@@ -45,6 +48,10 @@ export const updateCurrency = async (currency: Currency): Promise<void> => {
 
 export const updateTheme = async (theme: Theme): Promise<void> => {
   await saveUserPreferences({ theme });
+};
+
+export const updateSidebarCollapsed = async (collapsed: boolean): Promise<void> => {
+  await saveUserPreferences({ sidebarCollapsed: collapsed });
 };
 
 export const getCurrency = async (): Promise<Currency> => {

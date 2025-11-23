@@ -2,8 +2,9 @@
 // import { testUUID } from '@/app/libs/test/uuidTest';
 import { useCurrency } from '@/app/contexts/CurrencyContext';
 import { useAppTheme } from '@/app/contexts/ThemeContext';
+import { emitter } from '@/app/libs/emitter';
 import { deleteKey } from '@/app/libs/storage';
-import { getCurrency, updateCurrency } from '@/app/services/preferencesService';
+import { getCurrency, getUserPreferences, updateCurrency, updateSidebarCollapsed } from '@/app/services/preferencesService';
 import { CURRENCIES, Currency } from '@/app/utils/currency';
 import { GhostButton } from '@/components/ui/button';
 import Card from '@/components/ui/card';
@@ -38,11 +39,27 @@ const SettingsScreen: React.FC = () => {
     const [darkMode, setDarkMode] = useState(true);
     const { theme: currentTheme, setTheme } = useAppTheme();
   const [currency, setCurrency] = useState<Currency>('INR');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const { refreshCurrency } = useCurrency();
 
   useEffect(() => {
     loadCurrency();
+    (async () => {
+      try {
+        const prefs = await getUserPreferences();
+        if (typeof prefs.sidebarCollapsed === 'boolean') setSidebarCollapsed(prefs.sidebarCollapsed);
+      } catch (err) {
+        console.warn('Failed to load sidebar preference', err);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    const unsub = emitter.addListener('preferences:changed', (prefs: any) => {
+      if (prefs && typeof prefs.sidebarCollapsed === 'boolean') setSidebarCollapsed(prefs.sidebarCollapsed);
+    });
+    return () => { unsub(); };
   }, []);
 
   useEffect(() => {
@@ -214,6 +231,20 @@ const SettingsScreen: React.FC = () => {
                 trackColor={{ false: '#374151', true: '#4f46e5' }}
                 thumbColor={darkMode ? '#ffffff' : '#9ca3af'}
               />
+          }
+        />
+
+        <SettingItem
+          icon={Settings}
+          title="Collapse Sidebar"
+          subtitle="Use compact sidebar layout"
+          rightElement={
+            <Switch
+              value={sidebarCollapsed}
+              onValueChange={async (v) => { setSidebarCollapsed(v); await updateSidebarCollapsed(v); }}
+              trackColor={{ false: '#374151', true: '#4f46e5' }}
+              thumbColor={sidebarCollapsed ? '#ffffff' : '#9ca3af'}
+            />
           }
         />
 
