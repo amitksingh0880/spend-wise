@@ -86,5 +86,6 @@ export interface UserPreferences {
     theme: Theme;
     notifications: NotificationSettings;
     defaultCategories: string[];
-    sidebarCollapsed?: boolean;
+    biometricEnabled?: boolean;
+    requireAuthOnStartup?: boolean;
 }
