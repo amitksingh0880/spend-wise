@@ -132,7 +132,7 @@ export default function StartupSplash({ visible = true, onFinish }: StartupSplas
         <Animated.View style={[styles.logoGlow, { transform: [{ scale: logoGlowScale }], opacity: 0.9 }]} />
         <Animated.Image source={require('@/assets/images/splash-icon.png')} style={[styles.logo, { transform: [{ rotate: rotateInterpolate }] }]} />
         <Animated.Text style={[styles.title, { transform: [{ translateY: titleY }] }]}>SpendWise</Animated.Text>
-        <Animated.Text style={[styles.subtitle, { opacity: subtitleOpacity }]}>built by sher</Animated.Text>
+        <Animated.Text style={[styles.subtitle, { opacity: subtitleOpacity }]}>built by Divanox</Animated.Text>
   <Animated.View style={[styles.accentBar, { transform: [{ scaleX: logoPulse.interpolate({ inputRange: [0.96, 1.06], outputRange: [0.6, 1.25] }) }] }]} />
       </Animated.View>
 

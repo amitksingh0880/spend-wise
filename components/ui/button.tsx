@@ -1,16 +1,23 @@
+import { useThemeColor } from '@/hooks/use-theme-color';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, TouchableOpacityProps, View } from 'react-native';
 
-export const PrimaryButton = ({ children, onPress, style, disabled, ...rest }: TouchableOpacityProps & { children: React.ReactNode; onPress?: () => void; style?: any; disabled?: boolean; }) => (
-  <TouchableOpacity
-    style={[styles.primary, style, disabled ? styles.disabled : null]}
-    onPress={onPress}
-    activeOpacity={0.85}
-    disabled={disabled}
-  >
-    <Text style={styles.primaryText}>{children}</Text>
-  </TouchableOpacity>
-);
+export const PrimaryButton = ({ children, onPress, style, disabled, ...rest }: TouchableOpacityProps & { children: React.ReactNode; onPress?: () => void; style?: any; disabled?: boolean; }) => {
+  const tint = useThemeColor({}, 'tint');
+  const primaryTextColor = useThemeColor({}, 'text');
+  const disabledBg = useThemeColor({ light: '#6b7280', dark: '#475569' }, 'background');
+  return (
+    <TouchableOpacity
+      style={[{ backgroundColor: disabled ? disabledBg : tint }, styles.primary, style]}
+      onPress={onPress}
+      activeOpacity={0.85}
+      disabled={disabled}
+      {...rest}
+    >
+      <Text style={[styles.primaryText, { color: '#fff' }]}>{children}</Text>
+    </TouchableOpacity>
+  );
+};
 
 export const IconButton = ({ children, onPress, style, ...rest }: TouchableOpacityProps & { children: React.ReactNode; onPress?: () => void; style?: any }) => (
   <TouchableOpacity style={[styles.iconBtn, style]} onPress={onPress} activeOpacity={0.8} {...rest}>
@@ -18,11 +25,15 @@ export const IconButton = ({ children, onPress, style, ...rest }: TouchableOpaci
   </TouchableOpacity>
 );
 
-export const GhostButton = ({ children, onPress, style, color = '#4f46e5', ...rest }: TouchableOpacityProps & { children: React.ReactNode; onPress?: () => void; style?: any; color?: string }) => (
-  <TouchableOpacity style={[styles.ghost, { borderColor: color }, style]} onPress={onPress} activeOpacity={0.8} {...rest}>
-    <Text style={[styles.ghostText, { color }]}>{children}</Text>
-  </TouchableOpacity>
-);
+export const GhostButton = ({ children, onPress, style, color, ...rest }: TouchableOpacityProps & { children: React.ReactNode; onPress?: () => void; style?: any; color?: string }) => {
+  const tint = useThemeColor({}, 'tint');
+  const useColor = color || tint;
+  return (
+    <TouchableOpacity style={[styles.ghost, { borderColor: useColor }, style]} onPress={onPress} activeOpacity={0.8} {...rest}>
+      <Text style={[styles.ghostText, { color: useColor }]}>{children}</Text>
+    </TouchableOpacity>
+  );
+};
 
 const styles = StyleSheet.create({
   primary: {

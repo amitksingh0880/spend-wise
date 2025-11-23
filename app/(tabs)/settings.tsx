@@ -1,6 +1,7 @@
 // import { testServices } from '@/app/libs/test/servicesTest';
 // import { testUUID } from '@/app/libs/test/uuidTest';
 import { useCurrency } from '@/app/contexts/CurrencyContext';
+import { useAppTheme } from '@/app/contexts/ThemeContext';
 import { deleteKey } from '@/app/libs/storage';
 import { getCurrency, updateCurrency } from '@/app/services/preferencesService';
 import { CURRENCIES, Currency } from '@/app/utils/currency';
@@ -34,7 +35,8 @@ import {
 const SettingsScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
+    const [darkMode, setDarkMode] = useState(true);
+    const { theme: currentTheme, setTheme } = useAppTheme();
   const [currency, setCurrency] = useState<Currency>('INR');
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const { refreshCurrency } = useCurrency();
@@ -42,6 +44,10 @@ const SettingsScreen: React.FC = () => {
   useEffect(() => {
     loadCurrency();
   }, []);
+
+  useEffect(() => {
+    if (currentTheme) setDarkMode(currentTheme === 'dark');
+  }, [currentTheme]);
 
   const loadCurrency = async () => {
     try {
@@ -202,12 +208,12 @@ const SettingsScreen: React.FC = () => {
           title="Dark Mode"
           subtitle="App appearance"
           rightElement={
-            <Switch
-              value={darkMode}
-              onValueChange={setDarkMode}
-              trackColor={{ false: '#374151', true: '#4f46e5' }}
-              thumbColor={darkMode ? '#ffffff' : '#9ca3af'}
-            />
+              <Switch
+                value={darkMode}
+                onValueChange={(v) => { setDarkMode(v); setTheme && setTheme(v ? 'dark' : 'light'); }}
+                trackColor={{ false: '#374151', true: '#4f46e5' }}
+                thumbColor={darkMode ? '#ffffff' : '#9ca3af'}
+              />
           }
         />
 

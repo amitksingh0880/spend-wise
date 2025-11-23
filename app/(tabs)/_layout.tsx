@@ -1,8 +1,10 @@
 import { emitter } from '@/app/libs/emitter';
+import { readJson } from '@/app/libs/storage';
 import { getFilteredTransactions } from '@/app/services/transactionService';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 
+import { useAppTheme } from '@/app/contexts/ThemeContext';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
@@ -10,6 +12,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const appTheme = useAppTheme();
+  const theme = appTheme?.theme ?? colorScheme;
   const [suspiciousCount, setSuspiciousCount] = useState<number>(0);
 
   useEffect(() => {
@@ -17,7 +21,8 @@ export default function TabLayout() {
     (async () => {
       try {
         const tx = await getFilteredTransactions({ tags: ['suspicious'] });
-        if (mounted) setSuspiciousCount((tx || []).length || 0);
+        const held = await readJson<any[]>('held_suspicious');
+        if (mounted) setSuspiciousCount(((tx || []).length || 0) + (held?.length || 0));
       } catch (err) {
         console.warn('Failed to update suspicious badge', err);
       }
@@ -29,7 +34,8 @@ export default function TabLayout() {
     const unsub = emitter.addListener('transactions:changed', async () => {
       try {
         const tx = await getFilteredTransactions({ tags: ['suspicious'] });
-        setSuspiciousCount((tx || []).length || 0);
+        const held = await readJson<any[]>('held_suspicious');
+        setSuspiciousCount(((tx || []).length || 0) + (held?.length || 0));
       } catch (err) {
         console.warn('Failed to refresh suspicious badge', err);
       }
@@ -40,12 +46,12 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+  tabBarActiveTintColor: Colors[theme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: {
-          backgroundColor: colorScheme === 'dark' ? '#0f172a' : '#ffffff',
-          borderTopColor: colorScheme === 'dark' ? '#1e293b' : '#e5e7eb',
+          backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
+          borderTopColor: theme === 'dark' ? '#1e293b' : '#e5e7eb',
         },
       }}>
       <Tabs.Screen

@@ -1,4 +1,6 @@
 import { useCurrency } from '@/app/contexts/CurrencyContext';
+import { emitter } from '@/app/libs/emitter';
+import { readJson, writeJson } from '@/app/libs/storage';
 import {
   ExtractedExpense,
   SMSParsingResult,
@@ -43,9 +45,31 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   const [filterStart, setFilterStart] = useState<string>('');
   const [filterEnd, setFilterEnd] = useState<string>('');
   const [txnType, setTxnType] = useState<'all' | 'expense' | 'income'>('all');
+  const SUSPICIOUS_KEY = 'held_suspicious';
+  const dedupeExpenses = (items: ExtractedExpense[] = []) => {
+    const map = new Map<string, ExtractedExpense>();
+    items.forEach((e) => {
+      const key = `${e.sender || ''}:${e.timestamp || ''}:${e.amount}:${e.rawMessage || ''}`;
+      if (!map.has(key)) map.set(key, e);
+    });
+    return Array.from(map.values());
+  };
 
   useEffect(() => {
     checkPermissionStatus();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const held = await readJson<ExtractedExpense[]>(SUSPICIOUS_KEY);
+        if (held && held.length > 0) {
+          setLastResult((prev) => ({ ...(prev || { expenses: [], suspicious: [] }), suspicious: dedupeExpenses([...(prev?.suspicious || []), ...held]) } as SMSParsingResult));
+        }
+      } catch (err) {
+        console.warn('Failed to load held suspicious items', err);
+      }
+    })();
   }, []);
 
   const checkPermissionStatus = async () => {
@@ -148,7 +172,18 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
         },
       });
 
-  setLastResult(result);
+      // Merge result.suspicious with persisted held suspicious items
+      try {
+        const persistedHeld: ExtractedExpense[] | null = await readJson<ExtractedExpense[]>(SUSPICIOUS_KEY);
+  const mergedSuspicious = dedupeExpenses([...(persistedHeld || []), ...(result.suspicious || [])]);
+  // Persist merged held suspicious
+  await writeJson(SUSPICIOUS_KEY, mergedSuspicious);
+  emitter.emit('transactions:changed');
+        result.suspicious = mergedSuspicious;
+      } catch (e) {
+        console.warn('Failed to read/persist held suspicious items', e);
+      }
+      setLastResult(result);
 
       if (result.success && result.expenses.length > 0) {
         const suspiciousCount = result.suspicious?.length || 0;
@@ -204,10 +239,13 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
       // Remove saved expense from local list
       setLastResult((prev) => {
         if (!prev) return prev;
-        return {
+        const updated = {
           ...prev,
           suspicious: (prev.suspicious || []).filter((e) => e !== expense),
         } as SMSParsingResult;
+        // persist updated held list
+  (async () => { await writeJson(SUSPICIOUS_KEY, updated.suspicious || []); emitter.emit('transactions:changed'); })();
+        return updated;
       });
     } catch (err: any) {
       console.error('saveSuspicious error', err);
@@ -221,10 +259,12 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
     // Remove the item from the suspicious list only
     setLastResult((prev) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        suspicious: (prev.suspicious || []).filter((e) => e !== expense),
-      } as SMSParsingResult;
+        const updated = {
+          ...prev,
+          suspicious: (prev.suspicious || []).filter((e) => e !== expense),
+        } as SMSParsingResult;
+  (async () => { await writeJson(SUSPICIOUS_KEY, updated.suspicious || []); emitter.emit('transactions:changed'); })();
+        return updated;
     });
   };
 
@@ -238,10 +278,12 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
     // Replace in suspicious list
     setLastResult((prev) => {
       if (!prev) return prev;
-      return {
+      const updated = {
         ...prev,
         suspicious: (prev.suspicious || []).map((e) => (e === expense ? parsed : e)),
       } as SMSParsingResult;
+  (async () => { await writeJson(SUSPICIOUS_KEY, updated.suspicious || []); emitter.emit('transactions:changed'); })();
+      return updated;
     });
   Alert.alert('Reparsed', `Re-parse found amount ${formatAmount(parsed.amount)} (confidence ${(parsed.confidence ?? 0) * 100}%)`);
   };
