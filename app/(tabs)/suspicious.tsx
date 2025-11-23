@@ -1,4 +1,5 @@
 import TransactionForm from '@/app/components/TransactionForm';
+import { useCurrency } from '@/app/contexts/CurrencyContext';
 import { deleteTransaction, getFilteredTransactions, Transaction, updateTransaction } from '@/app/services/transactionService';
 import { IconButton, PrimaryButton } from '@/components/ui/button';
 import Card from '@/components/ui/card';
@@ -9,6 +10,7 @@ import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 
 const SuspiciousScreen: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { formatAmount } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -119,7 +121,7 @@ const SuspiciousScreen: React.FC = () => {
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Text style={styles.vendor}>{item.vendor}</Text>
-                    <Text style={styles.amount}>₹{item.amount.toFixed(2)}</Text>
+                    <Text style={styles.amount}>{formatAmount(item.amount)}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
                     <Text style={styles.date}>{new Date(item.createdAt).toLocaleString()}</Text>

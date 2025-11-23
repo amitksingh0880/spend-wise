@@ -100,7 +100,10 @@ const DashboardScreen: React.FC = () => {
   }
 
   const chartData = generateChartData();
-  const savingsRate = summary ? ((summary.totalIncome - summary.totalExpenses) / summary.totalIncome) * 100 : 0;
+  const savingsRateNumeric = summary && typeof summary.totalIncome === 'number' && summary.totalIncome > 0
+    ? ((summary.totalIncome - summary.totalExpenses) / summary.totalIncome) * 100
+    : null;
+  const savingsRate = savingsRateNumeric !== null && Number.isFinite(savingsRateNumeric) ? savingsRateNumeric : null;
 
   return (
     <ScrollView style={styles.container}>
@@ -136,15 +139,7 @@ const DashboardScreen: React.FC = () => {
           </Text>
         </Card>
 
-        <Card style={styles.cardItem}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardSubheading}>Suspicious</Text>
-            <Link href="/suspicious">
-              <GhostButton style={{ borderColor: '#60a5fa' }}>Review</GhostButton>
-            </Link>
-          </View>
-          <Text style={styles.cardValue}>{suspiciousCount}</Text>
-        </Card>
+        {/* Suspicious moved below the chart for better layout */}
       </View>
 
       <View style={styles.cardGrid}>
@@ -167,13 +162,13 @@ const DashboardScreen: React.FC = () => {
             <PiggyBank color="#0ea5e9" />
           </View>
           <Text style={styles.cardValue}>
-            {savingsRate.toFixed(1)}%
+            {savingsRate !== null ? `${savingsRate.toFixed(1)}%` : '—'}
           </Text>
         </Card>
       </View>
 
   {chartData.datasets[0].data.some((val: number) => val > 0) && (
-        <Card>
+  <Card>
           <Text style={styles.sectionHeading}>Monthly Spending Trend</Text>
           <View style={styles.chartWrapper}>
           <BarChart
@@ -197,6 +192,17 @@ const DashboardScreen: React.FC = () => {
             style={{ marginVertical: 8, borderRadius: 8 }}
           />
           </View>
+          {suspiciousCount > 0 && (
+            <View style={styles.suspiciousRow}>
+            <Text style={styles.suspiciousLabel}>Suspicious Transactions</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.suspiciousValue}>{suspiciousCount}</Text>
+              <Link href="/suspicious">
+                <GhostButton style={{ marginLeft: 12, borderColor: '#60a5fa' }}>Review</GhostButton>
+              </Link>
+            </View>
+            </View>
+          )}
         </Card>
       )}
 
@@ -403,6 +409,26 @@ const styles = StyleSheet.create({
   chartWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  suspiciousRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#1f2937',
+  },
+  suspiciousLabel: {
+    color: '#9ca3af',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  suspiciousValue: {
+    color: '#f97316',
+    fontWeight: '800',
+    marginRight: 8,
+    fontSize: 16,
   },
 });
 

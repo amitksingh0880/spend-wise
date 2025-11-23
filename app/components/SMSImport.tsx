@@ -1,3 +1,4 @@
+import { useCurrency } from '@/app/contexts/CurrencyContext';
 import {
   ExtractedExpense,
   SMSParsingResult,
@@ -34,6 +35,7 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [lastResult, setLastResult] = useState<SMSParsingResult | null>(null);
   const [rangeOption, setRangeOption] = useState<'today' | '7' | '30' | 'customDays' | 'customRange'>('today');
+  const { formatAmount } = useCurrency();
   const [customDays, setCustomDays] = useState<number>(7);
   const [customStart, setCustomStart] = useState<string>(''); // 'YYYY-MM-DD'
   const [customEnd, setCustomEnd] = useState<string>('');
@@ -241,7 +243,7 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
         suspicious: (prev.suspicious || []).map((e) => (e === expense ? parsed : e)),
       } as SMSParsingResult;
     });
-    Alert.alert('Reparsed', `Re-parse found amount ₹${parsed.amount.toFixed(2)} (confidence ${(parsed.confidence ?? 0) * 100}%)`);
+  Alert.alert('Reparsed', `Re-parse found amount ${formatAmount(parsed.amount)} (confidence ${(parsed.confidence ?? 0) * 100}%)`);
   };
 
   // ---------- Simple Calendar Modal Implementation ----------
@@ -372,7 +374,7 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
     <View style={styles.expenseItem}>
       <View style={styles.expenseHeader}>
         <Text style={styles.expenseAmount}>
-          {expense.type === 'income' ? '+' : '-'}${expense.amount.toFixed(2)}
+          {expense.type === 'income' ? '+' : '-'}{formatAmount(expense.amount)}
         </Text>
         <View
           style={[
@@ -632,7 +634,7 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
               </View>
               {lastResult.suspicious.map((expense, idx) => (
                 <View key={`susp-${idx}`} style={styles.suspiciousItem}>
-                  <Text style={styles.suspiciousText}>{expense.vendor || 'Unknown'} — ₹{expense.amount.toFixed(2)}</Text>
+                  <Text style={styles.suspiciousText}>{expense.vendor || 'Unknown'} — {formatAmount(expense.amount)}</Text>
                   <View style={styles.suspiciousActions}>
                     <PrimaryButton style={{ paddingVertical: 6, paddingHorizontal: 10 }} onPress={() => handleSaveSuspicious(expense)}>Save</PrimaryButton>
                     <GhostButton style={{ marginLeft: 8 }} onPress={() => handleIgnoreSuspicious(expense)}>Ignore</GhostButton>

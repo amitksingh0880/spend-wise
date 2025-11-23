@@ -23,6 +23,8 @@ const MAPPING = {
   'chart.bar.fill': 'bar-chart',
   'mic.fill': 'microphone',
   'gearshape.fill': 'settings',
+  'exclamationmark.triangle.fill': 'warning',
+  'shield.exclamation': 'report-problem',
 } as IconMapping;
 
 /**

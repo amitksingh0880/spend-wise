@@ -1,4 +1,6 @@
+import { getFilteredTransactions } from '@/app/services/transactionService';
 import { Tabs } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -7,6 +9,20 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const [suspiciousCount, setSuspiciousCount] = useState<number>(0);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const tx = await getFilteredTransactions({ tags: ['suspicious'] });
+        if (mounted) setSuspiciousCount((tx || []).length || 0);
+      } catch (err) {
+        console.warn('Failed to update suspicious badge', err);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   return (
     <Tabs
@@ -45,6 +61,14 @@ export default function TabLayout() {
         options={{
           title: 'Insights',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="chart.bar.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="suspicious"
+        options={{
+          title: 'Suspicious',
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="exclamationmark.triangle.fill" color={color} />,
+          tabBarBadge: suspiciousCount > 0 ? suspiciousCount : undefined,
         }}
       />
       <Tabs.Screen
