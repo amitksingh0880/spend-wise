@@ -9,6 +9,7 @@ import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+// no direct RN styles required in this layout
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -27,6 +28,7 @@ export default function TabLayout() {
         console.warn('Failed to update suspicious badge', err);
       }
     })();
+    // not using sidebar; read held suspicious list only
     return () => { mounted = false; };
   }, []);
 
@@ -44,16 +46,16 @@ export default function TabLayout() {
   }, []);
 
   return (
-    <Tabs
-      screenOptions={{
-  tabBarActiveTintColor: Colors[theme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarStyle: {
-          backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
-          borderTopColor: theme === 'dark' ? '#1e293b' : '#e5e7eb',
-        },
-      }}>
+        <Tabs
+          screenOptions={{
+            tabBarActiveTintColor: Colors[theme ?? 'light'].tint,
+            headerShown: false,
+            tabBarButton: HapticTab,
+            tabBarStyle: {
+              backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
+              borderTopColor: theme === 'dark' ? '#1e293b' : '#e5e7eb',
+            },
+          }}>
       <Tabs.Screen
         name="index"
         options={{
@@ -91,32 +93,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="voice"
-        options={{
-          title: 'AI Assistant',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="mic.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="gearshape.fill" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="sms-import"
-        options={{
-          href: null, // Hide from tab bar but keep accessible
-          title: 'SMS Import',
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          href: null, // Hide from tab bar but keep accessible
-        }}
-      />
-    </Tabs>
+      {/* Voice and Explore tabs removed from main tabs — moved to _hidden for dev-only access */}
+        </Tabs>
   );
 }
+
+// no styles required for this layout

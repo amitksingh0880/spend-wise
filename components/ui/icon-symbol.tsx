@@ -21,7 +21,7 @@ const MAPPING = {
   'list.bullet': 'format-list-bulleted',
   'chart.pie.fill': 'pie-chart',
   'chart.bar.fill': 'bar-chart',
-  'mic.fill': 'microphone',
+  'mic.fill': 'mic',
   'gearshape.fill': 'settings',
   'exclamationmark.triangle.fill': 'warning',
   'shield.exclamation': 'report-problem',

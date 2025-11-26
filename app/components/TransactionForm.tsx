@@ -47,7 +47,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
         setAmount((transaction as Transaction).amount.toString());
         setVendor((transaction as Transaction).vendor);
         setCategory((transaction as Transaction).category);
-        setDescription((transaction as Transaction).description || '');
+        // If the transaction is an imported/extracted SMS (has smsData) leave the description blank for editing
+        if ((transaction as any).smsData) setDescription('');
+        else setDescription((transaction as Transaction).description || '');
         setType((transaction as Transaction).type);
       } else {
         resetForm();
