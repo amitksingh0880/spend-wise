@@ -2,8 +2,9 @@
 // import { testUUID } from '@/app/libs/test/uuidTest';
 import { useCurrency } from '@/app/contexts/CurrencyContext';
 import { useAppTheme } from '@/app/contexts/ThemeContext';
+import { emitter } from '@/app/libs/emitter';
 import { deleteKey } from '@/app/libs/storage';
-import { getCurrency, updateCurrency } from '@/app/services/preferencesService';
+import { getCurrency, getUserPreferences, updateCurrency } from '@/app/services/preferencesService';
 import { CURRENCIES, Currency } from '@/app/utils/currency';
 import { GhostButton } from '@/components/ui/button';
 import Card from '@/components/ui/card';
@@ -43,6 +44,21 @@ const SettingsScreen: React.FC = () => {
 
   useEffect(() => {
     loadCurrency();
+    (async () => {
+      try {
+        const prefs = await getUserPreferences();
+        // Auth preferences removed
+      } catch (err) {
+        console.warn('Failed to load preferences', err);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    const unsub = emitter.addListener('preferences:changed', (prefs: any) => {
+      // Auth preferences removed
+    });
+    return () => { unsub(); };
   }, []);
 
   useEffect(() => {
@@ -217,6 +233,8 @@ const SettingsScreen: React.FC = () => {
           }
         />
 
+        {/* Authentication settings removed */}
+
         <SettingItem
           icon={DollarSign}
           title="Currency"
@@ -225,6 +243,8 @@ const SettingsScreen: React.FC = () => {
           color="#22c55e"
         />
       </Card>
+
+  {/* AuthLock removed */}
 
       {/* Data Management */}
       <Card style={styles.section}>

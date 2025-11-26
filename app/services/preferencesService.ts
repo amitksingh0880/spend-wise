@@ -1,3 +1,4 @@
+import { emitter } from '@/app/libs/emitter';
 import { readJson, writeJson } from '@/app/libs/storage';
 import { Currency } from '@/app/utils/currency';
 import { Theme, UserPreferences } from '@/types';
@@ -33,6 +34,7 @@ export const saveUserPreferences = async (preferences: Partial<UserPreferences>)
     const currentPreferences = await getUserPreferences();
     const updatedPreferences = { ...currentPreferences, ...preferences };
     await writeJson(PREFERENCES_KEY, updatedPreferences);
+    try { emitter.emit('preferences:changed', updatedPreferences); } catch (err) { /* ignore */ }
   } catch (error) {
     console.error('Error saving user preferences:', error);
     throw error;
@@ -46,6 +48,10 @@ export const updateCurrency = async (currency: Currency): Promise<void> => {
 export const updateTheme = async (theme: Theme): Promise<void> => {
   await saveUserPreferences({ theme });
 };
+
+// Sidebar preference removed as nav was reverted to bottom tab bar.
+
+// Biometric and startup auth preferences removed
 
 export const getCurrency = async (): Promise<Currency> => {
   const preferences = await getUserPreferences();

@@ -1,4 +1,5 @@
 import { getUserPreferences, saveUserPreferences } from '@/app/services/preferencesService';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Theme } from '@/types';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
@@ -12,7 +13,15 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const useAppTheme = () => {
   const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error('useAppTheme must be used inside ThemeProvider');
+  const colorScheme = useColorScheme() ?? 'dark';
+  if (!ctx) {
+    // Provide a safe fallback to avoid exceptions during route tree build before ThemeProvider is mounted
+    return {
+      theme: colorScheme as Theme,
+      setTheme: async (t: Theme) => {},
+      refreshTheme: async () => {},
+    } as { theme: Theme; setTheme: any; refreshTheme: any };
+  }
   return ctx;
 };
 
