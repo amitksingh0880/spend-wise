@@ -1,17 +1,8 @@
-// import Card from '@/components/ui/card';
-// import { Bot, Send, Sparkles, User } from 'lucide-react-native';
-// import React, { useEffect, useState } from 'react';
-// import {
-//     Keyboard,
-//     KeyboardAvoidingView,
-//     Platform,
-//     ScrollView,
-//     StyleSheet,
-//     Text,
-//     TextInput,
-//     TouchableOpacity,
-//     View,
-// } from 'react-native';
+// Voice assistant screen moved to _hidden — placeholder kept for compatibility
+
+export default function VoiceAssistantPlaceholder() {
+	return null;
+}
 
 // import {
 //     chatWithAI,

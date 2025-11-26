@@ -93,32 +93,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="voice"
-        options={{
-          title: 'AI Assistant',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="mic.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="gearshape.fill" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="sms-import"
-        options={{
-          href: null, // Hide from tab bar but keep accessible
-          title: 'SMS Import',
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          href: null, // Hide from tab bar but keep accessible
-        }}
-      />
+      {/* Voice and Explore tabs removed from main tabs — moved to _hidden for dev-only access */}
         </Tabs>
   );
 }
