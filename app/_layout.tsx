@@ -55,6 +55,27 @@ export default function RootLayout() {
     );
   }
 
+  function InnerApp() {
+    const colorScheme = useColorScheme();
+    const appTheme = useAppTheme();
+    const userTheme = appTheme?.theme ?? colorScheme;
+    return (
+      <ThemeProvider value={userTheme === 'dark' ? DarkTheme : DefaultTheme}>
+        {showStartup ? (
+          <StartupSplash visible={showStartup} onFinish={() => setShowStartup(false)} />
+        ) : (
+          <>
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            </Stack>
+            <StatusBar style="auto" />
+          </>
+        )}
+      </ThemeProvider>
+    );
+  }
+
   return (
     <CurrencyProvider>
       <AppThemeProvider>
