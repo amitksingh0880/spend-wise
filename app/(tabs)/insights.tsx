@@ -1,560 +1,17 @@
-// import { generateFinancialInsights } from '@/app/services/analyticsService';
-// import { getTransactionSummary } from '@/app/services/transactionService';
-// import Card from '@/components/ui/card';
-// import { Activity, BarChart3, DollarSign, PieChart as PieChartIcon, TrendingUp } from 'lucide-react-native';
-// import React, { useEffect, useState } from 'react';
-// import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-// import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
-
-// const screenWidth = Dimensions.get('window').width;
-
-// interface CategoryData {
-//   name: string;
-//   amount: number;
-//   color: string;
-//   legendFontColor: string;
-//   legendFontSize: number;
-// }
-
-// interface SpendingTrend {
-//   month: string;
-//   amount: number;
-// }
-
-// const InsightsScreen: React.FC = () => {
-//   const [summary, setSummary] = useState<any>(null);
-//   const [insights, setInsights] = useState<any[]>([]);
-//   const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
-//   const [spendingTrend, setSpendingTrend] = useState<SpendingTrend[]>([]);
-//   const [loading, setLoading] = useState(true);
-//   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year'>('month');
-
-//   useEffect(() => {
-//     loadInsightsData();
-//   }, [selectedPeriod]);
-
-//   const loadInsightsData = async () => {
-//     try {
-//       setLoading(true);
-//       const [summaryData, insightsData] = await Promise.all([
-//         getTransactionSummary(),
-//         generateFinancialInsights(),
-//       ]);
-      
-//       setSummary(summaryData);
-//       setInsights(insightsData);
-      
-//       // Generate category breakdown
-//       if (summaryData?.categoryBreakdown) {
-//         const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
-//         const categoryBreakdown = Object.entries(summaryData.categoryBreakdown).map(([category, amount], index) => ({
-//           name: category,
-//           amount: amount as number,
-//           color: colors[index % colors.length],
-//           legendFontColor: '#7F7F7F',
-//           legendFontSize: 12,
-//         }));
-//         setCategoryData(categoryBreakdown);
-//       }
-
-//       // Generate spending trend data
-//       if (summaryData?.monthlyTrend) {
-//         const trendData = summaryData.monthlyTrend.slice(-6).map((item: any) => ({
-//           month: item.month.slice(0, 3),
-//           amount: item.expenses,
-//         }));
-//         setSpendingTrend(trendData);
-//       }
-//     } catch (error) {
-//       console.error('Error loading insights data:', error);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const getPeriodLabel = () => {
-//     switch (selectedPeriod) {
-//       case 'week': return 'This Week';
-//       case 'month': return 'This Month';
-//       case 'year': return 'This Year';
-//       default: return 'This Month';
-//     }
-//   };
-
-//   const generateBarChartData = () => {
-//     if (spendingTrend.length === 0) {
-//       return {
-//         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-//         datasets: [{ data: [0, 0, 0, 0, 0, 0] }],
-//       };
-//     }
-
-//     return {
-//       labels: spendingTrend.map(item => item.month),
-//       datasets: [{ data: spendingTrend.map(item => item.amount) }],
-//     };
-//   };
-
-//   const generateLineChartData = () => {
-//     if (spendingTrend.length === 0) {
-//       return {
-//         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-//         datasets: [{ data: [0, 0, 0, 0, 0, 0] }],
-//       };
-//     }
-
-//     return {
-//       labels: spendingTrend.map(item => item.month),
-//       datasets: [{ data: spendingTrend.map(item => item.amount) }],
-//     };
-//   };
-
-//   if (loading) {
-//     return (
-//       <View style={[styles.container, styles.loadingContainer]}>
-//         <Text style={styles.loadingText}>Loading insights...</Text>
-//       </View>
-//     );
-//   }
-
-//   const barChartData = generateBarChartData();
-//   const lineChartData = generateLineChartData();
-
-//   return (
-//     <ScrollView style={styles.container}>
-//       <View style={styles.header}>
-//         <Text style={styles.heading}>Financial Insights</Text>
-//         <View style={styles.periodSelector}>
-//           {(['week', 'month', 'year'] as const).map((period) => (
-//             <TouchableOpacity
-//               key={period}
-//               style={[
-//                 styles.periodButton,
-//                 selectedPeriod === period && styles.periodButtonActive
-//               ]}
-//               onPress={() => setSelectedPeriod(period)}
-//             >
-//               <Text style={[
-//                 styles.periodButtonText,
-//                 selectedPeriod === period && styles.periodButtonTextActive
-//               ]}>
-//                 {period.charAt(0).toUpperCase() + period.slice(1)}
-//               </Text>
-//             </TouchableOpacity>
-//           ))}
-//         </View>
-//       </View>
-
-//       {/* Key Metrics Cards */}
-//       <View style={styles.metricsGrid}>
-//         <Card style={styles.metricCard}>
-//           <View style={styles.metricHeader}>
-//             <DollarSign size={20} color="#22c55e" />
-//             <Text style={styles.metricLabel}>Total Spent</Text>
-//           </View>
-//           <Text style={styles.metricValue}>
-//             ${summary?.totalExpenses?.toFixed(2) || '0.00'}
-//           </Text>
-//           <View style={styles.metricChange}>
-//             <TrendingUp size={14} color="#22c55e" />
-//             <Text style={styles.metricChangeText}>+5.2%</Text>
-//           </View>
-//         </Card>
-
-//         <Card style={styles.metricCard}>
-//           <View style={styles.metricHeader}>
-//             <Activity size={20} color="#3b82f6" />
-//             <Text style={styles.metricLabel}>Transactions</Text>
-//           </View>
-//           <Text style={styles.metricValue}>
-//             {summary?.transactionCount || 0}
-//           </Text>
-//           <View style={styles.metricChange}>
-//             <TrendingUp size={14} color="#22c55e" />
-//             <Text style={styles.metricChangeText}>+12</Text>
-//           </View>
-//         </Card>
-//       </View>
-
-//       {/* Spending Trend Chart */}
-//       <Card style={styles.chartCard}>
-//         <View style={styles.chartHeader}>
-//           <Text style={styles.chartTitle}>Spending Trend</Text>
-//           <BarChart3 size={20} color="#6b7280" />
-//         </View>
-//         <BarChart
-//           data={barChartData}
-//           width={screenWidth - 80}
-//           height={220}
-//           chartConfig={{
-//             backgroundColor: '#1f2937',
-//             backgroundGradientFrom: '#1f2937',
-//             backgroundGradientTo: '#374151',
-//             decimalPlaces: 0,
-//             color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-//             labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-//             style: {
-//               borderRadius: 16,
-//             },
-//             propsForBackgroundLines: {
-//               strokeDasharray: '',
-//               stroke: '#374151',
-//             },
-//           }}
-//           style={styles.chart}
-//         />
-//       </Card>
-
-//       {/* Category Breakdown */}
-//       {categoryData.length > 0 && (
-//         <Card style={styles.chartCard}>
-//           <View style={styles.chartHeader}>
-//             <Text style={styles.chartTitle}>Spending by Category</Text>
-//             <PieChartIcon size={20} color="#6b7280" />
-//           </View>
-//           <PieChart
-//             data={categoryData}
-//             width={screenWidth - 80}
-//             height={220}
-//             chartConfig={{
-//               color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-//             }}
-//             accessor="amount"
-//             backgroundColor="transparent"
-//             paddingLeft="15"
-//             style={styles.chart}
-//           />
-//         </Card>
-//       )}
-
-//       {/* Line Chart for Trend Analysis */}
-//       <Card style={styles.chartCard}>
-//         <View style={styles.chartHeader}>
-//           <Text style={styles.chartTitle}>Monthly Trend</Text>
-//           <TrendingUp size={20} color="#6b7280" />
-//         </View>
-//         <LineChart
-//           data={lineChartData}
-//           width={screenWidth - 80}
-//           height={220}
-//           chartConfig={{
-//             backgroundColor: '#1f2937',
-//             backgroundGradientFrom: '#1f2937',
-//             backgroundGradientTo: '#374151',
-//             decimalPlaces: 0,
-//             color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
-//             labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-//             style: {
-//               borderRadius: 16,
-//             },
-//             propsForBackgroundLines: {
-//               strokeDasharray: '',
-//               stroke: '#374151',
-//             },
-//           }}
-//           style={styles.chart}
-//         />
-//       </Card>
-
-//       {/* Advanced Analytics with Victory Charts */}
-//       <Card style={styles.chartCard}>
-//         <View style={styles.chartHeader}>
-//           <Text style={styles.chartTitle}>Advanced Analytics</Text>
-//           <Activity size={20} color="#6b7280" />
-//         </View>
-//         <View style={styles.victoryChartContainer}>
-//           <VictoryChart
-//             theme={VictoryTheme.material}
-//             height={200}
-//             width={screenWidth - 80}
-//           >
-//             <VictoryAxis
-//               style={{
-//                 axis: { stroke: '#6b7280' },
-//                 tickLabels: { fill: '#9ca3af' },
-//               }}
-//             />
-//             <VictoryAxis
-//               dependentAxis
-//               style={{
-//                 axis: { stroke: '#6b7280' },
-//                 tickLabels: { fill: '#9ca3af' },
-//               }}
-//             />
-//             <VictoryArea
-//               data={spendingTrend.map((item, index) => ({ x: index, y: item.amount }))}
-//               style={{
-//                 data: { fill: 'url(#gradient)', stroke: '#3b82f6', strokeWidth: 2 },
-//               }}
-//             />
-//             <defs>
-//               <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-//                 <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8} />
-//                 <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.1} />
-//               </linearGradient>
-//             </defs>
-//           </VictoryChart>
-//         </View>
-//       </Card>
-
-//       {/* Financial Insights */}
-//       {insights.length > 0 && (
-//         <Card style={styles.insightsCard}>
-//           <Text style={styles.insightsTitle}>AI-Powered Insights</Text>
-//           {insights.slice(0, 5).map((insight, index) => (
-//             <View key={insight.id || index} style={styles.insightItem}>
-//               <View style={[
-//                 styles.insightIndicator,
-//                 { backgroundColor: insight.impact === 'high' ? '#ef4444' : insight.impact === 'medium' ? '#f59e0b' : '#22c55e' }
-//               ]} />
-//               <View style={styles.insightContent}>
-//                 <Text style={styles.insightTitle}>{insight.title}</Text>
-//                 <Text style={styles.insightDescription}>{insight.description}</Text>
-//                 {insight.recommendation && (
-//                   <Text style={styles.insightRecommendation}>
-//                     💡 {insight.recommendation}
-//                   </Text>
-//                 )}
-//               </View>
-//             </View>
-//           ))}
-//         </Card>
-//       )}
-
-//       {/* Spending Patterns */}
-//       <Card style={styles.patternsCard}>
-//         <Text style={styles.patternsTitle}>Spending Patterns</Text>
-//         <View style={styles.patternGrid}>
-//           <View style={styles.patternItem}>
-//             <Text style={styles.patternLabel}>Peak Spending Day</Text>
-//             <Text style={styles.patternValue}>Friday</Text>
-//           </View>
-//           <View style={styles.patternItem}>
-//             <Text style={styles.patternLabel}>Average Transaction</Text>
-//             <Text style={styles.patternValue}>
-//               ${summary ? (summary.totalExpenses / (summary.transactionCount || 1)).toFixed(2) : '0.00'}
-//             </Text>
-//           </View>
-//           <View style={styles.patternItem}>
-//             <Text style={styles.patternLabel}>Top Category</Text>
-//             <Text style={styles.patternValue}>
-//               {categoryData.length > 0 ? categoryData[0].name : 'N/A'}
-//             </Text>
-//           </View>
-//           <View style={styles.patternItem}>
-//             <Text style={styles.patternLabel}>Savings Rate</Text>
-//             <Text style={styles.patternValue}>
-//               {summary ? (((summary.totalIncome - summary.totalExpenses) / summary.totalIncome) * 100).toFixed(1) : '0.0'}%
-//             </Text>
-//           </View>
-//         </View>
-//       </Card>
-//     </ScrollView>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#0f172a',
-//     padding: 16,
-//   },
-//   loadingContainer: {
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   loadingText: {
-//     color: '#9ca3af',
-//     fontSize: 16,
-//   },
-//   header: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     marginBottom: 20,
-//   },
-//   heading: {
-//     fontSize: 28,
-//     fontWeight: '700',
-//     color: '#f9fafb',
-//   },
-//   periodSelector: {
-//     flexDirection: 'row',
-//     backgroundColor: '#1f2937',
-//     borderRadius: 8,
-//     padding: 2,
-//   },
-//   periodButton: {
-//     paddingHorizontal: 12,
-//     paddingVertical: 6,
-//     borderRadius: 6,
-//   },
-//   periodButtonActive: {
-//     backgroundColor: '#3b82f6',
-//   },
-//   periodButtonText: {
-//     color: '#9ca3af',
-//     fontSize: 12,
-//     fontWeight: '500',
-//   },
-//   periodButtonTextActive: {
-//     color: '#ffffff',
-//   },
-//   metricsGrid: {
-//     flexDirection: 'row',
-//     gap: 12,
-//     marginBottom: 20,
-//   },
-//   metricCard: {
-//     flex: 1,
-//     padding: 16,
-//   },
-//   metricHeader: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     gap: 8,
-//     marginBottom: 8,
-//   },
-//   metricLabel: {
-//     fontSize: 14,
-//     color: '#9ca3af',
-//     fontWeight: '500',
-//   },
-//   metricValue: {
-//     fontSize: 24,
-//     fontWeight: '700',
-//     color: '#f9fafb',
-//     marginBottom: 4,
-//   },
-//   metricChange: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     gap: 4,
-//   },
-//   metricChangeText: {
-//     fontSize: 12,
-//     color: '#22c55e',
-//     fontWeight: '500',
-//   },
-//   chartCard: {
-//     marginBottom: 20,
-//     padding: 16,
-//   },
-//   chartHeader: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     marginBottom: 16,
-//   },
-//   chartTitle: {
-//     fontSize: 18,
-//     fontWeight: '600',
-//     color: '#f3f4f6',
-//   },
-//   chart: {
-//     marginVertical: 8,
-//     borderRadius: 8,
-//   },
-//   victoryChartContainer: {
-//     alignItems: 'center',
-//   },
-//   insightsCard: {
-//     marginBottom: 20,
-//     padding: 16,
-//   },
-//   insightsTitle: {
-//     fontSize: 18,
-//     fontWeight: '600',
-//     color: '#f3f4f6',
-//     marginBottom: 16,
-//   },
-//   insightItem: {
-//     flexDirection: 'row',
-//     alignItems: 'flex-start',
-//     marginBottom: 16,
-//     paddingBottom: 16,
-//     borderBottomWidth: 1,
-//     borderBottomColor: '#1f2937',
-//   },
-//   insightIndicator: {
-//     width: 4,
-//     height: 40,
-//     borderRadius: 2,
-//     marginRight: 12,
-//   },
-//   insightContent: {
-//     flex: 1,
-//   },
-//   insightTitle: {
-//     fontSize: 14,
-//     fontWeight: '600',
-//     color: '#f9fafb',
-//     marginBottom: 4,
-//   },
-//   insightDescription: {
-//     fontSize: 13,
-//     color: '#9ca3af',
-//     lineHeight: 18,
-//     marginBottom: 4,
-//   },
-//   insightRecommendation: {
-//     fontSize: 12,
-//     color: '#60a5fa',
-//     fontStyle: 'italic',
-//   },
-//   patternsCard: {
-//     marginBottom: 20,
-//     padding: 16,
-//   },
-//   patternsTitle: {
-//     fontSize: 18,
-//     fontWeight: '600',
-//     color: '#f3f4f6',
-//     marginBottom: 16,
-//   },
-//   patternGrid: {
-//     flexDirection: 'row',
-//     flexWrap: 'wrap',
-//     gap: 12,
-//   },
-//   patternItem: {
-//     flex: 1,
-//     minWidth: '45%',
-//     backgroundColor: '#1f2937',
-//     padding: 12,
-//     borderRadius: 8,
-//   },
-//   patternLabel: {
-//     fontSize: 12,
-//     color: '#9ca3af',
-//     marginBottom: 4,
-//   },
-//   patternValue: {
-//     fontSize: 16,
-//     fontWeight: '600',
-//     color: '#f9fafb',
-//   },
-// });
-
-// export default InsightsScreen;
-
-
-
-
 import { generateFinancialInsights } from '@/app/services/analyticsService';
 import { getTransactionSummary } from '@/app/services/transactionService';
-import Card from '@/components/ui/card';
-import { Activity, BarChart3, DollarSign, PieChart as PieChartIcon, TrendingUp } from 'lucide-react-native';
+import { CREDCard } from '@/components/ui/CREDCard';
+import { CREDText } from '@/components/ui/CREDText';
+import { CREDButton } from '@/components/ui/CREDButton';
+import { ScreenHeader } from '@/app/components/MenuButton';
+import { Activity, BarChart3, DollarSign, PieChart as PieChartIcon, TrendingUp, Info } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View, StatusBar as RNStatusBar } from 'react-native';
 import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
-
-// Assume a font file is added to assets (download Inter or any TTF font)
-//import inter from '../assets/'; // Adjust path to your font file
+import { CRED_COLORS } from '@/constants/CREDTheme';
 
 const screenWidth = Dimensions.get('window').width;
 
-// Define interfaces for better type safety
 interface CategoryData {
   name: string;
   amount: number;
@@ -592,9 +49,6 @@ const InsightsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year'>('month');
 
-  // Load font for axis labels (required for rendering labels)
-  //const font = useFont(Fonts  , 12);
-
   useEffect(() => {
     loadInsightsData();
   }, [selectedPeriod]);
@@ -610,331 +64,192 @@ const InsightsScreen: React.FC = () => {
       setSummary(summaryData || null);
       setInsights(insightsData || []);
 
-      // Generate category breakdown
       if (summaryData?.categoryBreakdown) {
-        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
-        const categoryBreakdown = Object.entries(summaryData.categoryBreakdown).map(([category, amount], index) => ({
+        const colors = [
+          CRED_COLORS.neonGreen, 
+          CRED_COLORS.electricBlue, 
+          CRED_COLORS.vibrantPurple, 
+          CRED_COLORS.gold, 
+          CRED_COLORS.coralRed,
+          '#00D1FF', '#FF00C7'
+        ];
+        const breakdown = Object.entries(summaryData.categoryBreakdown).map(([category, amount], index) => ({
           name: category,
           amount: Number(amount) || 0,
           color: colors[index % colors.length],
-          legendFontColor: '#7F7F7F',
-          legendFontSize: 12,
+          legendFontColor: CRED_COLORS.gray400,
+          legendFontSize: 10,
         }));
-        setCategoryData(categoryBreakdown);
-      } else {
-        setCategoryData([]);
+        setCategoryData(breakdown);
       }
-
-      // Generate spending trend data
+      
       if (summaryData?.monthlyTrend) {
-        const trendData = summaryData.monthlyTrend.slice(-6).map((item: any) => ({
+        const trend = summaryData.monthlyTrend.slice(-6).map((item: any) => ({
           month: item.month?.slice(0, 3) || 'N/A',
           amount: Number(item.expenses) || 0,
         }));
-        setSpendingTrend(trendData);
-      } else {
-        setSpendingTrend([]);
+        setSpendingTrend(trend);
       }
     } catch (error) {
       console.error('Error loading insights data:', error);
-      setSummary(null);
-      setInsights([]);
-      setCategoryData([]);
-      setSpendingTrend([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const getPeriodLabel = () => {
-    switch (selectedPeriod) {
-      case 'week':
-        return 'This Week';
-      case 'month':
-        return 'This Month';
-      case 'year':
-        return 'This Year';
-      default:
-        return 'This Month';
-    }
+  const chartConfig = {
+    backgroundColor: CRED_COLORS.graphite,
+    backgroundGradientFrom: CRED_COLORS.graphite,
+    backgroundGradientTo: CRED_COLORS.graphite,
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(0, 224, 255, ${opacity})`, // Electric Blue
+    labelColor: (opacity = 1) => `rgba(163, 163, 163, ${opacity})`,
+    propsForBackgroundLines: {
+      strokeDasharray: '',
+      stroke: CRED_COLORS.gray800,
+    },
+    style: { borderRadius: 16 }
   };
-
-  const barChartData = useMemo(() => {
-    if (spendingTrend.length === 0) {
-      return {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        datasets: [{ data: [0, 0, 0, 0, 0, 0] }],
-      };
-    }
-
-    return {
-      labels: spendingTrend.map((item) => item.month),
-      datasets: [{ data: spendingTrend.map((item) => item.amount) }],
-    };
-  }, [spendingTrend]);
-
-  const lineChartData = useMemo(() => {
-    if (spendingTrend.length === 0) {
-      return {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        datasets: [{ data: [0, 0, 0, 0, 0, 0] }],
-      };
-    }
-
-    return {
-      labels: spendingTrend.map((item) => item.month),
-      datasets: [{ data: spendingTrend.map((item) => item.amount) }],
-    };
-  }, [spendingTrend]);
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <Text style={styles.loadingText}>Loading insights...</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: CRED_COLORS.black }}>
+        <CREDText variant="body" color="gray500" glow>analyzing data patterns...</CREDText>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.heading}>Financial Insights</Text>
-        <View style={styles.periodSelector}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <RNStatusBar barStyle="light-content" />
+      <ScreenHeader title="Insights" />
+
+      {/* Period Selector Toggle */}
+      <CREDCard variant="glass" style={styles.periodCard}>
+        <View style={styles.periodRow}>
           {(['week', 'month', 'year'] as const).map((period) => (
-            <TouchableOpacity
-              key={period}
-              style={[styles.periodButton, selectedPeriod === period && styles.periodButtonActive]}
+            <TouchableOpacity 
+              key={period} 
               onPress={() => setSelectedPeriod(period)}
+              style={[styles.periodBtn, selectedPeriod === period && styles.periodBtnActive]}
             >
-              <Text
-                style={[styles.periodButtonText, selectedPeriod === period && styles.periodButtonTextActive]}
+              <CREDText 
+                variant="caption" 
+                weight="bold" 
+                color={selectedPeriod === period ? 'black' : 'gray500'}
               >
-                {period.charAt(0).toUpperCase() + period.slice(1)}
-              </Text>
+                {period.toUpperCase()}
+              </CREDText>
             </TouchableOpacity>
           ))}
         </View>
+      </CREDCard>
+
+      {/* Hero Analytics Metrics */}
+      <View style={styles.heroRow}>
+        <CREDCard variant="neon" glow accentColor={CRED_COLORS.electricBlue} style={styles.heroMetric}>
+          <View style={styles.heroMetricHeader}>
+            <DollarSign size={16} color={CRED_COLORS.electricBlue} />
+            <CREDText variant="caption" color="gray400" weight="bold">TOTAL SPENT</CREDText>
+          </View>
+          <CREDText variant="h2" weight="black" style={styles.heroValue}>
+             ${summary?.totalExpenses?.toFixed(0) || '0'}
+          </CREDText>
+          <View style={styles.heroChange}>
+            <ChevronRight size={12} color={CRED_COLORS.neonGreen} style={{ transform: [{ rotate: '-90deg' }] }} />
+            <CREDText variant="caption" color="neonGreen" weight="bold"> 5.2%</CREDText>
+          </View>
+        </CREDCard>
+
+        <CREDCard variant="glass" style={styles.heroMetric}>
+          <View style={styles.heroMetricHeader}>
+            <Activity size={16} color={CRED_COLORS.vibrantPurple} />
+            <CREDText variant="caption" color="gray400" weight="bold">ACTIVITY</CREDText>
+          </View>
+          <CREDText variant="h2" weight="black" style={styles.heroValue}>
+            {summary?.transactionCount || 0}
+          </CREDText>
+          <CREDText variant="caption" color="gray500">transactions</CREDText>
+        </CREDCard>
       </View>
 
-      {/* Key Metrics Cards */}
-      <View style={styles.metricsGrid}>
-        <Card style={styles.metricCard}>
-          <View style={styles.metricHeader}>
-            <DollarSign size={20} color="#22c55e" />
-            <Text style={styles.metricLabel}>Total Spent</Text>
-          </View>
-          <Text style={styles.metricValue}>${summary?.totalExpenses?.toFixed(2) || '0.00'}</Text>
-          <View style={styles.metricChange}>
-            <TrendingUp size={14} color="#22c55e" />
-            <Text style={styles.metricChangeText}>+5.2%</Text>
-          </View>
-        </Card>
-
-        <Card style={styles.metricCard}>
-          <View style={styles.metricHeader}>
-            <Activity size={20} color="#3b82f6" />
-            <Text style={styles.metricLabel}>Transactions</Text>
-          </View>
-          <Text style={styles.metricValue}>{summary?.transactionCount || 0}</Text>
-          <View style={styles.metricChange}>
-            <TrendingUp size={14} color="#22c55e" />
-            <Text style={styles.metricChangeText}>+12</Text>
-          </View>
-        </Card>
-      </View>
-
-      {/* Spending Trend Chart */}
-      <Card style={styles.chartCard}>
-        <View style={styles.chartHeader}>
-          <Text style={styles.chartTitle}>Spending Trend</Text>
-          <BarChart3 size={20} color="#6b7280" />
+      {/* Trend Analysis */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <CREDText variant="h3" weight="black" style={styles.sectionTitle}>SPENDING MOMENTUM</CREDText>
+          <BarChart3 size={18} color={CRED_COLORS.gray600} />
         </View>
-        <BarChart
-          data={barChartData}
-          width={screenWidth - 80}
-          height={220}
-          chartConfig={{
-            backgroundColor: '#1f2937',
-            backgroundGradientFrom: '#1f2937',
-            backgroundGradientTo: '#374151',
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-            style: {
-              borderRadius: 16,
-            },
-            propsForBackgroundLines: {
-              strokeDasharray: '',
-              stroke: '#374151',
-            },
-          }}
-          style={styles.chart}
-        />
-      </Card>
-
-      {/* Category Breakdown */}
-      {categoryData.length > 0 && (
-        <Card style={styles.chartCard}>
-          <View style={styles.chartHeader}>
-            <Text style={styles.chartTitle}>Spending by Category</Text>
-            <PieChartIcon size={20} color="#6b7280" />
-          </View>
-          <PieChart
-            data={categoryData}
-            width={screenWidth - 80}
-            height={220}
-            chartConfig={{
-              color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+        <CREDCard variant="filled" style={styles.chartCard}>
+          <LineChart
+            data={{
+              labels: spendingTrend.map(t => t.month),
+              datasets: [{ data: spendingTrend.map(t => t.amount) }]
             }}
-            accessor="amount"
-            backgroundColor="transparent"
-            paddingLeft="15"
+            width={screenWidth - 48}
+            height={200}
+            chartConfig={{
+              ...chartConfig,
+              color: (opacity = 1) => `rgba(189, 0, 255, ${opacity})`, // Purple
+            }}
+            bezier
             style={styles.chart}
+            withVerticalLines={false}
+            withHorizontalLines={false}
+            withDots={false}
           />
-        </Card>
+        </CREDCard>
+      </View>
+
+      {/* Category Distribution */}
+      {categoryData.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <CREDText variant="h3" weight="black" style={styles.sectionTitle}>ALLOCATION BY CATEGORY</CREDText>
+            <PieChartIcon size={18} color={CRED_COLORS.gray600} />
+          </View>
+          <CREDCard variant="glass" style={styles.chartCard}>
+            <PieChart
+              data={categoryData}
+              width={screenWidth - 48}
+              height={200}
+              chartConfig={chartConfig}
+              accessor="amount"
+              backgroundColor="transparent"
+              paddingLeft="15"
+              absolute
+            />
+          </CREDCard>
+        </View>
       )}
 
-      {/* Line Chart for Trend Analysis */}
-      <Card style={styles.chartCard}>
-        <View style={styles.chartHeader}>
-          <Text style={styles.chartTitle}>Monthly Trend</Text>
-          <TrendingUp size={20} color="#6b7280" />
+      {/* AI Intelligence Block */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <CREDText variant="h3" weight="black" style={styles.sectionTitle}>AI INTELLIGENCE</CREDText>
+          <Info size={18} color={CRED_COLORS.gray600} />
         </View>
-        <LineChart
-          data={lineChartData}
-          width={screenWidth - 80}
-          height={220}
-          chartConfig={{
-            backgroundColor: '#1f2937',
-            backgroundGradientFrom: '#1f2937',
-            backgroundGradientTo: '#374151',
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-            style: {
-              borderRadius: 16,
-            },
-            propsForBackgroundLines: {
-              strokeDasharray: '',
-              stroke: '#374151',
-            },
-          }}
-          style={styles.chart}
-        />
-      </Card>
-
-      {/* Advanced Analytics with Victory Native XL */}
-      {/* <Card style={styles.chartCard}>
-        <View style={styles.chartHeader}>
-          <Text style={styles.chartTitle}>Advanced Analytics</Text>
-          <Activity size={20} color="#6b7280" />
-        </View>
-        <View style={styles.victoryChartContainer}>
-          {spendingTrend.length > 0 ? (
-            <CartesianChart
-              data={spendingTrend}
-              xKey="month"
-              yKeys={["amount"]}
-              domainPadding={{ x: 20, y: 50 }}
-              xAxis={{
-                lineColor: '#6b7280',
-                labelColor: '#9ca3af',
-                font,
-                lineWidth: 1,
-                labelPosition: 'outset',
-              }}
-              // yAxis={{
-              //   lineColor: '#6b7280',
-              //   labelColor: '#9ca3af',
-              //   font,
-              //   lineWidth: 1,
-              //   labelPosition: 'outset',
-              // }}
-            >
-              {({ points, chartBounds }) => (
-                <Area
-                  points={points.amount}
-                  y0={chartBounds.bottom}
-                  animate={{ type: 'timing' }}
-                >
-                  <LinearGradient
-                    start={vec(0, chartBounds.top)}
-                    end={vec(0, chartBounds.bottom)}
-                    colors={['#3b82f6cc', '#3b82f61a']}
-                  />
-                </Area>
-              )}
-            </CartesianChart>
-          ) : (
-            <Text style={styles.noDataText}>No data available</Text>
-          )}
-        </View>
-      </Card> */}
-
-      {/* Financial Insights */}
-      {insights.length > 0 && (
-        <Card style={styles.insightsCard}>
-          <Text style={styles.insightsTitle}>AI-Powered Insights</Text>
-          {insights.slice(0, 5).map((insight, index) => (
-            <View key={insight.id || index} style={styles.insightItem}>
-              <View
-                style={[
-                  styles.insightIndicator,
-                  {
-                    backgroundColor:
-                      insight.impact === 'high'
-                        ? '#ef4444'
-                        : insight.impact === 'medium'
-                        ? '#f59e0b'
-                        : '#22c55e',
-                  },
-                ]}
-              />
-              <View style={styles.insightContent}>
-                <Text style={styles.insightTitle}>{insight.title}</Text>
-                <Text style={styles.insightDescription}>{insight.description}</Text>
-                {insight.recommendation && (
-                  <Text style={styles.insightRecommendation}>
-                    💡 {insight.recommendation}
-                  </Text>
-                )}
-              </View>
+        {insights.map((insight, idx) => (
+          <CREDCard variant="glass" key={idx} style={styles.insightCard}>
+            <View style={styles.insightHeader}>
+               <View style={[styles.impactIndicator, { backgroundColor: insight.impact === 'high' ? CRED_COLORS.coralRed : insight.impact === 'medium' ? CRED_COLORS.gold : CRED_COLORS.neonGreen }]} />
+               <CREDText variant="body" weight="black">{insight.title}</CREDText>
             </View>
-          ))}
-        </Card>
-      )}
+            <CREDText variant="caption" color="gray400" style={styles.insightDesc}>
+              {insight.description}
+            </CREDText>
+            {insight.recommendation && (
+              <View style={styles.recommendationBox}>
+                <CREDText variant="caption" color="electricBlue" weight="bold">
+                   PRO TIP: {insight.recommendation}
+                </CREDText>
+              </View>
+            )}
+          </CREDCard>
+        ))}
+      </View>
 
-      {/* Spending Patterns */}
-      <Card style={styles.patternsCard}>
-        <Text style={styles.patternsTitle}>Spending Patterns</Text>
-        <View style={styles.patternGrid}>
-          <View style={styles.patternItem}>
-            <Text style={styles.patternLabel}>Peak Spending Day</Text>
-            <Text style={styles.patternValue}>Friday</Text>
-          </View>
-          <View style={styles.patternItem}>
-            <Text style={styles.patternLabel}>Average Transaction</Text>
-            <Text style={styles.patternValue}>
-              ${summary ? (summary.totalExpenses / (summary.transactionCount || 1)).toFixed(2) : '0.00'}
-            </Text>
-          </View>
-          <View style={styles.patternItem}>
-            <Text style={styles.patternLabel}>Top Category</Text>
-            <Text style={styles.patternValue}>
-              {categoryData.length > 0 ? categoryData[0].name : 'N/A'}
-            </Text>
-          </View>
-          <View style={styles.patternItem}>
-            <Text style={styles.patternLabel}>Savings Rate</Text>
-            <Text style={styles.patternValue}>
-              {summary && summary.totalIncome
-                ? (((summary.totalIncome - summary.totalExpenses) / summary.totalIncome) * 100).toFixed(1)
-                : '0.0'}
-              %
-            </Text>
-          </View>
-        </View>
-      </Card>
+      {/* Footer Padding */}
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 };
@@ -942,191 +257,99 @@ const InsightsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
-    padding: 16,
+    backgroundColor: CRED_COLORS.black,
+    paddingHorizontal: 20,
   },
-  loadingContainer: {
-    justifyContent: 'center',
+  periodCard: {
+    marginTop: 10,
+    marginBottom: 24,
+    padding: 4,
+    borderRadius: 14,
+  },
+  periodRow: {
+    flexDirection: 'row',
+  },
+  periodBtn: {
+    flex: 1,
+    paddingVertical: 10,
     alignItems: 'center',
+    borderRadius: 10,
   },
-  loadingText: {
-    color: '#9ca3af',
-    fontSize: 16,
+  periodBtnActive: {
+    backgroundColor: CRED_COLORS.neonGreen,
   },
-  header: {
+  heroRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
-  heading: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#f9fafb',
-  },
-  periodSelector: {
-    flexDirection: 'row',
-    backgroundColor: '#1f2937',
-    borderRadius: 8,
-    padding: 2,
-  },
-  periodButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  periodButtonActive: {
-    backgroundColor: '#3b82f6',
-  },
-  periodButtonText: {
-    color: '#9ca3af',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  periodButtonTextActive: {
-    color: '#ffffff',
-  },
-  metricsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-  metricCard: {
-    flex: 1,
+  heroMetric: {
+    width: '48%',
     padding: 16,
+    height: 140,
+    justifyContent: 'space-between',
   },
-  metricHeader: {
+  heroMetricHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
   },
-  metricLabel: {
-    fontSize: 14,
-    color: '#9ca3af',
-    fontWeight: '500',
+  heroValue: {
+    marginTop: 8,
   },
-  metricValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#f9fafb',
-    marginBottom: 4,
-  },
-  metricChange: {
+  heroChange: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
   },
-  metricChangeText: {
-    fontSize: 12,
-    color: '#22c55e',
-    fontWeight: '500',
+  section: {
+    marginBottom: 32,
   },
-  chartCard: {
-    marginBottom: 20,
-    padding: 16,
-  },
-  chartHeader: {
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#f3f4f6',
+  sectionTitle: {
+    letterSpacing: 1.5,
+    color: CRED_COLORS.gray500,
+    fontSize: 12,
+  },
+  chartCard: {
+    padding: 16,
+    alignItems: 'center',
+    borderRadius: 24,
   },
   chart: {
     marginVertical: 8,
-    borderRadius: 8,
+    borderRadius: 24,
+    paddingRight: 0,
   },
-  victoryChartContainer: {
+  insightCard: {
+    marginBottom: 12,
+    padding: 16,
+  },
+  insightHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    height: 220,
+    marginBottom: 8,
   },
-  noDataText: {
-    color: '#9ca3af',
-    fontSize: 14,
-    textAlign: 'center',
+  impactIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 10,
   },
-  insightsCard: {
-    marginBottom: 20,
-    padding: 16,
-  },
-  insightsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#f3f4f6',
-    marginBottom: 16,
-  },
-  insightItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
-  },
-  insightIndicator: {
-    width: 4,
-    height: 40,
-    borderRadius: 2,
-    marginRight: 12,
-  },
-  insightContent: {
-    flex: 1,
-  },
-  insightTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#f9fafb',
-    marginBottom: 4,
-  },
-  insightDescription: {
-    fontSize: 13,
-    color: '#9ca3af',
+  insightDesc: {
     lineHeight: 18,
-    marginBottom: 4,
   },
-  insightRecommendation: {
-    fontSize: 12,
-    color: '#60a5fa',
-    fontStyle: 'italic',
-  },
-  patternsCard: {
-    marginBottom: 20,
-    padding: 16,
-  },
-  patternsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#f3f4f6',
-    marginBottom: 16,
-  },
-  patternGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  patternItem: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: '#1f2937',
-    padding: 12,
-    borderRadius: 8,
-  },
-  patternLabel: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginBottom: 4,
-  },
-  patternValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#f9fafb',
-  },
+  recommendationBox: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+  }
 });
+
+import { ChevronRight } from 'lucide-react-native';
 
 export default InsightsScreen;
