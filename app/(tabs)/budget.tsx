@@ -1,4 +1,5 @@
 import BudgetForm from '@/app/components/BudgetForm';
+import { ScreenHeader } from '@/app/components/MenuButton';
 import { useCurrency } from '@/app/contexts/CurrencyContext';
 import { emitter } from '@/app/libs/emitter';
 import {
@@ -64,7 +65,7 @@ const BudgetCard = ({
           <Text style={styles.budgetTitle}>{budget.name}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {getStatusIcon()}
-            <IconButton onPress={() => handleLongPress()} accessibilityLabel={`Delete budget ${budget.name}`}>
+            <IconButton onPress={() => handleLongPress()}>
               <Trash2 size={18} color="#ef4444" />
             </IconButton>
           </View>
@@ -201,13 +202,12 @@ const BudgetScreen: React.FC = () => {
 
   return (
   <View style={[styles.container, { backgroundColor: bg }]}>
+    <ScreenHeader title="Budget" />
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-  <Text style={[styles.heading, { color: text }]}>Budgets</Text>
-
         {alerts.length > 0 && (
           <Card style={styles.alertCard}>
             <View style={styles.alertHeader}>
@@ -246,7 +246,7 @@ const BudgetScreen: React.FC = () => {
           {budgets.length > 0 ? (
             budgets.map((budget) => (
               <BudgetCard 
-                key={budget.id} 
+                key={budget.id.toString()} 
                 budget={budget} 
                 onDelete={handleDeleteBudget}
               />

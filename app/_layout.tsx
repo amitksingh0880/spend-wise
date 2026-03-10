@@ -7,9 +7,10 @@ import 'react-native-reanimated';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import StartupSplash from '@/app/components/StartupSplash';
+import SidebarOverlay from '@/app/components/SidebarLayout';
 import { CurrencyProvider } from '@/app/contexts/CurrencyContext';
+import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { ThemeProvider as AppThemeProvider, useAppTheme } from '@/app/contexts/ThemeContext';
-// Auth code removed
 import { getUserPreferences } from '@/app/services/preferencesService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -19,21 +20,14 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const [showStartup, setShowStartup] = useState(true);
-  const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
-    // Authentication flow removed for now
-  }, []);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', async (state) => {
+    const subscription = AppState.addEventListener('change', async (_state) => {
       // Background auth behavior removed
     });
     return () => subscription.remove();
   }, []);
 
-  // auth emitter removed
-
   function InnerApp() {
     const colorScheme = useColorScheme();
     const appTheme = useAppTheme();
@@ -48,27 +42,8 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
             </Stack>
-            <StatusBar style="auto" />
-          </>
-        )}
-      </ThemeProvider>
-    );
-  }
-
-  function InnerApp() {
-    const colorScheme = useColorScheme();
-    const appTheme = useAppTheme();
-    const userTheme = appTheme?.theme ?? colorScheme;
-    return (
-      <ThemeProvider value={userTheme === 'dark' ? DarkTheme : DefaultTheme}>
-        {showStartup ? (
-          <StartupSplash visible={showStartup} onFinish={() => setShowStartup(false)} />
-        ) : (
-          <>
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-            </Stack>
+            {/* Floating sidebar overlay — sits above all screens */}
+            <SidebarOverlay />
             <StatusBar style="auto" />
           </>
         )}
@@ -79,12 +54,13 @@ export default function RootLayout() {
   return (
     <CurrencyProvider>
       <AppThemeProvider>
-        <SafeAreaProvider>
-          <SafeAreaView style={{ flex: 1 }} edges={[ 'top' ]}>
-            <InnerApp />
-          </SafeAreaView>
-        </SafeAreaProvider>
-        {/* Auth removed for now */}
+        <SidebarProvider>
+          <SafeAreaProvider>
+            <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+              <InnerApp />
+            </SafeAreaView>
+          </SafeAreaProvider>
+        </SidebarProvider>
       </AppThemeProvider>
     </CurrencyProvider>
   );

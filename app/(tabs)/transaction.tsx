@@ -1,5 +1,6 @@
 import SMSImport from '@/app/components/SMSImport';
 import TransactionForm from '@/app/components/TransactionForm';
+import { ScreenHeader } from '@/app/components/MenuButton';
 import { useCurrency } from '@/app/contexts/CurrencyContext';
 import {
   deleteTransaction,
@@ -198,7 +199,7 @@ const TransactionsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>Transaction History</Text>
+      <ScreenHeader title="Transactions" />
 
       <View style={styles.searchWrapper}>
         <Search size={18} color="#9ca3af" style={styles.searchIcon} />
@@ -313,11 +314,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heading: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#f9fafb',
-    marginBottom: 20,
-    letterSpacing: -0.5,
+    display: 'none',
   },
   searchWrapper: {
     position: 'relative',

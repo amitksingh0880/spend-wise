@@ -4,13 +4,12 @@ import { generateFinancialInsights } from '@/app/services/analyticsService';
 import { getFilteredTransactions, getRecentTransactions, getTransactionSummary, Transaction } from '@/app/services/transactionService';
 import { GhostButton } from '@/components/ui/button';
 import Card from '@/components/ui/card';
+import { ScreenHeader } from '@/app/components/MenuButton';
 import { Link, useFocusEffect } from 'expo-router';
 import { ArrowDownLeft, ArrowUpRight, PiggyBank, RefreshCw, TrendingUp } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Dimensions, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
-
-
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -105,8 +104,8 @@ const DashboardScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <Text style={styles.loadingText}>Loading dashboard...</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' }}>
+        <Text style={{ color: '#9ca3af', fontSize: 16 }}>Loading dashboard...</Text>
       </View>
     );
   }
@@ -119,16 +118,14 @@ const DashboardScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.heading}>Dashboard</Text>
-        <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
-          <RefreshCw 
-            size={24} 
-            color={refreshing ? "#9ca3af" : "#60a5fa"} 
-            style={refreshing ? { transform: [{ rotate: '180deg' }] } : {}}
-          />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Dashboard"
+        right={
+          <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
+            <RefreshCw size={20} color={refreshing ? '#9ca3af' : '#60a5fa'} />
+          </TouchableOpacity>
+        }
+      />
 
       <View style={styles.cardGrid}>
         <Card style={styles.cardItem}>
@@ -210,7 +207,7 @@ const DashboardScreen: React.FC = () => {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={styles.suspiciousValue}>{suspiciousCount}</Text>
               <Link href="/suspicious">
-                <GhostButton style={{ marginLeft: 12, borderColor: '#60a5fa' }}>Review</GhostButton>
+                <GhostButton style={{ marginLeft: 12 }} color="#60a5fa">Review</GhostButton>
               </Link>
             </View>
             </View>
@@ -221,8 +218,8 @@ const DashboardScreen: React.FC = () => {
       {insights.length > 0 && (
         <Card>
           <Text style={styles.sectionHeading}>Financial Insights</Text>
-          {insights.slice(0, 3).map((insight, index) => (
-            <View key={insight.id} style={styles.insightItem}>
+          {insights.slice(0, 3).map((insight) => (
+            <View key={insight.id.toString()} style={styles.insightItem}>
               <View style={[
                 styles.insightIndicator,
                 { backgroundColor: insight.impact === 'high' ? '#ef4444' : insight.impact === 'medium' ? '#f59e0b' : '#22c55e' }
@@ -264,30 +261,9 @@ const DashboardScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    padding: 16,
     backgroundColor: '#0f172a',
     flex: 1,
-  },
-  loadingContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#9ca3af',
-    fontSize: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-    paddingTop: 8,
-  },
-  heading: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#f9fafb',
-    letterSpacing: -0.5,
   },
   cardGrid: {
     flexDirection: 'row',

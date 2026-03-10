@@ -1,6 +1,5 @@
-// import { testServices } from '@/app/libs/test/servicesTest';
-// import { testUUID } from '@/app/libs/test/uuidTest';
 import { useCurrency } from '@/app/contexts/CurrencyContext';
+import { ScreenHeader } from '@/app/components/MenuButton';
 import { useAppTheme } from '@/app/contexts/ThemeContext';
 import { emitter } from '@/app/libs/emitter';
 import { deleteKey } from '@/app/libs/storage';
@@ -134,35 +133,6 @@ const SettingsScreen: React.FC = () => {
     );
   };
 
-  const handleTestServices = async () => {
-    try {
-      setLoading(true);
-      const success = "Success";
-      Alert.alert(
-        success ? 'Success' : 'Error', 
-        success ? 'All services are working correctly!' : 'Some services failed. Check console for details.'
-      );
-    } catch (error) {
-      Alert.alert('Error', 'Failed to test services');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTestUUID = async () => {
-    try {
-      setLoading(true);
-      const success = "Success";
-      Alert.alert(
-        success ? 'Success' : 'Error', 
-        success ? 'UUID generation is working correctly!' : 'UUID test failed. Check console for details.'
-      );
-    } catch (error) {
-      Alert.alert('Error', 'Failed to test UUID generation');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const SettingItem = ({ 
     icon: Icon, 
@@ -258,21 +228,6 @@ const SettingsScreen: React.FC = () => {
           color="#22c55e"
         />
 
-        <SettingItem
-          icon={Settings}
-          title="Test Services"
-          subtitle="Verify all services are working"
-          onPress={handleTestServices}
-          color="#8b5cf6"
-        />
-
-        <SettingItem
-          icon={Database}
-          title="Test UUID Generation"
-          subtitle="Verify UUID generation is working"
-          onPress={handleTestUUID}
-          color="#06b6d4"
-        />
 
         <SettingItem
           icon={Download}

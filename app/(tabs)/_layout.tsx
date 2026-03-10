@@ -4,17 +4,7 @@ import { getFilteredTransactions } from '@/app/services/transactionService';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 
-import { useAppTheme } from '@/app/contexts/ThemeContext';
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-// no direct RN styles required in this layout
-
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const appTheme = useAppTheme();
-  const theme = appTheme?.theme ?? colorScheme;
   const [suspiciousCount, setSuspiciousCount] = useState<number>(0);
 
   useEffect(() => {
@@ -28,7 +18,6 @@ export default function TabLayout() {
         console.warn('Failed to update suspicious badge', err);
       }
     })();
-    // not using sidebar; read held suspicious list only
     return () => { mounted = false; };
   }, []);
 
@@ -46,62 +35,28 @@ export default function TabLayout() {
   }, []);
 
   return (
-        <Tabs
-          screenOptions={{
-            tabBarActiveTintColor: Colors[theme ?? 'light'].tint,
-            headerShown: false,
-            tabBarButton: HapticTab,
-            tabBarStyle: {
-              backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
-              borderTopColor: theme === 'dark' ? '#1e293b' : '#e5e7eb',
-            },
-          }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="transaction"
-        options={{
-          title: 'Transactions',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="list.bullet" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="budget"
-        options={{
-          title: 'Budget',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="chart.pie.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="insights"
-        options={{
-          title: 'Insights',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="chart.bar.fill" color={color} />,
-        }}
-      />
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        // Bottom tab bar completely hidden — SidebarOverlay handles navigation
+        tabBarStyle: { display: 'none' },
+      }}
+    >
+      <Tabs.Screen name="index" options={{ title: 'Dashboard' }} />
+      <Tabs.Screen name="transaction" options={{ title: 'Transactions' }} />
+      <Tabs.Screen name="budget" options={{ title: 'Budget' }} />
+      <Tabs.Screen name="insights" options={{ title: 'Insights' }} />
       <Tabs.Screen
         name="suspicious"
         options={{
           title: 'Suspicious',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="exclamationmark.triangle.fill" color={color} />,
           tabBarBadge: suspiciousCount > 0 ? suspiciousCount : undefined,
         }}
       />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="gearshape.fill" color={color} />,
-        }}
-      />
-      {/* Voice and Explore tabs removed from main tabs — moved to _hidden for dev-only access */}
-        </Tabs>
+      <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
+      {/* Hidden from navigation */}
+      <Tabs.Screen name="voice" options={{ href: null }} />
+      <Tabs.Screen name="sms-import" options={{ href: null }} />
+    </Tabs>
   );
 }
-
-// no styles required for this layout

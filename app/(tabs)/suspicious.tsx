@@ -1,4 +1,5 @@
 import TransactionForm from '@/app/components/TransactionForm';
+import { ScreenHeader } from '@/app/components/MenuButton';
 import { useCurrency } from '@/app/contexts/CurrencyContext';
 import { emitter } from '@/app/libs/emitter';
 import { readJson, writeJson } from '@/app/libs/storage';
@@ -125,7 +126,7 @@ const SuspiciousScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>Review Suspicious Transactions</Text>
+      <ScreenHeader title="Suspicious Transactions" />
 
       <Card style={styles.infoCard}>
         <Text style={styles.infoText}>
@@ -137,7 +138,7 @@ const SuspiciousScreen: React.FC = () => {
         <Card style={[{ paddingHorizontal: 16, paddingVertical: 12, marginBottom: 12 }]}>
           <Text style={{ fontWeight: '700', color: '#f9fafb', marginBottom: 8 }}>Held Suspicious (Pending)</Text>
           {heldSuspicious.map((item, idx) => (
-            <View key={`held-${idx}`} style={{ marginBottom: 12 }}>
+            <View key={`held-${item.timestamp || idx}`} style={{ marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View>
                   <Text style={styles.vendor}>{item.vendor}</Text>
@@ -183,7 +184,7 @@ const SuspiciousScreen: React.FC = () => {
             ]);
           }}
         >
-          <Text style={{ color: '#fff' }}>Mark All Reviewed</Text>
+          Mark All Reviewed
         </PrimaryButton>
         <PrimaryButton
           style={[styles.bulkButton, { backgroundColor: '#ef4444' }]}
