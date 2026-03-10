@@ -1,6 +1,7 @@
+import { CRED_COLORS, CRED_SHADOWS } from '@/constants/CREDTheme';
 import React from 'react';
-import { View, StyleSheet, ViewProps } from 'react-native';
-import { CRED_COLORS, CRED_SHADOWS } from '../../constants/CREDTheme';
+import { StyleSheet, View, ViewProps } from 'react-native';
+
 
 interface CREDCardProps extends ViewProps {
   variant?: 'glass' | 'filled' | 'outline' | 'neon';
@@ -8,19 +9,19 @@ interface CREDCardProps extends ViewProps {
   glow?: boolean;
 }
 
-export const CREDCard: React.FC<CREDCardProps> = ({ 
-  children, 
-  variant = 'glass', 
-  accentColor, 
+export const CREDCard: React.FC<CREDCardProps> = ({
+  children,
+  variant = 'glass',
+  accentColor,
   glow = false,
   style,
-  ...props 
+  ...props
 }) => {
   const isNeon = variant === 'neon';
   const neonColor = accentColor || CRED_COLORS.neonGreen;
 
   return (
-    <View 
+    <View
       style={[
         styles.base,
         styles[variant],

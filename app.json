@@ -8,6 +8,7 @@
     "scheme": "spendwise",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "jsEngine": "hermes",
     "ios": {
       "supportsTablet": true
     },

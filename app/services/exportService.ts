@@ -1,4 +1,4 @@
-import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { generateFinancialReport } from './analyticsService';
 import { getAllBudgets } from './budgetService';
@@ -332,10 +332,9 @@ export const exportTransactions = async (options: ExportOptions): Promise<Export
     }
     
     // Write file to device
-    const filePath = `${documentDirectory}${fileName}`;
-    await writeAsStringAsync(filePath, content, {
-      encoding: EncodingType.UTF8,
-    });
+    const filePath = `${Paths.document.uri}${fileName}`;
+    const file = new File(filePath);
+    file.write(content);
     
     // Share the file
     if (await Sharing.isAvailableAsync()) {
@@ -378,10 +377,9 @@ export const exportBudgets = async (format: 'csv' | 'json' = 'csv'): Promise<Exp
       mimeType = 'application/json';
     }
     
-    const filePath = `${documentDirectory}${fileName}`;
-    await writeAsStringAsync(filePath, content, {
-      encoding: EncodingType.UTF8,
-    });
+    const filePath = `${Paths.document.uri}${fileName}`;
+    const file = new File(filePath);
+    file.write(content);
     
     if (await Sharing.isAvailableAsync()) {
       await Sharing.shareAsync(filePath, {
@@ -412,10 +410,9 @@ export const generateFinancialReportFile = async (period: 'monthly' | 'quarterly
     const content = JSON.stringify(report, null, 2);
     const fileName = `spendwise-report-${period}-${dateStr}.json`;
     
-    const filePath = `${documentDirectory}${fileName}`;
-    await writeAsStringAsync(filePath, content, {
-      encoding: EncodingType.UTF8,
-    });
+    const filePath = `${Paths.document.uri}${fileName}`;
+    const file = new File(filePath);
+    file.write(content);
     
     if (await Sharing.isAvailableAsync()) {
       await Sharing.shareAsync(filePath, {
