@@ -2,7 +2,7 @@ import { useCurrency } from '@/contexts/CurrencyContext';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { emitter } from '@/libs/emitter';
 import { deleteKey } from '@/libs/storage';
-import { getCurrency, getUserPreferences, updateCurrency } from '@/services/preferencesService';
+import { getCurrency, getUserPreferences, saveUserPreferences, updateCurrency } from '@/services/preferencesService';
 import { CURRENCIES, Currency } from '@/utils/currency';
 import { Card, CardContent } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
@@ -22,6 +22,8 @@ import {
   ChevronRight,
   ShieldAlert,
   HelpCircle,
+  User,
+  Layout as LayoutIcon,
 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
@@ -34,6 +36,7 @@ import {
   View,
   StatusBar,
   Platform,
+  TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
@@ -44,29 +47,52 @@ const SettingsScreen: React.FC = () => {
   const [darkMode, setDarkMode] = useState(true);
   const { theme: currentTheme, setTheme } = useAppTheme();
   const [currency, setCurrency] = useState<Currency>('INR');
+  const [userName, setUserName] = useState('');
+  const [appName, setAppName] = useState('');
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const { refreshCurrency } = useCurrency();
 
   const background = useThemeColor({}, 'background');
-  const cardColor = useThemeColor({}, 'card');
   const border = useThemeColor({}, 'border');
   const primary = useThemeColor({}, 'primary');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
+  const text = useThemeColor({}, 'text');
 
   useEffect(() => {
-    loadCurrency();
+    loadSettings();
   }, []);
 
   useEffect(() => {
     if (currentTheme) setDarkMode(currentTheme === 'dark');
   }, [currentTheme]);
 
-  const loadCurrency = async () => {
+  const loadSettings = async () => {
     try {
-      const savedCurrency = await getCurrency();
-      setCurrency(savedCurrency);
+      const prefs = await getUserPreferences();
+      setCurrency(prefs.currency as Currency);
+      setUserName(prefs.name || 'Amit Kumar');
+      setAppName(prefs.appName || 'SpendWise');
+      setNotifications(prefs.notifications.budgetAlerts);
     } catch (error) {
-      console.error('Error loading currency:', error);
+      console.error('Error loading settings:', error);
+    }
+  };
+
+  const handleNameChange = async (newName: string) => {
+    setUserName(newName);
+    try {
+      await saveUserPreferences({ name: newName });
+    } catch (error) {
+       console.error('Failed to save name', error);
+    }
+  };
+
+  const handleAppNameChange = async (newAppName: string) => {
+    setAppName(newAppName);
+    try {
+      await saveUserPreferences({ appName: newAppName });
+    } catch (error) {
+       console.error('Failed to save app name', error);
     }
   };
 
@@ -138,7 +164,7 @@ const SettingsScreen: React.FC = () => {
           <View style={[styles.iconBox, { backgroundColor: `${color}15` }]}>
             <Icon size={20} color={color} />
           </View>
-          <View>
+          <View style={{ flex: 1 }}>
             <Typography variant="bold" style={styles.settingTitle}>{title}</Typography>
             {subtitle && <Typography variant="small" style={{ color: mutedForeground }}>{subtitle}</Typography>}
           </View>
@@ -160,6 +186,40 @@ const SettingsScreen: React.FC = () => {
       </LinearGradient>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <Typography variant="subtitle" weight="bold" style={styles.sectionHeading}>Profile & Branding</Typography>
+        <Card style={styles.sectionCard} delay={0}>
+            <View style={styles.profileSection}>
+                <View style={[styles.iconBox, { backgroundColor: `${primary}15` }]}>
+                    <User size={20} color={primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                    <Typography variant="small" style={{ color: mutedForeground, marginBottom: 4 }}>Your Name</Typography>
+                    <TextInput 
+                        style={[styles.nameInput, { color: text, borderBottomColor: border }]}
+                        value={userName}
+                        onChangeText={handleNameChange}
+                        placeholder="Enter your name"
+                        placeholderTextColor={mutedForeground}
+                    />
+                </View>
+            </View>
+            <View style={[styles.profileSection, { borderTopWidth: 1, borderTopColor: border }]}>
+                <View style={[styles.iconBox, { backgroundColor: `${primary}15` }]}>
+                    <LayoutIcon size={20} color={primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                    <Typography variant="small" style={{ color: mutedForeground, marginBottom: 4 }}>App Display Name</Typography>
+                    <TextInput 
+                        style={[styles.nameInput, { color: text, borderBottomColor: border }]}
+                        value={appName}
+                        onChangeText={handleAppNameChange}
+                        placeholder="e.g., My Spend tracker"
+                        placeholderTextColor={mutedForeground}
+                    />
+                </View>
+            </View>
+        </Card>
+
         <Typography variant="subtitle" weight="bold" style={styles.sectionHeading}>Preferences</Typography>
         <Card style={styles.sectionCard} delay={0}>
           <SettingRow
@@ -171,7 +231,13 @@ const SettingsScreen: React.FC = () => {
             rightElement={
               <Switch
                 value={notifications}
-                onValueChange={setNotifications}
+                onValueChange={async (v) => { 
+                  setNotifications(v); 
+                  const prefs = await getUserPreferences();
+                  await saveUserPreferences({ 
+                    notifications: { ...prefs.notifications, budgetAlerts: v } 
+                  }); 
+                }}
                 trackColor={{ false: '#e2e8f0', true: primary }}
                 thumbColor="#FFFFFF"
               />
@@ -257,7 +323,7 @@ const SettingsScreen: React.FC = () => {
         </Card>
 
         <View style={styles.footer}>
-          <Typography variant="small" style={{ color: mutedForeground }}>SpendWise • Designed for Financial Freedom</Typography>
+          <Typography variant="small" style={{ color: mutedForeground }}>{appName} • Designed for Financial Freedom</Typography>
         </View>
       </ScrollView>
 
@@ -329,6 +395,17 @@ const styles = StyleSheet.create({
   sectionCard: {
     borderRadius: 24,
     padding: 4,
+  },
+  profileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  nameInput: {
+    fontSize: 18,
+    fontWeight: '600',
+    paddingVertical: 4,
+    borderBottomWidth: 1,
   },
   settingRow: {
     flexDirection: 'row',

@@ -1,3 +1,4 @@
+import { emitter } from '@/libs/emitter';
 import SMSImport from '@/components/SMSImport';
 import TransactionForm from '@/components/TransactionForm';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -123,6 +124,7 @@ const TransactionsScreen: React.FC = () => {
   const [showSMSImport, setShowSMSImport] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showTodayOnly, setShowTodayOnly] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
 
   const background = useThemeColor({}, 'background');
   const cardColor = useThemeColor({}, 'card');
@@ -266,6 +268,19 @@ const TransactionsScreen: React.FC = () => {
           </View>
         ) : (
           <FlatList
+            onScroll={(event: any) => {
+              const currentY = event.nativeEvent.contentOffset.y;
+              const velocity = event.nativeEvent.velocity?.y ?? 0;
+              if (currentY <= 0) {
+                emitter.emit('tab-bar:show');
+              } else if (velocity > 0.5 && currentY > lastScrollY + 10) {
+                emitter.emit('tab-bar:hide');
+              } else if (velocity < -0.5 || currentY < lastScrollY - 20) {
+                emitter.emit('tab-bar:show');
+              }
+              setLastScrollY(currentY);
+            }}
+            scrollEventThrottle={16}
             data={filteredTransactions}
             keyExtractor={(item) => item.id}
             renderItem={({ item, index }) => (

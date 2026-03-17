@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ScrollView, View, StyleSheet, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import { Typography } from './ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BlurView } from 'expo-blur';
-import { Compass, Sparkles, Settings, List, PieChart, BarChart2, AlertCircle, MessageSquare } from 'lucide-react-native';
+import { Compass, Sparkles, Settings, List, PieChart, BarChart2, AlertCircle } from 'lucide-react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { emitter } from '@/libs/emitter';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
@@ -15,11 +17,25 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
   const text = useThemeColor({}, 'text');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
 
-  // Map routes to our three buttons
-  // index -> Explore
-  // voice -> Assistant
-  // settings -> Configs
-  
+  const translateY = useSharedValue(0);
+
+  useEffect(() => {
+    const hideUnsub = emitter.addListener('tab-bar:hide', () => {
+      translateY.value = withSpring(150, { damping: 20, stiffness: 90 });
+    });
+    const showUnsub = emitter.addListener('tab-bar:show', () => {
+      translateY.value = withSpring(0, { damping: 20, stiffness: 90 });
+    });
+    return () => {
+      hideUnsub();
+      showUnsub();
+    };
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
   const routes = [
     { name: 'index', label: 'Home', Icon: Compass },
     { name: 'transaction', label: 'Activity', Icon: List },
@@ -31,7 +47,7 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
   ];
 
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.container, animatedStyle]}>
       <BlurView intensity={Platform.OS === 'ios' ? 80 : 100} tint="light" style={styles.blurContainer}>
         <ScrollView 
           horizontal 
@@ -102,14 +118,14 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
           })}
         </ScrollView>
       </BlurView>
-    </View>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 40 : 30,
+    bottom: Platform.OS === 'ios' ? 25 : 15, // Reduced from 40/30
     alignSelf: 'center',
     width: width * 0.9,
     height: 70,

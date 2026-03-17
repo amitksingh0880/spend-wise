@@ -4,6 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { emitter } from '@/libs/emitter';
 import { getRecentTransactions, getTransactionSummary, Transaction } from '@/services/transactionService';
+import { getUserPreferences } from '@/services/preferencesService';
 
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { BudgetHeroCard } from '@/components/BudgetHeroCard';
@@ -15,18 +16,26 @@ const DashboardScreen: React.FC = () => {
   const [summary, setSummary] = useState<any>(null);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const [userName, setUserName] = useState('User');
 
   const background = useThemeColor({}, 'background');
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [summaryData, recentTxs] = await Promise.all([
+      const [summaryData, recentTxs, prefs] = await Promise.all([
         getTransactionSummary(),
         getRecentTransactions(8),
+        getUserPreferences()
       ]);
       setSummary(summaryData);
       setRecentTransactions(recentTxs);
+      if (prefs.name) {
+        setUserName(prefs.name);
+      } else {
+        setUserName('User');
+      }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -38,8 +47,27 @@ const DashboardScreen: React.FC = () => {
   useFocusEffect(useCallback(() => { loadDashboardData(); }, []));
   useEffect(() => {
     const unsub = emitter.addListener('transactions:changed', loadDashboardData);
-    return () => { unsub(); };
+    const unsubPrefs = emitter.addListener('preferences:changed', loadDashboardData);
+    return () => { 
+      unsub(); 
+      unsubPrefs();
+    };
   }, []);
+
+  const handleScroll = (event: any) => {
+    const currentY = event.nativeEvent.contentOffset.y;
+    const velocity = event.nativeEvent.velocity?.y ?? 0;
+    
+    if (currentY <= 0) {
+      emitter.emit('tab-bar:show');
+    } else if (velocity > 0.5 && currentY > lastScrollY + 10) {
+      emitter.emit('tab-bar:hide');
+    } else if (velocity < -0.5 || currentY < lastScrollY - 20) {
+      emitter.emit('tab-bar:show');
+    }
+    
+    setLastScrollY(currentY);
+  };
 
   if (loading) {
     return (
@@ -62,10 +90,12 @@ const DashboardScreen: React.FC = () => {
     <ScrollView 
       style={[styles.container, { backgroundColor: background }]}
       showsVerticalScrollIndicator={false}
+      onScroll={handleScroll}
+      scrollEventThrottle={16}
     >
       <StatusBar barStyle="dark-content" />
       
-      <DashboardHeader userName="Amit Kumar" />
+      <DashboardHeader userName={userName} />
       
       <View style={styles.cardWrapper}>
         <BudgetHeroCard 
@@ -73,6 +103,7 @@ const DashboardScreen: React.FC = () => {
           subtitle={subtitle}
           percentage={Math.max(0, 100 - percentage)} // Show remaining as positive value
           onPressAction={() => router.navigate('/budget')}
+          onAddBudget={() => router.navigate('/budget')}
         />
       </View>
 
