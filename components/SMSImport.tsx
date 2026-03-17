@@ -10,10 +10,12 @@ import {
   requestSMSPermission,
 } from '@/services/smsService';
 import { saveTransaction } from '@/services/transactionService';
-import { GhostButton, PrimaryButton } from '@/components/ui/button';
-import Card from '@/components/ui/card';
+import { Typography } from '@/components/ui/text';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Link } from 'expo-router';
-import { AlertCircle, CheckCircle, Download, Info, MessageCircle } from 'lucide-react-native';
+import { AlertCircle, CheckCircle, Download, Info, MessageCircle, Calendar as CalendarIcon } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,10 +24,10 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  ViewStyle
 } from 'react-native';
 
 interface SMSImportProps {
@@ -38,14 +40,20 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   const [lastResult, setLastResult] = useState<SMSParsingResult | null>(null);
   const [rangeOption, setRangeOption] = useState<'today' | '7' | '30' | 'customDays' | 'customRange'>('today');
   const { formatAmount } = useCurrency();
+  const primary = useThemeColor({}, 'primary');
+  const cardColor = useThemeColor({}, 'card');
+  const mutedForeground = useThemeColor({}, 'mutedForeground');
+  
   const [customDays, setCustomDays] = useState<number>(7);
-  const [customStart, setCustomStart] = useState<string>(''); // 'YYYY-MM-DD'
+  const [customStart, setCustomStart] = useState<string>(''); 
   const [customEnd, setCustomEnd] = useState<string>('');
-  // UI filter state: date range + type
+  
   const [filterStart, setFilterStart] = useState<string>('');
   const [filterEnd, setFilterEnd] = useState<string>('');
   const [txnType, setTxnType] = useState<'all' | 'expense' | 'income'>('all');
+  
   const SUSPICIOUS_KEY = 'held_suspicious';
+
   const dedupeExpenses = (items: ExtractedExpense[] = []) => {
     const map = new Map<string, ExtractedExpense>();
     items.forEach((e) => {
@@ -64,7 +72,10 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
       try {
         const held = await readJson<ExtractedExpense[]>(SUSPICIOUS_KEY);
         if (held && held.length > 0) {
-          setLastResult((prev) => ({ ...(prev || { expenses: [], suspicious: [] }), suspicious: dedupeExpenses([...(prev?.suspicious || []), ...held]) } as SMSParsingResult));
+          setLastResult((prev) => ({ 
+            ...(prev || { expenses: [], suspicious: [], success: true, totalProcessed: 0, errors: [] }), 
+            suspicious: dedupeExpenses([...(prev?.suspicious || []), ...held]) 
+          } as SMSParsingResult));
         }
       } catch (err) {
         console.warn('Failed to load held suspicious items', err);
@@ -77,9 +88,8 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
       setHasPermission(false);
       return;
     }
-
     try {
-      setHasPermission(null); // show checking state
+      setHasPermission(null);
       const granted = await checkSMSPermission();
       setHasPermission(granted);
     } catch (error) {
@@ -88,26 +98,12 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
     }
   };
 
-  const renderRangeOptionButton = (value: typeof rangeOption, label: string) => (
-    <TouchableOpacity
-      style={[styles.rangeButton, rangeOption === value ? styles.rangeButtonSelected : {}]}
-      onPress={() => setRangeOption(value)}
-    >
-      <Text style={[styles.rangeButtonText, rangeOption === value ? styles.rangeButtonTextSelected : {}]}>{label}</Text>
-    </TouchableOpacity>
-  );
-
   const handleRequestPermission = async () => {
     try {
       const granted = await requestSMSPermission();
       setHasPermission(granted);
-
       if (!granted) {
-        Alert.alert(
-          'Permission Required',
-          'SMS permission is required to automatically import expenses from bank alerts. You can still manually add transactions.',
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Permission Required', 'SMS permission is required to automatically import expenses.');
       }
     } catch (error) {
       console.error('requestSMSPermission error', error);
@@ -116,44 +112,29 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   };
 
   const handleImportSMS = async () => {
-    // If permission state unknown, re-check first
-    if (hasPermission === null) {
-      await checkPermissionStatus();
-    }
-
+    if (hasPermission === null) await checkPermissionStatus();
     if (!hasPermission) {
-      Alert.alert(
-        'Permission Required',
-        'Please grant SMS permission first to import expenses.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Grant Permission', onPress: handleRequestPermission },
-        ]
-      );
+      Alert.alert('Permission Required', 'Please grant SMS permission first.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Grant Permission', onPress: handleRequestPermission },
+      ]);
       return;
     }
 
     setIsLoading(true);
-
     try {
       const options: any = { maxCount: 200, autoSave: true };
-      if (rangeOption === 'today') {
-        options.onlyToday = true;
-      } else if (rangeOption === '7') {
-        options.daysBack = 7;
-      } else if (rangeOption === '30') {
-        options.daysBack = 30;
-      } else if (rangeOption === 'customDays') {
-        options.daysBack = Math.max(1, Math.floor(customDays) || 1);
-      } else if (rangeOption === 'customRange') {
-        // parse start/end
+      if (rangeOption === 'today') options.onlyToday = true;
+      else if (rangeOption === '7') options.daysBack = 7;
+      else if (rangeOption === '30') options.daysBack = 30;
+      else if (rangeOption === 'customDays') options.daysBack = Math.max(1, Math.floor(customDays) || 1);
+      else if (rangeOption === 'customRange') {
         const start = customStart ? new Date(customStart) : null;
         const end = customEnd ? new Date(customEnd) : null;
         if (start && !isNaN(start.getTime())) options.minDate = start.getTime();
         if (end && !isNaN(end.getTime())) options.maxDate = end.getTime() + (24 * 60 * 60 * 1000) - 1;
       }
 
-      // Apply date filters if provided (override range if specific filter set)
       if (filterStart) {
         const s = new Date(filterStart);
         if (!isNaN(s.getTime())) options.minDate = s.setHours(0, 0, 0, 0);
@@ -165,54 +146,29 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
 
       const result = await importExpensesFromSMS({
         ...options,
-        filter: (expense) => {
-          // Filter by txnType only here
-          if (txnType !== 'all') return expense.type === txnType;
-          return true;
-        },
+        filter: (expense) => txnType === 'all' || expense.type === txnType,
       });
 
-      // Merge result.suspicious with persisted held suspicious items
       try {
-        const persistedHeld: ExtractedExpense[] | null = await readJson<ExtractedExpense[]>(SUSPICIOUS_KEY);
-  const mergedSuspicious = dedupeExpenses([...(persistedHeld || []), ...(result.suspicious || [])]);
-  // Persist merged held suspicious
-  await writeJson(SUSPICIOUS_KEY, mergedSuspicious);
-  emitter.emit('transactions:changed');
+        const persistedHeld = await readJson<ExtractedExpense[]>(SUSPICIOUS_KEY);
+        const mergedSuspicious = dedupeExpenses([...(persistedHeld || []), ...(result.suspicious || [])]);
+        await writeJson(SUSPICIOUS_KEY, mergedSuspicious);
+        emitter.emit('transactions:changed');
         result.suspicious = mergedSuspicious;
       } catch (e) {
-        console.warn('Failed to read/persist held suspicious items', e);
+        console.warn('Persist error', e);
       }
+      
       setLastResult(result);
-
-      if (result.success && result.expenses.length > 0) {
-        const suspiciousCount = result.suspicious?.length || 0;
-        const errorsText = (result.errors && result.errors.length > 0) ? `\n\nDebug:\n${result.errors.join('\n')}` : '';
-        Alert.alert(
-          'Import Successful',
-          `Imported ${result.expenses.length} expenses.${suspiciousCount > 0 ? `\n\nSuspicious held: ${suspiciousCount}` : ''}${errorsText}`,
-          [{ text: 'OK' }]
-        );
-      } else if (result.success && result.expenses.length === 0) {
-        const errorsText = (result.errors && result.errors.length > 0) ? `\n\nDebug:\n${result.errors.join('\n')}` : '';
-        Alert.alert(
-          'No Expenses Found',
-          `No transaction-related SMS messages were found for today.${errorsText}`,
-          [{ text: 'OK' }]
-        );
+      if (result.success) {
+        Alert.alert('Results', `Found ${result.expenses.length} expenses. ${result.suspicious?.length || 0} held for review.`);
       } else {
-        Alert.alert('Import Failed', result.errors.join('\n') || 'Unknown error', [{ text: 'OK' }]);
+        Alert.alert('Import Failed', result.errors.join('\n') || 'Unknown error');
       }
-
-  onImportComplete?.(result, options);
+      onImportComplete?.(result, options);
     } catch (error) {
-      console.error('importExpensesFromSMS error', error);
-      // Friendly guidance if native module missing (common in Expo Go)
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'An unknown error occurred while importing SMS. If you are using Expo Go, please prebuild / use a dev-client because native SMS modules require a custom build.';
-      Alert.alert('Import Failed', message, [{ text: 'OK' }]);
+      console.error('Import error', error);
+      Alert.alert('Import Failed', 'Failed to read SMS alerts.');
     } finally {
       setIsLoading(false);
     }
@@ -221,82 +177,51 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   const handleSaveSuspicious = async (expense: ExtractedExpense) => {
     try {
       setIsLoading(true);
-      const tx = await saveTransaction({
+      await saveTransaction({
         amount: expense.amount,
         type: expense.type,
         vendor: expense.vendor ?? 'Unknown',
         category: expense.category ?? 'other',
-        description: `(Suspicious SMS) ${expense.description}`,
-        tags: ['sms-import', 'suspicious', `confidence:${Math.round((expense.confidence ?? 0) * 100)}%`],
+        description: `(Suspicious) ${expense.description}`,
+        tags: ['sms-import', 'suspicious'],
         smsData: {
           rawMessage: expense.rawMessage,
           sender: expense.sender || 'Unknown',
           timestamp: expense.timestamp || Date.now(),
         },
       });
-
-      Alert.alert('Saved', `Saved suspicious transaction: ${tx.id}`);
-      // Remove saved expense from local list
       setLastResult((prev) => {
         if (!prev) return prev;
-        const updated = {
-          ...prev,
-          suspicious: (prev.suspicious || []).filter((e) => e !== expense),
-        } as SMSParsingResult;
-        // persist updated held list
-  (async () => { await writeJson(SUSPICIOUS_KEY, updated.suspicious || []); emitter.emit('transactions:changed'); })();
+        const updated = { ...prev, suspicious: (prev.suspicious || []).filter((e) => e !== expense) };
+        writeJson(SUSPICIOUS_KEY, updated.suspicious || []);
+        emitter.emit('transactions:changed');
         return updated;
       });
-    } catch (err: any) {
-      console.error('saveSuspicious error', err);
-      Alert.alert('Error', `Failed to save suspicious transaction: ${err?.message ?? err}`);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to save transaction');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleIgnoreSuspicious = (expense: ExtractedExpense) => {
-    // Remove the item from the suspicious list only
     setLastResult((prev) => {
       if (!prev) return prev;
-        const updated = {
-          ...prev,
-          suspicious: (prev.suspicious || []).filter((e) => e !== expense),
-        } as SMSParsingResult;
-  (async () => { await writeJson(SUSPICIOUS_KEY, updated.suspicious || []); emitter.emit('transactions:changed'); })();
-        return updated;
-    });
-  };
-
-  const handleRegenerateSuspicious = (expense: ExtractedExpense) => {
-    const sms = { id: `regen-${Date.now()}`, address: expense.sender, body: expense.rawMessage, date: expense.timestamp, type: 1 };
-    const parsed = parseTransactionSMS(sms as any);
-    if (!parsed) {
-      Alert.alert('No change', 'Re-parse did not extract a transaction or improved confidence.');
-      return;
-    }
-    // Replace in suspicious list
-    setLastResult((prev) => {
-      if (!prev) return prev;
-      const updated = {
-        ...prev,
-        suspicious: (prev.suspicious || []).map((e) => (e === expense ? parsed : e)),
-      } as SMSParsingResult;
-  (async () => { await writeJson(SUSPICIOUS_KEY, updated.suspicious || []); emitter.emit('transactions:changed'); })();
+      const updated = { ...prev, suspicious: (prev.suspicious || []).filter((e) => e !== expense) };
+      writeJson(SUSPICIOUS_KEY, updated.suspicious || []);
+      emitter.emit('transactions:changed');
       return updated;
     });
-  Alert.alert('Reparsed', `Re-parse found amount ${formatAmount(parsed.amount)} (confidence ${(parsed.confidence ?? 0) * 100}%)`);
   };
 
-  // ---------- Simple Calendar Modal Implementation ----------
+  // Calendar Modal State
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [calendarMode, setCalendarMode] = useState<'start' | 'end'>('start');
-  const [calendarMonth, setCalendarMonth] = useState<number>(() => new Date().getMonth());
-  const [calendarYear, setCalendarYear] = useState<number>(() => new Date().getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState<number>(new Date().getMonth());
+  const [calendarYear, setCalendarYear] = useState<number>(new Date().getFullYear());
 
   const openCalendarFor = (mode: 'start' | 'end') => {
     setCalendarMode(mode);
-    // If a date is already set, open to that month
     const dateStr = mode === 'start' ? filterStart : filterEnd;
     const d = dateStr ? new Date(dateStr) : new Date();
     if (!isNaN(d.getTime())) {
@@ -308,102 +233,61 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
 
   const closeCalendar = () => setCalendarVisible(false);
 
-  const formatToYMD = (d: Date) => {
+  const handlePickDate = (d: Date) => {
     const yy = d.getFullYear();
     const mm = `${d.getMonth() + 1}`.padStart(2, '0');
     const dd = `${d.getDate()}`.padStart(2, '0');
-    return `${yy}-${mm}-${dd}`;
-  };
-
-  const handlePickDate = (d: Date) => {
-    const v = formatToYMD(d);
+    const v = `${yy}-${mm}-${dd}`;
     if (calendarMode === 'start') {
       setFilterStart(v);
-      // If end is earlier than start, clear end
       if (filterEnd && new Date(filterEnd) < new Date(v)) setFilterEnd('');
     } else {
       setFilterEnd(v);
-      // If start is later than end, clear start
       if (filterStart && new Date(filterStart) > new Date(v)) setFilterStart('');
     }
     setCalendarVisible(false);
   };
 
-  const getMonthDays = (year: number, month: number) => {
-    // returns array of date objects for the month grid starting on Sunday
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const prevDaysCount = firstDay.getDay(); // sunday=0
-    const days: Date[] = [];
-    // previous month's tail
-    for (let i = prevDaysCount - 1; i >= 0; i--) {
-      days.push(new Date(year, month, -i));
-    }
-    // current month
-    for (let d = 1; d <= lastDay.getDate(); d++) days.push(new Date(year, month, d));
-    // next month days to fill to 7*n
-    while (days.length % 7 !== 0) {
-      const nextIndex = days.length - prevDaysCount + 1;
-      days.push(new Date(year, month + 1, nextIndex));
-    }
-    return days;
-  };
-
   const renderCalendar = () => {
-    const days = getMonthDays(calendarYear, calendarMonth);
-    const monthName = new Date(calendarYear, calendarMonth, 1).toLocaleString(undefined, { month: 'long' });
-    const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-    const selectedStart = filterStart ? new Date(filterStart) : null;
-    const selectedEnd = filterEnd ? new Date(filterEnd) : null;
+    const days: Date[] = [];
+    const firstDay = new Date(calendarYear, calendarMonth, 1);
+    const lastDay = new Date(calendarYear, calendarMonth + 1, 0);
+    const padding = firstDay.getDay();
+    for (let i = padding - 1; i >= 0; i--) days.push(new Date(calendarYear, calendarMonth, -i));
+    for (let d = 1; d <= lastDay.getDate(); d++) days.push(new Date(calendarYear, calendarMonth, d));
+    while (days.length % 7 !== 0) days.push(new Date(calendarYear, calendarMonth + 1, days.length - padding - lastDay.getDate() + 1));
 
-    const isSameDay = (a?: Date | null, b?: Date | null) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    const monthName = new Date(calendarYear, calendarMonth, 1).toLocaleString(undefined, { month: 'long' });
 
     return (
       <View style={styles.calendarContainer}>
         <View style={styles.calendarHeaderRow}>
-          <TouchableOpacity
-            onPress={() => {
-              // prev month
-              const newMonth = calendarMonth === 0 ? 11 : calendarMonth - 1;
-              const newYear = calendarMonth === 0 ? calendarYear - 1 : calendarYear;
-              setCalendarMonth(newMonth);
-              setCalendarYear(newYear);
-            }}
-          >
-            <Text style={styles.calendarNav}>{'<'}</Text>
+          <TouchableOpacity onPress={() => {
+            const m = calendarMonth === 0 ? 11 : calendarMonth - 1;
+            const y = calendarMonth === 0 ? calendarYear - 1 : calendarYear;
+            setCalendarMonth(m); setCalendarYear(y);
+          }}>
+            <Typography style={styles.calendarNav}>{'<'}</Typography>
           </TouchableOpacity>
-          <Text style={styles.calendarTitle}>{monthName} {calendarYear}</Text>
-          <TouchableOpacity
-            onPress={() => {
-              const newMonth = calendarMonth === 11 ? 0 : calendarMonth + 1;
-              const newYear = calendarMonth === 11 ? calendarYear + 1 : calendarYear;
-              setCalendarMonth(newMonth);
-              setCalendarYear(newYear);
-            }}
-          >
-            <Text style={styles.calendarNav}>{'>'}</Text>
+          <Typography style={styles.calendarTitle}>{monthName} {calendarYear}</Typography>
+          <TouchableOpacity onPress={() => {
+            const m = calendarMonth === 11 ? 0 : calendarMonth + 1;
+            const y = calendarMonth === 11 ? calendarYear + 1 : calendarYear;
+            setCalendarMonth(m); setCalendarYear(y);
+          }}>
+            <Typography style={styles.calendarNav}>{'>'}</Typography>
           </TouchableOpacity>
         </View>
         <View style={styles.weekRow}>
-          {weekDays.map((wd) => (
-            <Text key={wd} style={styles.weekDayText}>{wd}</Text>
-          ))}
+          {['Su','Mo','Tu','We','Th','Fr','Sa'].map(w => <Typography key={w} style={styles.weekDayText}>{w}</Typography>)}
         </View>
         <View style={styles.daysGrid}>
-          {days.map((d, idx) => {
-            const isOtherMonth = d.getMonth() !== calendarMonth;
-            const selected = calendarMode === 'start' ? isSameDay(d, selectedStart) : isSameDay(d, selectedEnd);
+          {days.map((d, i) => {
+            const isOther = d.getMonth() !== calendarMonth;
+            const isSel = (calendarMode === 'start' ? filterStart : filterEnd) === `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             return (
-              <TouchableOpacity
-                key={`d-${idx}`}
-                onPress={() => handlePickDate(d)}
-                style={[
-                  styles.dayCell,
-                  isOtherMonth ? styles.dayCellFaded : {},
-                  selected ? styles.dayCellSelected : {},
-                ]}
-              >
-                <Text style={[styles.dayText, isOtherMonth ? styles.dayTextFaded : {}, selected ? styles.dayTextSelected : {}]}>{d.getDate()}</Text>
+              <TouchableOpacity key={i} onPress={() => handlePickDate(d)} style={[styles.dayCell, isOther && styles.dayCellFaded, isSel && styles.dayCellSelected]}>
+                <Typography style={[styles.dayText, isOther && styles.dayTextFaded, isSel && styles.dayTextSelected]}>{d.getDate()}</Typography>
               </TouchableOpacity>
             );
           })}
@@ -412,728 +296,222 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
     );
   };
 
-  const renderExpenseItem = (expense: ExtractedExpense, index: number) => (
-    <View style={styles.expenseItem}>
-      <View style={styles.expenseHeader}>
-        <Text style={styles.expenseAmount}>
-          {expense.type === 'income' ? '+' : '-'}{formatAmount(expense.amount)}
-        </Text>
-        <View
-          style={[
-            styles.confidenceBadge,
-            { backgroundColor: expense.confidence > 0.7 ? '#10b981' : expense.confidence > 0.5 ? '#f59e0b' : '#ef4444' },
-          ]}
-        >
-          <Text style={styles.confidenceText}>{Math.round(expense.confidence * 100)}%</Text>
+  const renderExpenseItem = (expense: ExtractedExpense, index: number) => {
+    const itemStyle = StyleSheet.flatten([
+      styles.expenseItem,
+      {
+        backgroundColor: cardColor,
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 12,
+      },
+    ]) as ViewStyle;
+
+    const Container: any = View;
+    return (
+      <Container key={index} style={itemStyle}>
+        <View style={styles.expenseHeader}>
+          <View>
+            <Typography style={{ fontSize: 16, fontWeight: '700' }}>{expense.vendor}</Typography>
+            <Typography style={{ color: '#64748b', fontSize: 12 }}>{expense.category}</Typography>
+          </View>
+          <Typography style={{ fontSize: 18, fontWeight: '800', color: expense.type === 'income' ? '#10b981' : '#1e293b' }}>
+            {expense.type === 'income' ? '+' : '-'}{formatAmount(expense.amount)}
+          </Typography>
         </View>
-      </View>
-      <Text style={styles.expenseVendor}>{expense.vendor}</Text>
-      <Text style={styles.expenseCategory}>{expense.category}</Text>
-      <Text style={styles.expenseDescription} numberOfLines={2}>
-        {expense.description}
-      </Text>
-    </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 }}>
+          <View style={StyleSheet.flatten([styles.confidenceBadge, { backgroundColor: expense.confidence > 0.7 ? '#f0fdf4' : expense.confidence > 0.5 ? '#fffbeb' : '#fef2f2' }]) as ViewStyle}>
+            <Typography style={{ color: expense.confidence > 0.7 ? '#166534' : expense.confidence > 0.5 ? '#92400e' : '#991b1b', fontSize: 10, fontWeight: '700' }}>
+              {Math.round(expense.confidence * 100)}% Match
+            </Typography>
+          </View>
+          <Typography style={{ flex: 1, fontSize: 12, color: '#9ca3af' }} numberOfLines={1}>{expense.description}</Typography>
+        </View>
+      </Container>
+    );
+  };
+
+  const renderRangeOptionButton = (value: typeof rangeOption, label: string) => (
+    <TouchableOpacity
+      key={value}
+      style={[styles.rangePill, rangeOption === value ? styles.rangePillActive : {}]}
+      onPress={() => setRangeOption(value)}
+    >
+      <Typography style={[styles.rangePillText, rangeOption === value ? styles.rangePillTextActive : {}]}>{label}</Typography>
+    </TouchableOpacity>
   );
 
   if (Platform.OS !== 'android') {
     return (
-      <Card style={styles.container}>
+      <Card style={{ margin: 16 }}>
         <View style={styles.notAvailable}>
-          <Info size={48} color="#6b7280" />
-          <Text style={styles.notAvailableTitle}>SMS Import Not Available</Text>
-          <Text style={styles.notAvailableText}>SMS import is currently only supported on Android devices.</Text>
+          <Info size={48} color={mutedForeground} />
+          <Typography style={styles.notAvailableTitle}>SMS Import Not Available</Typography>
+          <Typography style={styles.notAvailableText}>Supported only on Android devices.</Typography>
         </View>
       </Card>
     );
   }
 
-  const permissionIcon =
-    hasPermission === null ? (
-      <ActivityIndicator />
-    ) : hasPermission ? (
-      <CheckCircle size={20} color="#10b981" />
-    ) : (
-      <AlertCircle size={20} color="#ef4444" />
-    );
-
-  const permissionText =
-    hasPermission === null ? 'Checking permission...' : hasPermission ? 'SMS Permission Granted' : 'SMS Permission Required';
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
       <Card style={styles.card}>
+        <CardHeader>
           <View style={styles.header}>
-            <MessageCircle size={24} color="#3b82f6" />
-            <Text style={styles.title}>Import from SMS</Text>
+            <View style={styles.headerIconContainer}>
+              <MessageCircle size={24} color={primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Typography style={styles.title}>SMS Alerts</Typography>
+              <Typography style={styles.description}>AI-powered expense extraction</Typography>
+            </View>
           </View>
-          {/* Calendar Modal */}
-          <Modal
-            visible={calendarVisible}
-            transparent
-            animationType="fade"
-            onRequestClose={closeCalendar}
-          >
+        </CardHeader>
+        <CardContent>
+          <Modal visible={calendarVisible} transparent animationType="fade" onRequestClose={closeCalendar}>
             <View style={styles.modalBackdrop}>
               <View style={styles.modalContent}>
                 {renderCalendar()}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
-                  <TouchableOpacity onPress={() => { if (calendarMode === 'start') { setFilterStart(''); } else { setFilterEnd(''); } setCalendarVisible(false); }} style={styles.clearButton}>
-                    <Text style={styles.clearButtonText}>Clear</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={closeCalendar} style={styles.modalCloseButton}>
-                    <Text style={styles.modalCloseButtonText}>Close</Text>
-                  </TouchableOpacity>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
+                  <Button variant="ghost" onPress={() => { if(calendarMode==='start') setFilterStart(''); else setFilterEnd(''); setCalendarVisible(false); }}>
+                    <Typography style={{ color: '#ef4444' }}>Clear</Typography>
+                  </Button>
+                  <Button onPress={closeCalendar}>OK</Button>
                 </View>
               </View>
             </View>
           </Modal>
-          <Text style={styles.description}>
-            Automatically extract expense information from your bank SMS alerts and transaction notifications.
-          </Text>
 
-          {/* Range selector */}
-          <View style={styles.rangeSelector}>
-            {renderRangeOptionButton('today', 'Today')}
-            {renderRangeOptionButton('7', 'Last 7 days')}
-            {renderRangeOptionButton('30', 'Last 30 days')}
-            {renderRangeOptionButton('customDays', 'Custom Days')}
-            {renderRangeOptionButton('customRange', 'Custom Range')}
-          </View>
+          <View style={{ marginBottom: 20 }}>
+            <Typography style={styles.sectionTitle}>Filter & Range</Typography>
+            <View style={styles.rangeSelector}>
+              {['today', '7', '30', 'customDays', 'customRange'].map((o: any) => renderRangeOptionButton(o, o==='today'?'Today':o==='7'?'7 Days':o==='30'?'30 Days':o==='customDays'?'Days':'Range'))}
+            </View>
 
-          {/* Custom days / range inputs */}
-          {rangeOption === 'customDays' && (
-            <View style={styles.customDaysRow}>
-              <Text style={{ marginRight: 8 }}>Days:</Text>
-              <TextInput
-                value={String(customDays)}
-                onChangeText={(v: string) => setCustomDays(Math.max(1, parseInt(v || '1', 10) || 1))}
-                style={styles.customDaysInput}
-                keyboardType="numeric"
-              />
-            </View>
-          )}
-          {rangeOption === 'customRange' && (
-            <View style={styles.customRangeRow}>
-              <TextInput
-                value={customStart}
-                onChangeText={setCustomStart}
-                placeholder="Start (YYYY-MM-DD)"
-                style={styles.customRangeInput}
-              />
-              <Text style={{ marginHorizontal: 8 }}>to</Text>
-              <TextInput
-                value={customEnd}
-                onChangeText={setCustomEnd}
-                placeholder="End (YYYY-MM-DD)"
-                style={styles.customRangeInput}
-              />
-            </View>
-          )}
+            {rangeOption === 'customDays' && (
+              <View style={styles.inputRow}>
+                <Typography>Days:</Typography>
+                <TextInput value={String(customDays)} onChangeText={v => setCustomDays(parseInt(v)||1)} style={styles.numericInput} keyboardType="numeric" />
+              </View>
+            )}
 
-          {/* Filter Controls */}
-          <View style={styles.filterContainer}>
-            <Text style={{ fontWeight: '600', marginBottom: 8 }}>Filter Transactions</Text>
-            <View style={{ flexDirection: 'row', marginBottom: 8, alignItems: 'center' }}>
-              <TouchableOpacity
-                onPress={() => openCalendarFor('start')}
-                style={[styles.dateButton, { marginRight: 8 }]}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.dateButtonText}>{filterStart || 'Start (YYYY-MM-DD)'}</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+              <TouchableOpacity onPress={() => openCalendarFor('start')} style={[styles.rangePill, { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+                <CalendarIcon size={14} color="#94a3b8" />
+                <Typography style={{ fontSize: 12, color: '#64748b' }}>{filterStart || 'From'}</Typography>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => openCalendarFor('end')}
-                style={styles.dateButton}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.dateButtonText}>{filterEnd || 'End (YYYY-MM-DD)'}</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ marginRight: 8 }}>Type:</Text>
-              <TouchableOpacity
-                style={{ padding: 6, backgroundColor: txnType === 'all' ? '#10b981' : '#e5e7eb', borderRadius: 6, marginRight: 4 }}
-                onPress={() => setTxnType('all')}
-              >
-                <Text style={{ color: txnType === 'all' ? '#fff' : '#111' }}>All</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{ padding: 6, backgroundColor: txnType === 'expense' ? '#10b981' : '#e5e7eb', borderRadius: 6, marginRight: 4 }}
-                onPress={() => setTxnType('expense')}
-              >
-                <Text style={{ color: txnType === 'expense' ? '#fff' : '#111' }}>Expense</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{ padding: 6, backgroundColor: txnType === 'income' ? '#10b981' : '#e5e7eb', borderRadius: 6 }}
-                onPress={() => setTxnType('income')}
-              >
-                <Text style={{ color: txnType === 'income' ? '#fff' : '#111' }}>Income</Text>
+              <TouchableOpacity onPress={() => openCalendarFor('end')} style={[styles.rangePill, { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+                <CalendarIcon size={14} color="#94a3b8" />
+                <Typography style={{ fontSize: 12, color: '#64748b' }}>{filterEnd || 'To'}</Typography>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Permission Status */}
-          <View style={styles.permissionStatus}>
-            <View style={styles.statusRow}>
-              {hasPermission ? (
-                <CheckCircle size={20} color="#10b981" />
-              ) : (
-                <AlertCircle size={20} color="#ef4444" />
-              )}
-              <Text style={[styles.statusText, { color: hasPermission ? '#10b981' : '#ef4444' }]}>
-                {hasPermission ? 'SMS Permission Granted' : 'SMS Permission Required'}
-              </Text>
+          <View style={styles.alertBlock}>
+            <View style={[styles.headerIconContainer, { backgroundColor: hasPermission ? '#f0fdf4' : '#fef2f2', width: 40, height: 40 }]}>
+              {hasPermission ? <CheckCircle size={20} color="#10b981" /> : <AlertCircle size={20} color="#ef4444" />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Typography style={{ fontWeight: 'bold' }}>{hasPermission ? 'Ready to Sync' : 'Access Needed'}</Typography>
+              <Typography style={{ fontSize: 12 }}>{hasPermission ? 'SMS reading is enabled' : 'Grant permission to automate'}</Typography>
             </View>
             {!hasPermission && (
-              <TouchableOpacity
-                style={styles.permissionButton}
-                onPress={handleRequestPermission}
-              >
-                <Text style={styles.permissionButtonText}>Grant Permission</Text>
-              </TouchableOpacity>
+              <Button style={{ paddingVertical: 6, height: 'auto' }} onPress={handleRequestPermission}>Allow</Button>
             )}
           </View>
 
-          {/* Import Button */}
-          <PrimaryButton onPress={handleImportSMS} disabled={!hasPermission || isLoading} style={{ width: '100%' }}>
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <View style={styles.btnContent}>
-                <Download size={20} color="#fff" style={styles.btnIcon} />
-                <Text style={styles.importButtonText}>Import Last 30 Days</Text>
+          <Button onPress={handleImportSMS} disabled={!hasPermission || isLoading} style={{ height: 50, borderRadius: 12 }}>
+            {isLoading ? <ActivityIndicator color="#fff" /> : <Typography style={{ color: '#fff', fontWeight: 'bold' }}>Scan for Transactions</Typography>}
+          </Button>
+
+          {lastResult && (
+            <View style={styles.resultsContainer}>
+              <View style={styles.statGrid}>
+                <View style={styles.statCard}><Typography style={[styles.statNum, {color:primary}]}>{lastResult.expenses.length}</Typography><Typography style={styles.statLab}>Found</Typography></View>
+                <View style={styles.statCard}><Typography style={styles.statNum}>{lastResult.totalProcessed}</Typography><Typography style={styles.statLab}>Total</Typography></View>
+                {lastResult.suspicious && lastResult.suspicious.length > 0 && (
+                  <View style={[styles.statCard, {borderColor:'#fee2e2'}]}><Typography style={[styles.statNum, {color:'#ef4444'}]}>{lastResult.suspicious.length}</Typography><Typography style={styles.statLab}>Flagged</Typography></View>
+                )}
               </View>
-            )}
-          </PrimaryButton>
 
-
-      {/* Results */}
-      {lastResult && (
-        <View style={styles.results}>
-          <Text style={styles.resultsTitle}>Last Import Results</Text>
-
-          <View style={styles.resultStats}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{lastResult.expenses.length}</Text>
-              <Text style={styles.statLabel}>Expenses Found</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{lastResult.totalProcessed}</Text>
-              <Text style={styles.statLabel}>Messages Processed</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{lastResult.errors.length}</Text>
-              <Text style={styles.statLabel}>Errors</Text>
-            </View>
-            {lastResult.suspicious && lastResult.suspicious.length > 0 && (
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{lastResult.suspicious.length}</Text>
-                <Text style={styles.statLabel}>Suspicious</Text>
-              </View>
-            )}
-          </View>
-
-          {lastResult.expenses.length > 0 && (
-            <View style={styles.expensesList}>
-              <Text style={styles.expensesTitle}>Imported Expenses:</Text>
-              {lastResult.expenses.slice(0, 5).map((expense, idx) => (
-                <React.Fragment key={`expense-${idx}`}>
-                  {renderExpenseItem(expense, idx)}
-                </React.Fragment>
-              ))}
-              {lastResult.expenses.length > 5 && <Text style={styles.moreExpenses}>+{lastResult.expenses.length - 5} more expenses imported</Text>}
-            </View>
-          )}
-
-          {lastResult.suspicious && lastResult.suspicious.length > 0 && (
-            <View style={styles.suspiciousList}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={styles.suspiciousTitle}>Suspicious Transactions (Amount &gt; 1,00,000)</Text>
-                <Link href="/suspicious">
-                  <GhostButton style={{ backgroundColor: 'transparent', borderColor: '#4f46e5' }}>Open Review</GhostButton>
-                </Link>
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 8 }}>
-                <PrimaryButton style={[{ paddingVertical: 8 }, { marginRight: 8 }]} onPress={async () => {
-                  // Save all suspicious
-                  const items = lastResult.suspicious || [];
-                  for (const e of items) await handleSaveSuspicious(e);
-                }}>
-                  Save All
-                </PrimaryButton>
-                <GhostButton style={[{ marginRight: 8 }]} onPress={() => { setLastResult((prev) => prev ? ({ ...prev, suspicious: [] }) : prev ); }}>
-                  Ignore All
-                </GhostButton>
-                <GhostButton onPress={async () => {
-                  // Regenerate all suspicious
-                  const items = lastResult.suspicious || [];
-                  for (const e of items) {
-                    handleRegenerateSuspicious(e);
-                  }
-                }}>
-                  Regenerate All
-                </GhostButton>
-              </View>
-              {lastResult.suspicious.map((expense, idx) => (
-                <View key={`susp-${idx}`} style={styles.suspiciousItem}>
-                  <Text style={styles.suspiciousText}>{expense.vendor || 'Unknown'} — {formatAmount(expense.amount)}</Text>
-                  <View style={styles.suspiciousActions}>
-                    <PrimaryButton style={{ paddingVertical: 6, paddingHorizontal: 10 }} onPress={() => handleSaveSuspicious(expense)}>Save</PrimaryButton>
-                    <GhostButton style={{ marginLeft: 8 }} onPress={() => handleIgnoreSuspicious(expense)}>Ignore</GhostButton>
-                    <GhostButton style={{ marginLeft: 8 }} onPress={() => handleRegenerateSuspicious(expense)}>Regenerate</GhostButton>
-                  </View>
+              {lastResult.expenses.length > 0 && (
+                <View style={{ marginTop: 20 }}>
+                  <Typography style={styles.sectionTitle}>Imported Lately</Typography>
+                  {lastResult.expenses.slice(0, 3).map((e, i) => renderExpenseItem(e, i))}
                 </View>
-              ))}
-            </View>
-          )}
+              )}
 
-          {lastResult.errors.length > 0 && (
-            <View style={styles.errorsList}>
-              <Text style={styles.errorsTitle}>Errors:</Text>
-              {lastResult.errors.map((error, index) => (
-                <React.Fragment key={`err-${index}`}>
-                  <Text style={styles.errorText}>• {error}</Text>
-                </React.Fragment>
-              ))}
+              {lastResult.suspicious && lastResult.suspicious.length > 0 && (
+                <View style={styles.suspiciousBlock}>
+                  <Typography style={[styles.sectionTitle, {color:'#b91c1c'}]}>Needs Review</Typography>
+                  {lastResult.suspicious.slice(0, 2).map((e, i) => {
+                    const SuspItemView: any = View;
+                    return (
+                      <SuspItemView key={i} style={styles.suspItem}>
+                        <View style={{ flex: 1 }}><Typography style={{ fontWeight: '600' }}>{e.vendor || 'Unknown'}</Typography><Typography style={{ color: '#ef4444', fontWeight: 'bold' }}>{formatAmount(e.amount)}</Typography></View>
+                        <View style={{ flexDirection: 'row', gap: 6 }}><Button style={{ height: 32, paddingVertical: 0 }} onPress={() => handleSaveSuspicious(e)}>Save</Button><Button variant="ghost" style={{ height: 32 }} onPress={() => handleIgnoreSuspicious(e)}>Ignore</Button></View>
+                      </SuspItemView>
+                    );
+                  })}
+                </View>
+              )}
             </View>
           )}
-        </View>
-      )}
+        </CardContent>
       </Card>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  importButton: {
-    backgroundColor: "#4A90E2",
-    paddingVertical: 14,
-    borderRadius: 30,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "80%",
-    alignSelf: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
-    gap: 10, // spacing between icon & text
-  },
-
-  disabledButton: {
-    backgroundColor: "#9BBBD4",
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-
-  btnContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  btnIcon: {
-    marginRight: 10,
-  },
-
-  importButtonText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  container: {
-    flex: 1,
-  },
-  card: {
-    margin: 16,
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginLeft: 8,
-    color: '#1f2937',
-  },
-  description: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  permissionStatus: {
-    marginBottom: 16,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statusText: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 8,
-  },
-  permissionButton: {
-    backgroundColor: '#3b82f6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  permissionButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  results: {
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    paddingTop: 16,
-  },
-  resultsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 12,
-  },
-  resultStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#3b82f6',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  expensesList: {
-    marginBottom: 16,
-  },
-  expensesTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 8,
-  },
-  expenseItem: {
-    backgroundColor: '#f9fafb',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
+  container: { flex: 1 },
+  card: { margin: 16, padding: 16, borderRadius: 24 },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  headerIconContainer: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  title: { fontSize: 20, fontWeight: '700', color: '#1f2937' },
+  description: { fontSize: 13, color: '#6b7280' },
+  sectionTitle: { fontSize: 12, fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
+  rangeSelector: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  rangePill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#f1f5f9' },
+  rangePillActive: { backgroundColor: '#f97316', borderColor: '#f97316' },
+  rangePillText: { fontSize: 12, fontWeight: '600', color: '#64748b' },
+  rangePillTextActive: { color: '#fff' },
+  inputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 },
+  numericInput: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, width: 60, fontSize: 14 },
+  alertBlock: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 18, backgroundColor: '#fff7ed', marginTop: 20, marginBottom: 12 },
+  resultsContainer: { marginTop: 24, paddingTop: 24, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+  statGrid: { flexDirection: 'row', gap: 10 },
+  statCard: { flex: 1, padding: 12, borderRadius: 16, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f1f5f9', alignItems: 'center' },
+  statNum: { fontSize: 18, fontWeight: '800' },
+  statLab: { fontSize: 10, color: '#94a3b8', fontWeight: '600' },
+  expenseItem: { overflow: 'hidden' },
   expenseHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
-  },
-  expenseAmount: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  confidenceBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  confidenceText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  expenseVendor: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 2,
-  },
-  expenseCategory: {
-    fontSize: 12,
-    color: '#6b7280',
-    textTransform: 'capitalize',
-    marginBottom: 4,
-  },
-  expenseDescription: {
-    fontSize: 12,
-    color: '#9ca3af',
-    lineHeight: 16,
-  },
-  moreExpenses: {
-    fontSize: 12,
-    color: '#6b7280',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    marginTop: 8,
-  },
-  errorsList: {
-    backgroundColor: '#fef2f2',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#fecaca',
-  },
-  errorsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#dc2626',
-    marginBottom: 4,
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#dc2626',
-    lineHeight: 16,
-  },
-  notAvailable: {
-    alignItems: 'center',
-    padding: 32,
-  },
-  notAvailableTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginTop: 16,
     marginBottom: 8,
   },
-  notAvailableText: {
-    fontSize: 14,
-    color: '#9ca3af',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  rangeSelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
-    alignItems: 'center',
-  },
-  rangeButton: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginRight: 8,
-  },
-  rangeButtonSelected: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
-  },
-  rangeButtonText: {
-    color: '#374151',
-    fontSize: 14,
-  },
-  rangeButtonTextSelected: {
-    color: '#ffffff',
-  },
-  customDaysRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  customDaysInput: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    width: 84,
-    textAlign: 'center',
-  },
-  customRangeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  customRangeInput: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: 6,
-    width: 140,
-  },
-  filterContainer: {
-    backgroundColor: '#f8fafc',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#eef2f6',
-  },
-  dateInput: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 6,
-    padding: 8,
-    flex: 1,
-  },
-  dateButton: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    minWidth: 160,
-    alignItems: 'center',
-    backgroundColor: '#ffffff'
-  },
-  dateButtonText: {
-    color: '#374151',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-    width: '100%',
-    maxWidth: 420,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 10,
-  },
-  clearButton: {
-    backgroundColor: '#fde68a',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-  },
-  clearButtonText: {
-    color: '#92400e',
-    fontWeight: '600',
-  },
-  modalCloseButton: {
-    backgroundColor: '#3b82f6',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-  },
-  modalCloseButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  calendarContainer: {
-    backgroundColor: 'transparent',
-  },
-  calendarHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  calendarNav: {
-    fontSize: 18,
-    color: '#374151',
-    padding: 8,
-  },
-  calendarTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  weekRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  weekDayText: {
-    flex: 1,
-    textAlign: 'center',
-    color: '#6b7280',
-    fontWeight: '600',
-  },
-  daysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  dayCell: {
-    width: '14.2857%',
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayCellFaded: {
-    opacity: 0.35,
-  },
-  dayCellSelected: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 24,
-    padding: 6,
-  },
-  dayText: {
-    color: '#111827',
-  },
-  dayTextFaded: {
-    color: '#9ca3af',
-  },
-  dayTextSelected: {
-    color: '#ffffff',
-    fontWeight: '700',
-  },
-  suspiciousList: {
-    marginTop: 16,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-    backgroundColor: '#fff8f7',
-  },
-  suspiciousTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 8,
-    color: '#b91c1c',
-  },
-  suspiciousItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#fdeceb',
-  },
-  suspiciousText: {
-    color: '#1f2937',
-    fontWeight: '600',
-  },
-  suspiciousActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  suspiciousSave: {
-    backgroundColor: '#ef4444',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  suspiciousIgnore: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginLeft: 8,
-  },
+  confidenceBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  suspiciousBlock: { marginTop: 24, padding: 16, borderRadius: 20, backgroundColor: '#fff8f7', borderWidth: 1, borderColor: '#fee2e2' },
+  suspItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#fdeceb' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: '90%', backgroundColor: '#fff', borderRadius: 28, padding: 24 },
+  calendarContainer: { width: '100%' },
+  calendarHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  calendarTitle: { fontSize: 16, fontWeight: '700' },
+  calendarNav: { fontSize: 24, color: '#f97316', fontWeight: '300' },
+  weekRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  weekDayText: { width: '14.28%', textAlign: 'center', fontSize: 11, color: '#94a3b8', fontWeight: '700' },
+  daysGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  dayCell: { width: '14.28%', aspectRatio: 1, justifyContent: 'center', alignItems: 'center' },
+  dayCellFaded: { opacity: 0.2 },
+  dayCellSelected: { backgroundColor: '#f97316', borderRadius: 20 },
+  dayText: { fontSize: 14, color: '#1e293b' },
+  dayTextFaded: { color: '#94a3b8' },
+  dayTextSelected: { color: '#fff', fontWeight: '800' },
+  notAvailable: { alignItems: 'center', padding: 32 },
+  notAvailableTitle: { fontSize: 18, fontWeight: '700', color: '#1e293b', marginTop: 16 },
+  notAvailableText: { fontSize: 14, color: '#64748b', textAlign: 'center', marginTop: 8 },
 });
