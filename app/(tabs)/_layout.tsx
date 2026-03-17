@@ -11,6 +11,8 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
+import { CustomTabBar } from '@/components/CustomTabBar';
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const appTheme = useAppTheme();
@@ -36,24 +38,17 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         tabBarActiveTintColor: isDark ? '#818cf8' : '#4f46e5',
         tabBarInactiveTintColor: isDark ? '#64748b' : '#94a3b8',
         headerShown: false,
-        tabBarButton: HapticTab,
         tabBarStyle: {
-          backgroundColor: isDark ? '#0f172a' : '#ffffff',
-          borderTopColor: isDark ? '#1e293b' : '#f1f5f9',
-          height: Platform.OS === 'ios' ? 88 : 68,
-          paddingBottom: Platform.OS === 'ios' ? 32 : 12,
-          paddingTop: 12,
           position: 'absolute',
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
           elevation: 0,
-          borderTopWidth: 1,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
+          height: 0, // Minimize standard space
         },
       }}>
       <Tabs.Screen
