@@ -1,11 +1,11 @@
-import { emitter } from '@/app/libs/emitter';
-import { readJson } from '@/app/libs/storage';
-import { getFilteredTransactions } from '@/app/services/transactionService';
+import { emitter } from '@/libs/emitter';
+import { readJson } from '@/libs/storage';
+import { getFilteredTransactions } from '@/services/transactionService';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 
-import { useAppTheme } from '@/app/contexts/ThemeContext';
+import { useAppTheme } from '@/contexts/ThemeContext';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';

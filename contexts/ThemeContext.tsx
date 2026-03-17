@@ -1,4 +1,4 @@
-import { getUserPreferences, saveUserPreferences } from '@/app/services/preferencesService';
+import { getUserPreferences, saveUserPreferences } from '@/services/preferencesService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Theme } from '@/types';
 import React, { createContext, useContext, useEffect, useState } from 'react';

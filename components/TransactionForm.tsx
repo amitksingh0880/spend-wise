@@ -1,7 +1,7 @@
-import { useCurrency } from '@/app/contexts/CurrencyContext';
-import { getAllCategories } from '@/app/services/categoryService';
-import { saveTransaction, Transaction, updateTransaction } from '@/app/services/transactionService';
-import { getCurrencySymbol } from '@/app/utils/currency';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { getAllCategories } from '@/services/categoryService';
+import { saveTransaction, Transaction, updateTransaction } from '@/services/transactionService';
+import { getCurrencySymbol } from '@/utils/currency';
 import { FileText, Tag, X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {

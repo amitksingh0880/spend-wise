@@ -3,7 +3,7 @@
  * https://docs.expo.dev/guides/color-schemes/
  */
 
-import ThemeContext from '@/app/contexts/ThemeContext';
+import ThemeContext from '@/contexts/ThemeContext';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useContext } from 'react';

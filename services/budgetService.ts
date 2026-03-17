@@ -1,4 +1,4 @@
-import { emitter } from '@/app/libs/emitter';
+import { emitter } from '@/libs/emitter';
 import { readJson, writeJson } from '../libs/storage';
 import { uuidv4 } from '../utils/uuid';
 import { getAllTransactions } from './transactionService';
