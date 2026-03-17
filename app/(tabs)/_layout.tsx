@@ -121,18 +121,6 @@ export default function TabLayout() {
           href: null,
         }}
       />
-      <Tabs.Screen
-        name="_hidden/voice"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="_hidden/explore"
-        options={{
-          href: null,
-        }}
-      />
     </Tabs>
   );
 }

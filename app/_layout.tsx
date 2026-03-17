@@ -13,6 +13,16 @@ import { ThemeProvider as AppThemeProvider, useAppTheme } from '@/contexts/Theme
 // Auth code removed
 import { getUserPreferences } from '@/services/preferencesService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { 
+  useFonts, 
+  JetBrainsMono_400Regular, 
+  JetBrainsMono_500Medium, 
+  JetBrainsMono_600SemiBold, 
+  JetBrainsMono_700Bold 
+} from '@expo-google-fonts/jetbrains-mono';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -34,6 +44,23 @@ export default function RootLayout() {
   }, []);
 
   // auth emitter removed
+
+  const [fontsLoaded] = useFonts({
+    JetBrainsMono_400Regular,
+    JetBrainsMono_500Medium,
+    JetBrainsMono_600SemiBold,
+    JetBrainsMono_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null; // Or a minimal fallback view if preferred
+  }
 
   function InnerApp() {
     const colorScheme = useColorScheme();
@@ -63,11 +90,10 @@ export default function RootLayout() {
     <CurrencyProvider>
       <AppThemeProvider>
         <SafeAreaProvider>
-          <SafeAreaView style={{ flex: 1 }} edges={[ 'top' ]}>
+          <SafeAreaView style={{ flex: 1 }} edges={['top']}>
             <InnerApp />
           </SafeAreaView>
         </SafeAreaProvider>
-        {/* Auth removed for now */}
       </AppThemeProvider>
     </CurrencyProvider>
   );

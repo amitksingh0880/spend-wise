@@ -107,7 +107,7 @@ export default function StartupSplash({ visible = true, onFinish }: StartupSplas
 
   useEffect(() => {
     if (gradientAvailable === false) {
-      console.warn('[StartupSplash] expo-linear-gradient/native LinearGradient view manager is not available.\n\tIf you just installed it, rebuild the native app (expo prebuild + expo run:android / ios) or use a dev client.\n\tFalling back to plain background.');
+      // console.warn('[StartupSplash] expo-linear-gradient/native LinearGradient view manager is not available.\n\tIf you just installed it, rebuild the native app (expo prebuild + expo run:android / ios) or use a dev client.\n\tFalling back to plain background.');
     }
   }, [gradientAvailable]);
 
