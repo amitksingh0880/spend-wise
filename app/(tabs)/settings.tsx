@@ -37,6 +37,7 @@ import {
   StatusBar,
   Platform,
   TextInput,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
@@ -50,9 +51,14 @@ const SettingsScreen: React.FC = () => {
   const [userName, setUserName] = useState('');
   const [appName, setAppName] = useState('');
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [showSupportModal, setShowSupportModal] = useState(false);
   const { refreshCurrency } = useCurrency();
 
+  const { theme } = useAppTheme();
+  const isDark = theme === 'dark';
+
   const background = useThemeColor({}, 'background');
+  const cardColor = useThemeColor({}, 'card');
   const border = useThemeColor({}, 'border');
   const primary = useThemeColor({}, 'primary');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
@@ -176,9 +182,9 @@ const SettingsScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <LinearGradient
-        colors={['#334155', '#1e293b']}
+        colors={isDark ? ['#1e1b4b', '#0f172a'] : ['#f97316', '#ea580c']}
         style={styles.headerGradient}
       >
         <Typography variant="title" weight="bold" style={styles.headerTitle}>Settings</Typography>
@@ -318,7 +324,7 @@ const SettingsScreen: React.FC = () => {
             title="Help & Support"
             subtitle="Contact us for assistance"
             color="#06b6d4"
-            onPress={() => {}}
+            onPress={() => setShowSupportModal(true)}
           />
         </Card>
 
@@ -355,6 +361,39 @@ const SettingsScreen: React.FC = () => {
             ))}
             <TouchableOpacity style={styles.closeModal} onPress={() => setShowCurrencyModal(false)}>
               <Typography variant="bold" style={{ color: '#FFFFFF' }}>Cancel</Typography>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showSupportModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSupportModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View entering={FadeInUp} style={styles.modalContent}>
+            <View style={[styles.iconBox, { backgroundColor: `#06b6d415`, alignSelf: 'center', marginBottom: 16 }]}>
+              <HelpCircle size={24} color="#06b6d4" />
+            </View>
+            <Typography variant="bold" style={styles.modalTitle}>Help & Support</Typography>
+            <Typography style={{ textAlign: 'center', color: mutedForeground, marginBottom: 24 }}>
+              Need help or have any feedback? Reach out to us via email:
+            </Typography>
+            
+            <TouchableOpacity 
+              style={[styles.currencyOption, { borderColor: border, backgroundColor: cardColor }]}
+              onPress={() => Linking.openURL('mailto:divyanox.dev@gmail.com')}
+            >
+              <View style={[styles.iconBox, { backgroundColor: `${primary}15`, width: 32, height: 32, marginRight: 12 }]}>
+                 <MessageCircle size={16} color={primary} />
+              </View>
+              <Typography variant="bold" style={{ flex: 1 }}>divyanox.dev@gmail.com</Typography>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.closeModal} onPress={() => setShowSupportModal(false)}>
+              <Typography variant="bold" style={{ color: '#FFFFFF' }}>Close</Typography>
             </TouchableOpacity>
           </Animated.View>
         </View>
