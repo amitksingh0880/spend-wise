@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 60, // Top margin for safe area
+    paddingTop: 10, // Reduced from 60
     paddingBottom: 20,
   },
   rightSection: {
