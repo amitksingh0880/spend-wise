@@ -43,6 +43,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: isDark ? '#818cf8' : '#4f46e5',
         tabBarInactiveTintColor: isDark ? '#64748b' : '#94a3b8',
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
           position: 'absolute',
           backgroundColor: 'transparent',

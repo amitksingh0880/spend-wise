@@ -2,7 +2,7 @@ import { useCurrency } from '@/contexts/CurrencyContext';
 import { createBudget, generateBudgetPeriod, getDefaultBudgetColors } from '@/services/budgetService';
 import { getAllCategories } from '@/services/categoryService';
 import { getCurrencySymbol } from '@/utils/currency';
-import { Target, X } from 'lucide-react-native';
+import { Target, X, ChevronDown, Check, Plus } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
@@ -11,11 +11,19 @@ import {
     Platform,
     ScrollView,
     StyleSheet,
-    Text,
     TextInput,
     TouchableOpacity,
     View,
+    StatusBar,
+    Dimensions,
 } from 'react-native';
+import { Typography } from './ui/text';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { BlurView } from 'expo-blur';
+import Animated, { FadeInDown, FadeInUp, SlideInRight } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const { width } = Dimensions.get('window');
 
 interface BudgetFormProps {
   visible: boolean;
@@ -37,6 +45,15 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Theme colors
+  const background = useThemeColor({}, 'background');
+  const cardColor = useThemeColor({}, 'card');
+  const border = useThemeColor({}, 'border');
+  const primary = useThemeColor({}, 'primary');
+  const primaryForeground = useThemeColor({}, 'primaryForeground');
+  const mutedForeground = useThemeColor({}, 'mutedForeground');
+  const text = useThemeColor({}, 'text');
+
   const colors = getDefaultBudgetColors();
 
   useEffect(() => {
@@ -54,7 +71,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
       setCategories(expenseCategories);
       
       // Set default category
-      if (expenseCategories.length > 0) {
+      if (expenseCategories.length > 0 && !category) {
         setCategory(expenseCategories[0].name);
       }
     } catch (error) {
@@ -115,141 +132,174 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>Create Budget</Text>
+      <View style={[styles.container, { backgroundColor: background }]}>
+        <StatusBar barStyle="light-content" />
+        
+        {/* Header */}
+        <View style={[styles.header, { borderBottomColor: border }]}>
+          <Typography variant="large" weight="bold">New Budget</Typography>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={24} color="#9ca3af" />
+            <X size={24} color={mutedForeground} />
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.form}>
-          {/* Budget Name */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Budget Name *</Text>
-            <View style={styles.inputWrapper}>
-              <Target size={20} color="#9ca3af" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="e.g., Monthly Groceries"
-                placeholderTextColor="#6b7280"
-              />
-            </View>
-          </View>
-
-          {/* Amount */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Budget Amount *</Text>
-            <View style={styles.inputWrapper}>
-              <Text style={styles.currencySymbol}>{getCurrencySymbol(currency)}</Text>
-              <TextInput
-                style={styles.input}
-                value={amount}
-                onChangeText={setAmount}
-                placeholder="0.00"
-                placeholderTextColor="#6b7280"
-                keyboardType="decimal-pad"
-              />
-            </View>
-          </View>
-
-          {/* Period */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Budget Period *</Text>
-            <View style={styles.periodContainer}>
-              {(['weekly', 'monthly', 'yearly'] as const).map((p) => (
-                <TouchableOpacity
-                  key={p}
-                  style={[
-                    styles.periodButton,
-                    period === p && styles.periodButtonActive,
-                  ]}
-                  onPress={() => setPeriod(p)}
-                >
-                  <Text
-                    style={[
-                      styles.periodButtonText,
-                      period === p && styles.periodButtonTextActive,
-                    ]}
-                  >
-                    {p.charAt(0).toUpperCase() + p.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Category */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Category *</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.categoryContainer}>
-                {categories.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      styles.categoryButton,
-                      category === cat.name && styles.categoryButtonActive,
-                    ]}
-                    onPress={() => setCategory(cat.name)}
-                  >
-                    <Text style={styles.categoryIcon}>{cat.icon}</Text>
-                    <Text
-                      style={[
-                        styles.categoryText,
-                        category === cat.name && styles.categoryTextActive,
-                      ]}
-                    >
-                      {cat.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-
-          {/* Color */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Budget Color</Text>
-            <View style={styles.colorContainer}>
-              {colors.map((color) => (
-                <TouchableOpacity
-                  key={color}
-                  style={[
-                    styles.colorButton,
-                    { backgroundColor: color },
-                    selectedColor === color && styles.colorButtonActive,
-                  ]}
-                  onPress={() => setSelectedColor(color)}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <ScrollView 
+            style={styles.form} 
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Amount Section */}
+            <Animated.View entering={FadeInUp.delay(200)} style={styles.amountSection}>
+              <Typography variant="small" weight="bold" style={{ color: mutedForeground, textAlign: 'center', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
+                Goal Amount
+              </Typography>
+              <View style={styles.amountInputWrapper}>
+                <Typography variant="title" weight="bold" style={{ color: primary, marginRight: 8 }}>
+                  {getCurrencySymbol(currency)}
+                </Typography>
+                <TextInput
+                  style={[styles.amountInput, { color: text }]}
+                  value={amount}
+                  onChangeText={setAmount}
+                  placeholder="0"
+                  placeholderTextColor={mutedForeground}
+                  keyboardType="decimal-pad"
+                  autoFocus={true}
                 />
-              ))}
-            </View>
-          </View>
-        </ScrollView>
+              </View>
+            </Animated.View>
 
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={onClose}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            <Text style={styles.submitButtonText}>
-              {loading ? 'Creating...' : 'Create Budget'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+            {/* Form Fields */}
+            <View style={styles.fieldsContainer}>
+              {/* Name */}
+              <Animated.View entering={FadeInDown.delay(300)} style={styles.inputGroup}>
+                <Typography variant="small" weight="bold" style={styles.label}>Name</Typography>
+                <View style={[styles.inputWrapper, { backgroundColor: cardColor, borderColor: border }]}>
+                  <Target size={20} color={primary} style={styles.inputIcon} />
+                  <TextInput
+                    style={[styles.input, { color: text }]}
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="e.g., Monthly Groceries"
+                    placeholderTextColor={mutedForeground}
+                  />
+                </View>
+              </Animated.View>
+
+              {/* Period Selector */}
+              <Animated.View entering={FadeInDown.delay(400)} style={styles.inputGroup}>
+                <Typography variant="small" weight="bold" style={styles.label}>Period</Typography>
+                <View style={[styles.periodContainer, { backgroundColor: cardColor, borderColor: border }]}>
+                  {(['weekly', 'monthly', 'yearly'] as const).map((p) => (
+                    <TouchableOpacity
+                      key={p}
+                      style={[
+                        styles.periodButton,
+                        period === p && { backgroundColor: primary },
+                      ]}
+                      onPress={() => setPeriod(p)}
+                    >
+                      <Typography
+                        variant="small"
+                        weight="bold"
+                        style={{ color: period === p ? '#FFFFFF' : mutedForeground }}
+                      >
+                        {p.charAt(0).toUpperCase() + p.slice(1)}
+                      </Typography>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </Animated.View>
+
+              {/* Category selector */}
+              <Animated.View entering={FadeInDown.delay(500)} style={styles.inputGroup}>
+                <Typography variant="small" weight="bold" style={styles.label}>Category</Typography>
+                <View style={styles.categoryGrid}>
+                  {categories.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.categoryCard,
+                        { 
+                            backgroundColor: category === cat.name ? `${primary}15` : cardColor,
+                            borderColor: category === cat.name ? primary : border
+                        },
+                      ]}
+                      onPress={() => setCategory(cat.name)}
+                    >
+                      <View style={[styles.categoryIconCircle, { backgroundColor: category === cat.name ? primary : `${mutedForeground}10` }]}>
+                        <Typography style={{ fontSize: 20 }}>{cat.icon}</Typography>
+                      </View>
+                      <Typography 
+                        variant="small" 
+                        weight={category === cat.name ? "bold" : "medium"}
+                        style={{ color: category === cat.name ? text : mutedForeground, marginTop: 4 }}
+                        numberOfLines={1}
+                      >
+                        {cat.name}
+                      </Typography>
+                      {category === cat.name && (
+                        <View style={[styles.checkBadge, { backgroundColor: primary }]}>
+                           <Check size={10} color="#FFF" strokeWidth={3} />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </Animated.View>
+
+              {/* Color Selector */}
+              <Animated.View entering={FadeInDown.delay(600)} style={styles.inputGroup}>
+                <Typography variant="small" weight="bold" style={styles.label}>Visual Identity</Typography>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorScroll}>
+                  {colors.map((color) => (
+                    <TouchableOpacity
+                      key={color}
+                      style={[
+                        styles.colorCircle,
+                        { backgroundColor: color },
+                      ]}
+                      onPress={() => setSelectedColor(color)}
+                    >
+                      {selectedColor === color && (
+                        <Check size={18} color="#FFFFFF" strokeWidth={3} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </Animated.View>
+            </View>
+            
+            <View style={{ height: 180 }} />
+          </ScrollView>
+
+          {/* Footer Actions */}
+          <BlurView intensity={Platform.OS === 'ios' ? 80 : 0} tint="default" style={[styles.footer, { backgroundColor: Platform.OS === 'android' ? background : 'transparent' }]}>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.cancelButton, { borderColor: border }]}
+                    onPress={onClose}
+                >
+                    <Typography variant="bold" style={{ color: mutedForeground }}>Cancel</Typography>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.submitButton, { backgroundColor: primary }]}
+                    onPress={handleSubmit}
+                    disabled={loading}
+                >
+                    <Plus size={20} color="#FFF" style={{ marginRight: 6 }} />
+                    <Typography variant="bold" style={{ color: '#FFF' }}>
+                        {loading ? 'Creating...' : 'Create Budget'}
+                    </Typography>
+                </TouchableOpacity>
+            </View>
+          </BlurView>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };
@@ -257,166 +307,154 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    paddingTop: 60,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#f9fafb',
   },
   closeButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   form: {
     flex: 1,
-    padding: 20,
+  },
+  amountSection: {
+    paddingVertical: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  amountInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  amountInput: {
+    fontSize: 48,
+    fontWeight: '800',
+    minWidth: 100,
+    textAlign: 'center',
+    letterSpacing: -1,
+  },
+  fieldsContainer: {
+    paddingHorizontal: 24,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#f3f4f6',
-    marginBottom: 8,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    opacity: 0.7,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#334155',
+    paddingHorizontal: 16,
+    height: 60,
   },
   inputIcon: {
-    marginLeft: 16,
     marginRight: 12,
-  },
-  currencySymbol: {
-    marginLeft: 16,
-    marginRight: 12,
-    fontSize: 16,
-    color: '#9ca3af',
-    fontWeight: '600',
   },
   input: {
     flex: 1,
-    paddingVertical: 16,
-    paddingRight: 16,
     fontSize: 16,
-    color: '#f3f4f6',
+    fontWeight: '600',
   },
   periodContainer: {
     flexDirection: 'row',
-    backgroundColor: '#1f2937',
-    borderRadius: 12,
-    padding: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 6,
   },
   periodButton: {
     flex: 1,
-    paddingVertical: 12,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
   },
-  periodButtonActive: {
-    backgroundColor: '#4f46e5',
-  },
-  periodButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#9ca3af',
-  },
-  periodButtonTextActive: {
-    color: '#ffffff',
-  },
-  categoryContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 8,
-  },
-  categoryButton: {
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#1e293b',
-    borderWidth: 1,
-    borderColor: '#334155',
-    minWidth: 80,
-  },
-  categoryButtonActive: {
-    backgroundColor: '#4f46e5',
-    borderColor: '#4f46e5',
-  },
-  categoryIcon: {
-    fontSize: 20,
-    marginBottom: 4,
-  },
-  categoryText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    textAlign: 'center',
-  },
-  categoryTextActive: {
-    color: '#ffffff',
-  },
-  colorContainer: {
+  categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+    justifyContent: 'flex-start',
   },
-  colorButton: {
-    width: 40,
-    height: 40,
+  categoryCard: {
+    width: (width - 48 - 24) / 3, // 3 columns
+    paddingVertical: 16,
+    paddingHorizontal: 8,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    borderWidth: 1.5,
+    alignItems: 'center',
+    position: 'relative',
   },
-  colorButtonActive: {
-    borderColor: '#ffffff',
+  categoryIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  checkBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  colorScroll: {
+    gap: 12,
+    paddingVertical: 8,
+  },
+  colorCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+  },
+  actionButton: {
+    height: 60,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     flexDirection: 'row',
-    padding: 20,
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#1f2937',
   },
   cancelButton: {
     flex: 1,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#374151',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#9ca3af',
   },
   submitButton: {
     flex: 2,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderRadius: 12,
-    backgroundColor: '#4f46e5',
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#6b7280',
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
 });
 
