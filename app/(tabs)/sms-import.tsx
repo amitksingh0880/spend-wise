@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, SafeAreaView } from 'react-native';
-import SMSImport from '../components/SMSImport';
+import SMSImport from '@/components/SMSImport';
 
 export default function SMSImportScreen() {
   return (

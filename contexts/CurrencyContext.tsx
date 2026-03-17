@@ -19,7 +19,7 @@ export const useCurrency = () => {
 };
 
 interface CurrencyProviderProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) => {

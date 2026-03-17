@@ -25,7 +25,7 @@ export const useAppTheme = () => {
   return ctx;
 };
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ThemeProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>('dark');
 
   const loadTheme = async () => {
