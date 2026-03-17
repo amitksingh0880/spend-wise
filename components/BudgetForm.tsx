@@ -22,6 +22,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { BlurView } from 'expo-blur';
 import Animated, { FadeInDown, FadeInUp, SlideInRight } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -44,6 +45,8 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
   const [selectedColor, setSelectedColor] = useState('#4f46e5');
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const { theme } = useAppTheme();
+  const isDark = theme === 'dark';
 
   // Theme colors
   const background = useThemeColor({}, 'background');
@@ -133,7 +136,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
       onRequestClose={onClose}
     >
       <View style={[styles.container, { backgroundColor: background }]}>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: border }]}>
@@ -159,7 +162,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
               </Typography>
               <View style={styles.amountInputWrapper}>
                 <Typography variant="title" weight="bold" style={{ color: primary, marginRight: 8 }}>
-                  {getCurrencySymbol(currency)}
+                   {getCurrencySymbol(currency)}
                 </Typography>
                 <TextInput
                   style={[styles.amountInput, { color: text }]}
@@ -273,12 +276,10 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
                 </ScrollView>
               </Animated.View>
             </View>
-            
-            <View style={{ height: 180 }} />
           </ScrollView>
 
           {/* Footer Actions */}
-          <BlurView intensity={Platform.OS === 'ios' ? 80 : 0} tint="default" style={[styles.footer, { backgroundColor: Platform.OS === 'android' ? background : 'transparent' }]}>
+          <View style={[styles.footer, { backgroundColor: background }]}>
             <View style={{ flexDirection: 'row', gap: 12 }}>
                 <TouchableOpacity
                     style={[styles.actionButton, styles.cancelButton, { borderColor: border }]}
@@ -297,7 +298,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
                     </Typography>
                 </TouchableOpacity>
             </View>
-          </BlurView>
+          </View>
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -430,12 +431,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     padding: 24,
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
   },
   actionButton: {
     height: 60,

@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Typography } from './ui/text';
 import { Transaction } from '@/services/transactionService';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { ArrowDownLeft, ArrowUpRight, Wallet, Clock, Tag } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 interface RecentTransactionsListProps {
   transactions: Transaction[];
@@ -14,20 +15,33 @@ interface RecentTransactionsListProps {
 
 const TransactionItem = ({ transaction, index }: { transaction: Transaction, index: number }) => {
   const { formatAmount } = useCurrency();
-  const background = useThemeColor({}, 'background');
+  const { theme } = useAppTheme();
+  const isDark = theme === 'dark';
+
   const border = useThemeColor({}, 'border');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
   const card = useThemeColor({}, 'card');
 
   const isIncome = transaction.type === 'income';
   
-  // Create a pastel background color based on the category string length as a deterministic pseudo-randomizer
-  const pastelColors = ['#FEE2E2', '#FEF3C7', '#D1FAE5', '#DBEAFE', '#F3E8FF', '#FCE7F3'];
-  const iconBgColor = pastelColors[transaction.category.length % pastelColors.length];
-  
-  // Map standard icons
-  const Icon = isIncome ? ArrowDownLeft : ArrowUpRight;
-  const iconColor = isIncome ? '#059669' : '#DC2626';
+  // Custom pastel backgrounds for categories that work in both modes
+  const getCategoryTheme = (name: string) => {
+    const hash = name.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0);
+    const colors = isDark 
+      ? ['#1e1b4b', '#2e1065', '#064e3b', '#4c1d95', '#701a75', '#831843'] // Darker deep tones
+      : ['#D1FAE5', '#DBEAFE', '#F3E8FF', '#FCE7F3', '#FEE2E2', '#FEF3C7']; // Pastel light tones
+    const textColors = isDark
+      ? ['#818cf8', '#a78bfa', '#34d399', '#c084fc', '#f472b6', '#fb7185']
+      : ['#065f46', '#1e40af', '#5b21b6', '#9d174d', '#991b1b', '#92400e'];
+    
+    return {
+      bg: colors[hash % colors.length],
+      text: textColors[hash % textColors.length]
+    };
+  };
+
+  const catTheme = getCategoryTheme(transaction.category);
+  const iconColor = isIncome ? '#10b981' : '#ef4444'; 
 
   const date = new Date(transaction.createdAt);
   const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -36,9 +50,9 @@ const TransactionItem = ({ transaction, index }: { transaction: Transaction, ind
     <Animated.View entering={FadeInUp.delay(300 + index * 100).duration(500).springify()}>
       <TouchableOpacity style={[styles.transactionCard, { backgroundColor: card, borderColor: border }]}>
         <View style={styles.cardHeader}>
-          <View style={[styles.categoryPill, { backgroundColor: iconBgColor }]}>
-            <Tag size={12} color="#4B5563" style={{ marginRight: 4 }} />
-            <Typography variant="small" style={{ color: '#4B5563', fontSize: 10 }}>
+          <View style={[styles.categoryPill, { backgroundColor: catTheme.bg }]}>
+            <Tag size={12} color={catTheme.text} style={{ marginRight: 4 }} />
+            <Typography variant="small" style={{ color: catTheme.text, fontSize: 10, fontWeight: 'bold' }}>
               {transaction.category}
             </Typography>
           </View>
@@ -68,6 +82,7 @@ const TransactionItem = ({ transaction, index }: { transaction: Transaction, ind
 export const RecentTransactionsList: React.FC<RecentTransactionsListProps> = ({ transactions, onSeeAll }) => {
   const text = useThemeColor({}, 'text');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
+  const primary = useThemeColor({}, 'primary');
 
   return (
     <View style={styles.container}>
@@ -76,7 +91,7 @@ export const RecentTransactionsList: React.FC<RecentTransactionsListProps> = ({ 
           Recent Transactions
         </Typography>
         <TouchableOpacity onPress={onSeeAll}>
-          <Typography weight="bold" style={{ color: '#FF7A00' }}>
+          <Typography weight="bold" style={{ color: primary }}>
             See All
           </Typography>
         </TouchableOpacity>
@@ -85,7 +100,9 @@ export const RecentTransactionsList: React.FC<RecentTransactionsListProps> = ({ 
       <View style={styles.list}>
         {transactions.length > 0 ? (
           transactions.map((tx, idx) => (
-            <TransactionItem key={tx.id} transaction={tx} index={idx} />
+            <View key={tx.id}>
+              <TransactionItem transaction={tx} index={idx} />
+            </View>
           ))
         ) : (
           <View style={styles.emptyState}>
@@ -119,11 +136,17 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 24,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 15,
-    elevation: 2,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 15,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   cardHeader: {
     flexDirection: 'row',
@@ -155,3 +178,5 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   }
 });
+
+export default RecentTransactionsList;

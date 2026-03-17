@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInRight, FadeIn, Layout, useAnimatedStyle, useSharedValue, withRepeat, withTiming, withSequence } from 'react-native-reanimated';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 const VoiceAssistantScreen: React.FC = () => {
   const [prompt, setPrompt] = useState('');
@@ -30,12 +31,17 @@ const VoiceAssistantScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [financialContext, setFinancialContext] = useState<FinancialContext | null>(null);
   
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<any>(null);
+  const { theme } = useAppTheme();
+  const isDark = theme === 'dark';
+
   const background = useThemeColor({}, 'background');
   const primary = useThemeColor({}, 'primary');
   const primaryForeground = useThemeColor({}, 'primaryForeground');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
   const cardColor = useThemeColor({}, 'card');
+  const border = useThemeColor({}, 'border');
+  const text = useThemeColor({}, 'text');
 
   useEffect(() => {
     loadInitialData();
@@ -107,9 +113,9 @@ const VoiceAssistantScreen: React.FC = () => {
       style={[styles.container, { backgroundColor: background }]}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <LinearGradient
-        colors={['#4f46e5', '#3730a3']}
+        colors={isDark ? ['#1e1b4b', '#0f172a'] : ['#4f46e5', '#3730a3']}
         style={styles.headerGradient}
       >
         <Typography variant="title" weight="bold" style={styles.headerTitle}>AI Assistant</Typography>
@@ -118,14 +124,14 @@ const VoiceAssistantScreen: React.FC = () => {
 
       <ScrollView 
         ref={scrollViewRef}
-        contentContainerStyle={styles.chatArea}
+        contentContainerStyle={[styles.chatArea, { paddingBottom: 150 }]} // Increased padding for tab bar
         onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         showsVerticalScrollIndicator={false}
       >
         {messages.length === 0 && (
           <Animated.View entering={FadeIn.delay(300)} style={styles.welcomeContainer}>
-            <View style={styles.sparkleIcon}>
-              <Sparkles size={40} color="#818cf8" />
+            <View style={[styles.sparkleIcon, { backgroundColor: isDark ? '#1e293b' : '#eef2ff' }]}>
+              <Sparkles size={40} color={isDark ? '#818cf8' : '#4f46e5'} />
             </View>
             <Typography variant="subtitle" weight="bold" style={{ textAlign: 'center' }}>How can I help you today?</Typography>
             <Typography variant="small" style={{ color: mutedForeground, textAlign: 'center', marginTop: 8 }}>
@@ -141,7 +147,7 @@ const VoiceAssistantScreen: React.FC = () => {
               ].map((suggestion, i) => (
                 <TouchableOpacity 
                   key={i} 
-                  style={styles.suggestionButton}
+                  style={[styles.suggestionButton, { backgroundColor: cardColor, borderColor: border }]}
                   onPress={() => handleSend(suggestion)}
                 >
                   <MessageSquare size={14} color={primary} />
@@ -154,66 +160,63 @@ const VoiceAssistantScreen: React.FC = () => {
         )}
 
         {messages.map((message, index) => (
-          <Animated.View 
-            key={message.id} 
-            entering={message.role === 'user' ? FadeInRight : FadeInUp}
-            layout={Layout.springify()}
-            style={[
-              styles.messageWrapper,
-              message.role === 'user' ? styles.userWrapper : styles.botWrapper
-            ]}
-          >
-            {message.role === 'assistant' && (
-              <View style={[styles.avatar, { backgroundColor: '#eef2ff' }]}>
-                <Bot size={16} color={primary} />
+          <View key={message.id} style={[styles.messageWrapper, message.role === 'user' ? styles.userWrapper : styles.botWrapper]}>
+            <Animated.View 
+              entering={message.role === 'user' ? FadeInRight : FadeInUp}
+              layout={Layout.springify()}
+              style={{ flexDirection: 'row', alignItems: 'flex-end', width: '100%' }}
+            >
+              {message.role === 'assistant' && (
+                <View style={[styles.avatar, { backgroundColor: isDark ? '#1e293b' : '#eef2ff' }]}>
+                  <Bot size={16} color={primary} />
+                </View>
+              )}
+              <View style={[
+                styles.messageBubble,
+                message.role === 'user' ? [styles.userBubble, { backgroundColor: primary }] : [styles.botBubble, { backgroundColor: cardColor, borderColor: border, borderWidth: 1 }]
+              ]}>
+                <Typography 
+                  style={[
+                    styles.messageText, 
+                    { color: message.role === 'user' ? '#FFFFFF' : text }
+                  ]}
+                >
+                  {message.content}
+                </Typography>
               </View>
-            )}
-            <View style={[
-              styles.messageBubble,
-              message.role === 'user' ? [styles.userBubble, { backgroundColor: primary }] : [styles.botBubble, { backgroundColor: '#f8fafc' }]
-            ]}>
-              <Typography 
-                style={[
-                  styles.messageText, 
-                  { color: message.role === 'user' ? '#FFFFFF' : '#1e293b' }
-                ]}
-              >
-                {message.content}
-              </Typography>
-            </View>
-            {message.role === 'user' && (
-              <View style={[styles.avatar, { backgroundColor: '#f1f5f9' }]}>
-                <User size={16} color={mutedForeground} />
-              </View>
-            )}
-          </Animated.View>
+              {message.role === 'user' && (
+                <View style={[styles.avatar, { backgroundColor: isDark ? '#27272a' : '#f1f5f9' }]}>
+                  <User size={16} color={mutedForeground} />
+                </View>
+              )}
+            </Animated.View>
+          </View>
         ))}
 
         {isLoading && (
           <Animated.View entering={FadeInUp} style={styles.botWrapper}>
-            <View style={[styles.avatar, { backgroundColor: '#eef2ff' }]}>
+            <View style={[styles.avatar, { backgroundColor: isDark ? '#1e293b' : '#eef2ff' }]}>
               <Bot size={16} color={primary} />
             </View>
-            <View style={[styles.messageBubble, styles.botBubble, { backgroundColor: '#f8fafc' }]}>
+            <View style={[styles.messageBubble, styles.botBubble, { backgroundColor: cardColor, borderColor: border, borderWidth: 1 }]}>
               <ThinkingIndicator />
             </View>
           </Animated.View>
         )}
       </ScrollView>
 
-      <View style={[styles.inputContainer, { borderTopColor: '#f1f5f9' }]}>
-        <View style={styles.inputWrapper}>
+      <View style={[styles.inputContainer, { backgroundColor: background, borderTopColor: border, paddingBottom: Platform.OS === 'ios' ? 40 : 20, marginBottom: 100 }]}>
+        <View style={[styles.inputWrapper, { backgroundColor: cardColor, borderColor: border }]}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: text, maxHeight: 100 }]}
             value={prompt}
             onChangeText={setPrompt}
             placeholder="Ask anything..."
             placeholderTextColor={mutedForeground}
             multiline
-            maxHeight={100}
           />
           <TouchableOpacity 
-            style={[styles.sendButton, { backgroundColor: prompt.trim() ? primary : '#f1f5f9' }]}
+            style={[styles.sendButton, { backgroundColor: prompt.trim() ? primary : (isDark ? '#27272a' : '#f1f5f9') }]}
             onPress={() => handleSend()}
             disabled={!prompt.trim() || isLoading}
           >
@@ -248,7 +251,6 @@ const styles = StyleSheet.create({
   chatArea: {
     flexGrow: 1,
     padding: 20,
-    paddingBottom: 40,
   },
   welcomeContainer: {
     marginTop: 40,
@@ -259,7 +261,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#eef2ff',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
@@ -272,11 +273,9 @@ const styles = StyleSheet.create({
   suggestionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
   },
   suggestionText: {
     flex: 1,
@@ -335,18 +334,15 @@ const styles = StyleSheet.create({
   inputContainer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: '#f8fafc',
     borderRadius: 24,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
   },
   input: {
     flex: 1,
@@ -354,7 +350,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 8,
-    color: '#1e293b',
   },
   sendButton: {
     width: 40,

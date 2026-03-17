@@ -7,6 +7,7 @@ import { Compass, Sparkles, Settings, List, PieChart, BarChart2, AlertCircle } f
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { emitter } from '@/libs/emitter';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -16,6 +17,8 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
   const border = useThemeColor({}, 'border');
   const text = useThemeColor({}, 'text');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
+  const { theme } = useAppTheme();
+  const isDark = theme === 'dark';
 
   const translateY = useSharedValue(0);
 
@@ -47,8 +50,15 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
   ];
 
   return (
-    <Animated.View style={[styles.container, animatedStyle]}>
-      <BlurView intensity={Platform.OS === 'ios' ? 80 : 100} tint="light" style={styles.blurContainer}>
+    <Animated.View style={[
+      styles.container, 
+      animatedStyle, 
+      { 
+        backgroundColor: isDark ? 'rgba(24, 24, 27, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.5)'
+      }
+    ]}>
+      <BlurView intensity={Platform.OS === 'ios' ? 80 : 0} tint={isDark ? "dark" : "light"} style={styles.blurContainer}>
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
@@ -78,6 +88,7 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
             };
 
             const isAssistant = label === 'Assistant';
+            const activeTextColor = isDark ? '#FFFFFF' : '#1e293b';
 
             return (
               <TouchableOpacity
@@ -88,7 +99,7 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
                 onLongPress={onLongPress}
                 style={[
                   styles.tabItem,
-                  isAssistant && isFocused && styles.activeAssistantItem,
+                  isAssistant && isFocused && [styles.activeAssistantItem, { backgroundColor: isDark ? '#27272a' : '#f1f5f9' }],
                   !isAssistant && isFocused && styles.activeItem
                 ]}
               >
@@ -98,15 +109,15 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
                 ]}>
                     <Icon 
                         size={20} 
-                        color={isFocused ? (isAssistant ? '#1e293b' : primary) : mutedForeground} 
+                        color={isFocused ? (isAssistant ? activeTextColor : primary) : mutedForeground} 
                         strokeWidth={isFocused ? 2.5 : 2}
                     />
                 </View>
                 <Typography 
-                  variant="small" 
+                   variant="small" 
                   weight={isFocused ? "bold" : "medium"}
                   style={{ 
-                    color: isFocused ? '#1e293b' : mutedForeground,
+                    color: isFocused ? activeTextColor : mutedForeground,
                     marginTop: 4,
                     fontSize: 10
                   }}
@@ -125,15 +136,13 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 25 : 15, // Reduced from 40/30
+    bottom: Platform.OS === 'ios' ? 25 : 15,
     alignSelf: 'center',
     width: width * 0.9,
     height: 70,
     borderRadius: 35,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)', // More opaque for better visibility
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
     zIndex: 1000,
     elevation: 10,
     ...Platform.select({
@@ -157,26 +166,25 @@ const styles = StyleSheet.create({
     minWidth: '100%',
   },
   tabItem: {
-    width: 60, // Fixed width for scrollable tabs
+    width: 60,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
     borderRadius: 25,
   },
   activeAssistantItem: {
-    backgroundColor: '#f1f5f9',
     borderRadius: 25,
     height: '85%',
   },
   activeItem: {
-    // Optional: add subtle background for other active items if needed
+    // Optional
   },
   iconWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   assistantActiveCircle: {
-      // Styling for the assistant icon specifically if needed
+      // Optional
   }
 });
 

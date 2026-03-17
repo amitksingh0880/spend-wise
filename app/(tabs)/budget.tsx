@@ -12,6 +12,7 @@ import { Button, IconButton } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useAppTheme } from '@/contexts/ThemeContext';
 import { useFocusEffect } from 'expo-router';
 import { AlertTriangle, PlusCircle, Target, Trash2, TrendingUp, Wallet, Bell, Plus } from 'lucide-react-native';
 import * as React from 'react';
@@ -131,6 +132,9 @@ const BudgetCard = ({
 
 const BudgetScreen: React.FC = () => {
   const { formatAmount } = useCurrency();
+  const { theme } = useAppTheme();
+  const isDark = theme === 'dark';
+
   const background = useThemeColor({}, 'background');
   const [budgets, setBudgets] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
@@ -207,9 +211,9 @@ const BudgetScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <LinearGradient
-        colors={['#1e293b', '#0f172a']}
+        colors={isDark ? ['#1e1b4b', '#0f172a'] : ['#f97316', '#ea580c']}
         style={styles.headerGradient}
       >
         <Typography variant="title" weight="bold" style={styles.headerTitle}>Budgeting</Typography>
