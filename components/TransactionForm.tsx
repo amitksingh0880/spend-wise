@@ -11,17 +11,18 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Typography } from '@/components/ui/text';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 interface TransactionFormProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  transaction?: Transaction | null; // Optional transaction for editing
+  transaction?: Transaction | null;
 }
 
 const TransactionForm: React.FC<TransactionFormProps> = ({
@@ -39,6 +40,14 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Theme Hooks
+  const background = useThemeColor({}, 'background');
+  const card = useThemeColor({}, 'card');
+  const border = useThemeColor({}, 'border');
+  const primary = useThemeColor({}, 'primary');
+  const text = useThemeColor({}, 'text');
+  const mutedForeground = useThemeColor({}, 'mutedForeground');
+
   useEffect(() => {
     if (visible) {
       loadCategories();
@@ -47,7 +56,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
         setAmount((transaction as Transaction).amount.toString());
         setVendor((transaction as Transaction).vendor);
         setCategory((transaction as Transaction).category);
-        // If the transaction is an imported/extracted SMS (has smsData) leave the description blank for editing
         if ((transaction as any).smsData) setDescription('');
         else setDescription((transaction as Transaction).description || '');
         setType((transaction as Transaction).type);
@@ -62,7 +70,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
       const allCategories = await getAllCategories();
       setCategories(allCategories);
       
-      // Set default category
       const defaultCategory = allCategories.find(cat => 
         cat.type === type || cat.type === 'both'
       );
@@ -98,7 +105,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
       setLoading(true);
       
       if (transaction) {
-        // Update existing transaction
         await updateTransaction((transaction as Transaction).id, {
           amount: numAmount,
           vendor,
@@ -106,9 +112,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           type,
           description: description || undefined,
         });
-        Alert.alert('Success', 'Transaction updated successfully');
       } else {
-        // Create new transaction
         await saveTransaction({
           amount: numAmount,
           vendor,
@@ -116,7 +120,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           type,
           description: description || undefined,
         });
-        Alert.alert('Success', 'Transaction added successfully');
       }
 
       resetForm();
@@ -143,65 +146,61 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
+        style={[styles.container, { backgroundColor: background }]}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>
+        <View style={[styles.header, { borderBottomColor: border }]}>
+          <Typography variant="title" weight="bold" style={{ color: text }}>
             {transaction ? 'Edit Transaction' : 'Add Transaction'}
-          </Text>
+          </Typography>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={24} color="#9ca3af" />
+            <X size={24} color={mutedForeground} />
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.form}>
           {/* Transaction Type */}
-          <View style={styles.typeContainer}>
+          <View style={[styles.typeContainer, { backgroundColor: border }]}>
             <TouchableOpacity
               style={[
                 styles.typeButton,
-                type === 'expense' && styles.typeButtonActive,
+                type === 'expense' && { backgroundColor: primary },
               ]}
               onPress={() => setType('expense')}
             >
-              <Text
-                style={[
-                  styles.typeButtonText,
-                  type === 'expense' && styles.typeButtonTextActive,
-                ]}
+              <Typography
+                weight="bold"
+                style={{ color: type === 'expense' ? '#FFFFFF' : mutedForeground }}
               >
                 Expense
-              </Text>
+              </Typography>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.typeButton,
-                type === 'income' && styles.typeButtonActive,
+                type === 'income' && { backgroundColor: primary },
               ]}
               onPress={() => setType('income')}
             >
-              <Text
-                style={[
-                  styles.typeButtonText,
-                  type === 'income' && styles.typeButtonTextActive,
-                ]}
+              <Typography
+                weight="bold"
+                style={{ color: type === 'income' ? '#FFFFFF' : mutedForeground }}
               >
                 Income
-              </Text>
+              </Typography>
             </TouchableOpacity>
           </View>
 
           {/* Amount */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Amount *</Text>
-            <View style={styles.inputWrapper}>
-              <Text style={styles.currencySymbol}>{getCurrencySymbol(currency)}</Text>
+            <Typography weight="bold" style={[styles.label, { color: text }]}>Amount *</Typography>
+            <View style={[styles.inputWrapper, { backgroundColor: card, borderColor: border }]}>
+              <Typography weight="bold" style={[styles.currencySymbol, { color: mutedForeground }]}>{getCurrencySymbol(currency)}</Typography>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: text }]}
                 value={amount}
                 onChangeText={setAmount}
                 placeholder="0.00"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={mutedForeground}
                 keyboardType="decimal-pad"
               />
             </View>
@@ -209,22 +208,22 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
 
           {/* Vendor */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Vendor/Source *</Text>
-            <View style={styles.inputWrapper}>
-              <Tag size={20} color="#9ca3af" style={styles.inputIcon} />
+            <Typography weight="bold" style={[styles.label, { color: text }]}>Vendor/Source *</Typography>
+            <View style={[styles.inputWrapper, { backgroundColor: card, borderColor: border }]}>
+              <Tag size={20} color={mutedForeground} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: text }]}
                 value={vendor}
                 onChangeText={setVendor}
                 placeholder={type === 'expense' ? 'Store name' : 'Income source'}
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={mutedForeground}
               />
             </View>
           </View>
 
           {/* Category */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Category *</Text>
+            <Typography weight="bold" style={[styles.label, { color: text }]}>Category *</Typography>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.categoryContainer}>
                 {filteredCategories.map((cat) => (
@@ -232,19 +231,18 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                     key={cat.id}
                     style={[
                       styles.categoryButton,
-                      category === cat.name && styles.categoryButtonActive,
+                      { backgroundColor: card, borderColor: border },
+                      category === cat.name && { backgroundColor: primary, borderColor: primary },
                     ]}
                     onPress={() => setCategory(cat.name)}
                   >
-                    <Text style={styles.categoryIcon}>{cat.icon}</Text>
-                    <Text
-                      style={[
-                        styles.categoryText,
-                        category === cat.name && styles.categoryTextActive,
-                      ]}
+                    <Typography style={styles.categoryIcon}>{cat.icon}</Typography>
+                    <Typography
+                      variant="small"
+                      style={{ color: category === cat.name ? '#FFFFFF' : mutedForeground, textAlign: 'center' }}
                     >
                       {cat.name}
-                    </Text>
+                    </Typography>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -253,51 +251,50 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
 
           {/* Description */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Description</Text>
-            <View style={styles.inputWrapper}>
-              <FileText size={20} color="#9ca3af" style={styles.inputIcon} />
+            <Typography weight="bold" style={[styles.label, { color: text }]}>Description</Typography>
+            <View style={[styles.inputWrapper, { backgroundColor: card, borderColor: border }]}>
+              <FileText size={20} color={mutedForeground} style={styles.inputIcon} />
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[styles.input, styles.textArea, { color: text }]}
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Optional notes..."
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={mutedForeground}
                 multiline
                 numberOfLines={3}
               />
             </View>
           </View>
 
-          {/* SMS Data (only show when editing and SMS data exists) */}
           {transaction && (transaction as any).smsData && (
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Original SMS Data</Text>
-              <View style={styles.smsDataContainer}>
-                <ScrollView style={styles.smsJsonScroll} showsVerticalScrollIndicator={true}>
-                  <Text style={styles.smsJsonText}>
+              <Typography weight="bold" style={[styles.label, { color: text }]}>Original SMS Data</Typography>
+              <View style={[{ backgroundColor: card, borderColor: border, borderRadius: 8, borderWidth: 1, maxHeight: 200 }]}>
+                <ScrollView style={{ padding: 12 }} showsVerticalScrollIndicator={true}>
+                  <Typography variant="small" style={{ color: mutedForeground, fontFamily: 'monospace' }}>
                     {JSON.stringify((transaction as any).smsData, null, 2)}
-                  </Text>
+                  </Typography>
                 </ScrollView>
               </View>
             </View>
           )}
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { borderTopColor: border }]}>
           <TouchableOpacity
-            style={styles.cancelButton}
+            style={[styles.cancelButton, { borderColor: border }]}
             onPress={onClose}
           >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
+            <Typography weight="bold" style={{ color: mutedForeground }}>Cancel</Typography>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            style={[styles.submitButton, { backgroundColor: primary }, loading && { backgroundColor: mutedForeground }]}
             onPress={handleSubmit}
             disabled={loading}
           >
-            <Text style={styles.submitButtonText}>
+            <Typography weight="bold" style={{ color: '#ffffff' }}>
               {loading ? 'Saving...' : (transaction ? 'Update Transaction' : 'Add Transaction')}
-            </Text>
+            </Typography>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -308,7 +305,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   header: {
     flexDirection: 'row',
@@ -317,12 +313,6 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 60,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#f9fafb',
   },
   closeButton: {
     padding: 8,
@@ -334,7 +324,6 @@ const styles = StyleSheet.create({
   typeContainer: {
     flexDirection: 'row',
     marginBottom: 24,
-    backgroundColor: '#1f2937',
     borderRadius: 12,
     padding: 4,
   },
@@ -344,33 +333,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
   },
-  typeButtonActive: {
-    backgroundColor: '#4f46e5',
-  },
-  typeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#9ca3af',
-  },
-  typeButtonTextActive: {
-    color: '#ffffff',
-  },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#f3f4f6',
     marginBottom: 8,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#334155',
   },
   inputIcon: {
     marginLeft: 16,
@@ -379,16 +352,12 @@ const styles = StyleSheet.create({
   currencySymbol: {
     marginLeft: 16,
     marginRight: 12,
-    fontSize: 16,
-    color: '#9ca3af',
-    fontWeight: '600',
   },
   input: {
     flex: 1,
     paddingVertical: 16,
     paddingRight: 16,
     fontSize: 16,
-    color: '#f3f4f6',
   },
   textArea: {
     paddingTop: 16,
@@ -403,33 +372,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#1e293b',
     borderWidth: 1,
-    borderColor: '#334155',
     minWidth: 80,
-  },
-  categoryButtonActive: {
-    backgroundColor: '#4f46e5',
-    borderColor: '#4f46e5',
   },
   categoryIcon: {
     fontSize: 20,
     marginBottom: 4,
-  },
-  categoryText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    textAlign: 'center',
-  },
-  categoryTextActive: {
-    color: '#ffffff',
   },
   footer: {
     flexDirection: 'row',
     padding: 20,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: '#1f2937',
     marginBottom: 40,
   },
   cancelButton: {
@@ -438,45 +392,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#374151',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#9ca3af',
   },
   submitButton: {
     flex: 2,
     paddingVertical: 16,
     alignItems: 'center',
     borderRadius: 12,
-    backgroundColor: '#4f46e5',
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#6b7280',
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  smsDataContainer: {
-    backgroundColor: '#1e293b',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#334155',
-    maxHeight: 200,
-  },
-  smsJsonScroll: {
-    padding: 12,
-  },
-  smsJsonText: {
-    fontSize: 12,
-    color: '#e2e8f0',
-    fontFamily: 'monospace',
-    lineHeight: 16,
   },
 });
 
 export default TransactionForm;
-

@@ -3,7 +3,7 @@ import { ScrollView, View, StyleSheet, TouchableOpacity, Dimensions, Platform } 
 import { Typography } from './ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BlurView } from 'expo-blur';
-import { Compass, Sparkles, Settings, List, PieChart, BarChart2, AlertCircle } from 'lucide-react-native';
+import { Compass, Sparkles, Settings, List, PieChart, BarChart2, AlertCircle, MessageSquare } from 'lucide-react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 const { width } = Dimensions.get('window');
