@@ -1,6 +1,6 @@
-import { emitter } from '@/app/libs/emitter';
-import { readJson, writeJson } from '@/app/libs/storage';
-import { Currency } from '@/app/utils/currency';
+import { emitter } from '@/libs/emitter';
+import { readJson, writeJson } from '@/libs/storage';
+import { Currency } from '@/utils/currency';
 import { Theme, UserPreferences } from '@/types';
 
 const PREFERENCES_KEY = 'user_preferences';

@@ -1,5 +1,5 @@
-import { generateFinancialInsights } from '@/app/services/analyticsService';
-import { getTransactionSummary } from '@/app/services/transactionService';
+import { generateFinancialInsights } from '@/services/analyticsService';
+import { getTransactionSummary } from '@/services/transactionService';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';

@@ -1,6 +1,6 @@
-import { useCurrency } from '@/app/contexts/CurrencyContext';
-import { emitter } from '@/app/libs/emitter';
-import { readJson, writeJson } from '@/app/libs/storage';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { emitter } from '@/libs/emitter';
+import { readJson, writeJson } from '@/libs/storage';
 import {
   ExtractedExpense,
   SMSParsingResult,
@@ -8,8 +8,8 @@ import {
   importExpensesFromSMS,
   parseTransactionSMS,
   requestSMSPermission,
-} from '@/app/services/smsService';
-import { saveTransaction } from '@/app/services/transactionService';
+} from '@/services/smsService';
+import { saveTransaction } from '@/services/transactionService';
 import { GhostButton, PrimaryButton } from '@/components/ui/button';
 import Card from '@/components/ui/card';
 import { Link } from 'expo-router';

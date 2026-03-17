@@ -20,7 +20,7 @@
  * - This is Android-only. iOS does not allow inbox access.
  */
 
-import { readJson, writeJson } from '@/app/libs/storage';
+import { readJson, writeJson } from '@/libs/storage';
 import { PermissionsAndroid, Platform } from 'react-native';
 import { TransactionType, saveTransaction } from './transactionService'; // keep your import
 // types from your original file preserved

@@ -3,7 +3,7 @@ import {
     prepareFinancialContext,
     type ChatMessage,
     type FinancialContext
-} from '@/app/services/aiService';
+} from '@/services/aiService';
 import { Card } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
