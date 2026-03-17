@@ -5,32 +5,50 @@ import { Bell } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import * as ImagePicker from 'expo-image-picker';
 import { getUserPreferences, saveUserPreferences } from '@/services/preferencesService';
+import { emitter } from '@/libs/emitter';
 
-export const DashboardHeader = ({ userName = 'Amit Kumar' }: { userName?: string }) => {
+export const DashboardHeader = ({ userName: propUserName }: { userName?: string }) => {
   const background = useThemeColor({}, 'background');
   const text = useThemeColor({}, 'text');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [userName, setUserName] = useState(propUserName || 'User');
+  const [appName, setAppName] = useState('SpendWise');
+
+  const loadPrefs = async () => {
+    const prefs = await getUserPreferences();
+    if (prefs.avatarUri) {
+      setAvatarUri(prefs.avatarUri);
+    }
+    if (prefs.name) {
+      setUserName(prefs.name);
+    } else if (propUserName) {
+      setUserName(propUserName);
+    }
+    if (prefs.appName) {
+      setAppName(prefs.appName);
+    }
+  };
 
   useEffect(() => {
-    const loadAvatar = async () => {
-      const prefs = await getUserPreferences();
-      if (prefs.avatarUri) {
-        setAvatarUri(prefs.avatarUri);
-      }
-    };
-    loadAvatar();
-  }, []);
+    loadPrefs();
+
+    const unsub = emitter.addListener('preferences:changed', (prefs: any) => {
+      if (prefs.name) setUserName(prefs.name);
+      if (prefs.avatarUri) setAvatarUri(prefs.avatarUri);
+      if (prefs.appName) setAppName(prefs.appName);
+    });
+
+    return () => { unsub(); };
+  }, [propUserName]);
 
   const handlePickAvatar = async () => {
     try {
-      // Request permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
         return;
       }
 
-      // Launch picker
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -53,10 +71,10 @@ export const DashboardHeader = ({ userName = 'Amit Kumar' }: { userName?: string
     <View style={[styles.container, { backgroundColor: background }]}>
       <View>
         <Typography variant="title" weight="bold" style={{ color: text }}>
-          Hello!
+          {appName}
         </Typography>
         <Typography variant="large" weight="medium" style={{ color: text }}>
-          {userName}
+          Hello, {userName}
         </Typography>
       </View>
       <View style={styles.rightSection}>
@@ -81,7 +99,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 10, // Reduced from 60
+    paddingTop: 10,
     paddingBottom: 20,
   },
   rightSection: {
