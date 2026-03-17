@@ -13,6 +13,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, StyleSheet, View, StatusBar, Platform, TouchableOpacity, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInRight, Layout } from 'react-native-reanimated';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 const SuspiciousScreen: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -21,6 +22,9 @@ const SuspiciousScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [showForm, setShowForm] = useState(false);
+
+  const { theme } = useAppTheme();
+  const isDark = theme === 'dark';
 
   const background = useThemeColor({}, 'background');
   const primary = useThemeColor({}, 'primary');
@@ -169,9 +173,9 @@ const SuspiciousScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <LinearGradient
-        colors={['#ef4444', '#991b1b']}
+        colors={isDark ? ['#7f1d1d', '#450a0a'] : ['#ef4444', '#991b1b']}
         style={styles.headerGradient}
       >
         <View style={styles.headerTop}>

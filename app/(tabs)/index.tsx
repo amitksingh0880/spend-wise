@@ -5,6 +5,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { emitter } from '@/libs/emitter';
 import { getRecentTransactions, getTransactionSummary, Transaction } from '@/services/transactionService';
 import { getUserPreferences } from '@/services/preferencesService';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { BudgetHeroCard } from '@/components/BudgetHeroCard';
@@ -18,6 +19,9 @@ const DashboardScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [userName, setUserName] = useState('User');
+  
+  const { theme } = useAppTheme();
+  const isDark = theme === 'dark';
 
   const background = useThemeColor({}, 'background');
 
@@ -72,7 +76,7 @@ const DashboardScreen: React.FC = () => {
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer, { backgroundColor: background }]}>
-        <StatusBar barStyle="dark-content" />
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
         <Typography variant="muted">Refreshing your finances...</Typography>
       </View>
     );
@@ -93,7 +97,7 @@ const DashboardScreen: React.FC = () => {
       onScroll={handleScroll}
       scrollEventThrottle={16}
     >
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       
       <DashboardHeader userName={userName} />
       
