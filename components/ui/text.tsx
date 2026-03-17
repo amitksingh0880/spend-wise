@@ -39,12 +39,26 @@ export const Typography = ({
 
   const fontWeight = weight || (variant === 'title' ? 'bold' : variant === 'subtitle' ? 'semibold' : 'normal');
 
+  const getFontFamily = () => {
+    switch (fontWeight) {
+      case 'bold':
+        return 'JetBrainsMono_700Bold';
+      case 'semibold':
+        return 'JetBrainsMono_600SemiBold';
+      case 'medium':
+        return 'JetBrainsMono_500Medium';
+      case 'normal':
+      default:
+        return 'JetBrainsMono_400Regular';
+    }
+  };
+
   return (
     <Text 
       style={[
-        { color }, 
+        { color, fontFamily: getFontFamily() }, 
         getVariantStyle(), 
-        { fontWeight } as any,
+        // Removed { fontWeight } as the custom font family handles the weight natively
         style
       ]} 
       {...rest} 

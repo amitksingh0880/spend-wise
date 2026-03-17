@@ -5,61 +5,61 @@
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#3b82f6';
-const tintColorDark = '#60a5fa';
+const tintColorLight = '#F97316'; // Premium Orange
+const tintColorDark = '#FB923C'; // Slightly lighter orange for dark mode
 
 export const Colors = {
   light: {
     background: '#FFFFFF',
-    foreground: '#000000',
-    card: '#f8fafc',
+    foreground: '#0f172a',
+    card: '#f4f4f5', // Very light gray for cards
     cardForeground: '#0f172a',
     popover: '#FFFFFF',
     popoverForeground: '#0f172a',
-    primary: '#0f172a',
-    primaryForeground: '#f8fafc',
-    secondary: '#f1f5f9',
-    secondaryForeground: '#0f172a',
+    primary: '#F97316', // Orange
+    primaryForeground: '#FFFFFF',
+    secondary: '#fff7ed', // Very light orange tint for secondary
+    secondaryForeground: '#ea580c', // Darker orange
     muted: '#f1f5f9',
     mutedForeground: '#64748b',
-    accent: '#f1f5f9',
-    accentForeground: '#0f172a',
+    accent: '#fff7ed',
+    accentForeground: '#F97316',
     destructive: '#ef4444',
-    destructiveForeground: '#f8fafc',
+    destructiveForeground: '#FFFFFF',
     border: '#e2e8f0',
     input: '#e2e8f0',
-    ring: '#0f172a',
+    ring: '#F97316',
     text: '#0f172a',
     icon: '#64748b',
-    tint: '#0f172a',
-    tabIconDefault: '#64748b',
-    tabIconSelected: '#0f172a',
+    tint: tintColorLight,
+    tabIconDefault: '#94a3b8',
+    tabIconSelected: tintColorLight,
   },
   dark: {
-    background: '#020617',
-    foreground: '#f8fafc',
-    card: '#020617',
-    cardForeground: '#f8fafc',
-    popover: '#020617',
-    popoverForeground: '#f8fafc',
-    primary: '#f8fafc',
-    primaryForeground: '#0f172a',
-    secondary: '#1e293b',
-    secondaryForeground: '#f8fafc',
-    muted: '#1e293b',
-    mutedForeground: '#94a3b8',
-    accent: '#1e293b',
-    accentForeground: '#f8fafc',
+    background: '#09090b', // Deep rich black/slate
+    foreground: '#fafafa',
+    card: '#18181b', // Slightly lighter dark
+    cardForeground: '#fafafa',
+    popover: '#09090b',
+    popoverForeground: '#fafafa',
+    primary: '#F97316', // Orange
+    primaryForeground: '#FFFFFF',
+    secondary: '#27272a',
+    secondaryForeground: '#fafafa',
+    muted: '#27272a',
+    mutedForeground: '#a1a1aa',
+    accent: '#2a1a14', // Subtle warm dark tint
+    accentForeground: '#FB923C',
     destructive: '#7f1d1d',
-    destructiveForeground: '#f8fafc',
-    border: '#1e293b',
-    input: '#1e293b',
-    ring: '#cbd5e1',
-    text: '#f8fafc',
-    icon: '#94a3b8',
-    tint: '#f8fafc',
-    tabIconDefault: '#94a3b8',
-    tabIconSelected: '#f8fafc',
+    destructiveForeground: '#fafafa',
+    border: '#27272a',
+    input: '#27272a',
+    ring: '#F97316',
+    text: '#fafafa',
+    icon: '#a1a1aa',
+    tint: tintColorDark,
+    tabIconDefault: '#52525b',
+    tabIconSelected: tintColorDark,
   },
 };
 

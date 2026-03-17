@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import { ScrollView, View, StyleSheet, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import { Typography } from './ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BlurView } from 'expo-blur';
-import { Compass, Sparkles, Settings } from 'lucide-react-native';
+import { Compass, Sparkles, Settings, List, PieChart, BarChart2, AlertCircle } from 'lucide-react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 const { width } = Dimensions.get('window');
@@ -21,15 +21,23 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
   // settings -> Configs
   
   const routes = [
-    { name: 'index', label: 'Explore', Icon: Compass },
+    { name: 'index', label: 'Home', Icon: Compass },
+    { name: 'transaction', label: 'Activity', Icon: List },
+    { name: 'budget', label: 'Budget', Icon: PieChart },
     { name: 'voice', label: 'Assistant', Icon: Sparkles },
-    { name: 'settings', label: 'Configs', Icon: Settings },
+    { name: 'insights', label: 'Insights', Icon: BarChart2 },
+    { name: 'suspicious', label: 'Alerts', Icon: AlertCircle },
+    { name: 'settings', label: 'Settings', Icon: Settings },
   ];
 
   return (
     <View style={styles.container}>
       <BlurView intensity={Platform.OS === 'ios' ? 80 : 100} tint="light" style={styles.blurContainer}>
-        <View style={styles.content}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
           {routes.map((route, index) => {
             const isFocused = state.index === state.routes.findIndex(r => r.name === route.name);
             const { Icon, label, name } = route;
@@ -53,7 +61,6 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
               });
             };
 
-            // Custom styling for the middle item if it's "Assistant"
             const isAssistant = label === 'Assistant';
 
             return (
@@ -93,7 +100,7 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
       </BlurView>
     </View>
   );
@@ -125,15 +132,16 @@ const styles = StyleSheet.create({
   blurContainer: {
     flex: 1,
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 10,
+    minWidth: '100%',
   },
   tabItem: {
-    flex: 1,
+    width: 60, // Fixed width for scrollable tabs
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
