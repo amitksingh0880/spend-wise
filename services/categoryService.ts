@@ -49,6 +49,7 @@ const DEFAULT_CATEGORIES: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>[] = [
   { name: 'Home & Garden', type: 'expense', icon: '🏠', color: '#84cc16', isDefault: true, isActive: true },
   { name: 'Insurance', type: 'expense', icon: '🛡️', color: '#64748b', isDefault: true, isActive: true },
   { name: 'Taxes', type: 'expense', icon: '📋', color: '#6b7280', isDefault: true, isActive: true },
+  { name: 'Budgeting', type: 'expense', icon: '🎯', color: '#f97316', isDefault: true, isActive: true },
   { name: 'Other Expenses', type: 'expense', icon: '📦', color: '#9ca3af', isDefault: true, isActive: true },
 ];
 

@@ -86,6 +86,8 @@ export interface UserPreferences {
     theme: Theme;
     notifications: NotificationSettings;
     defaultCategories: string[];
+    name?: string;
+    appName?: string;
     avatarUri?: string;
     // authentication preferences removed
 }
