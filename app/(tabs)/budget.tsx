@@ -1,13 +1,13 @@
-import BudgetForm from '@/app/components/BudgetForm';
-import { useCurrency } from '@/app/contexts/CurrencyContext';
-import { emitter } from '@/app/libs/emitter';
+import BudgetForm from '@/components/BudgetForm';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { emitter } from '@/libs/emitter';
 import {
     checkBudgetAlerts,
     createBudget,
     deleteBudget,
     getAllBudgets,
     getBudgetSummary
-} from '@/app/services/budgetService';
+} from '@/services/budgetService';
 import { Button, IconButton } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';

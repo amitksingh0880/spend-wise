@@ -1,12 +1,12 @@
-import SMSImport from '@/app/components/SMSImport';
-import TransactionForm from '@/app/components/TransactionForm';
-import { useCurrency } from '@/app/contexts/CurrencyContext';
+import SMSImport from '@/components/SMSImport';
+import TransactionForm from '@/components/TransactionForm';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import {
   deleteTransaction,
   getAllTransactions,
   getFilteredTransactions,
   Transaction
-} from '@/app/services/transactionService';
+} from '@/services/transactionService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';

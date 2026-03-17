@@ -1,7 +1,7 @@
-import { useCurrency } from '@/app/contexts/CurrencyContext';
-import { emitter } from '@/app/libs/emitter';
-import { generateFinancialInsights } from '@/app/services/analyticsService';
-import { getFilteredTransactions, getRecentTransactions, getTransactionSummary, Transaction } from '@/app/services/transactionService';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { emitter } from '@/libs/emitter';
+import { generateFinancialInsights } from '@/services/analyticsService';
+import { getFilteredTransactions, getRecentTransactions, getTransactionSummary, Transaction } from '@/services/transactionService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';

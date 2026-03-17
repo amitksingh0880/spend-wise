@@ -7,11 +7,11 @@ import { AppState, View } from 'react-native';
 import 'react-native-reanimated';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import StartupSplash from '@/app/components/StartupSplash';
-import { CurrencyProvider } from '@/app/contexts/CurrencyContext';
-import { ThemeProvider as AppThemeProvider, useAppTheme } from '@/app/contexts/ThemeContext';
+import StartupSplash from '@/components/StartupSplash';
+import { CurrencyProvider } from '@/contexts/CurrencyContext';
+import { ThemeProvider as AppThemeProvider, useAppTheme } from '@/contexts/ThemeContext';
 // Auth code removed
-import { getUserPreferences } from '@/app/services/preferencesService';
+import { getUserPreferences } from '@/services/preferencesService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const unstable_settings = {

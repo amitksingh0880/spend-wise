@@ -1,6 +1,6 @@
-import { createBudget, generateBudgetPeriod } from '@/app/services/budgetService';
-import { initializeDefaultCategories } from '@/app/services/categoryService';
-import { saveTransaction } from '@/app/services/transactionService';
+import { createBudget, generateBudgetPeriod } from '@/services/budgetService';
+import { initializeDefaultCategories } from '@/services/categoryService';
+import { saveTransaction } from '@/services/transactionService';
 
 export const initializeSampleData = async () => {
   try {
@@ -64,8 +64,8 @@ export const initializeSampleData = async () => {
 
 export const clearAllData = async () => {
   try {
-    const { clearAllTransactions } = await import('@/app/services/transactionService');
-    const { writeJson } = await import('@/app/libs/storage');
+    const { clearAllTransactions } = await import('@/services/transactionService');
+    const { writeJson } = await import('@/libs/storage');
     
     await clearAllTransactions();
     await writeJson('budgets', []);
