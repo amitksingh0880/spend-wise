@@ -1,5 +1,5 @@
-import { getCurrency } from '@/app/services/preferencesService';
-import { Currency, formatCurrency } from '@/app/utils/currency';
+import { getCurrency } from '@/services/preferencesService';
+import { Currency, formatCurrency } from '@/utils/currency';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface CurrencyContextType {

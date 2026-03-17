@@ -1,7 +1,7 @@
-import { useCurrency } from '@/app/contexts/CurrencyContext';
-import { createBudget, generateBudgetPeriod, getDefaultBudgetColors } from '@/app/services/budgetService';
-import { getAllCategories } from '@/app/services/categoryService';
-import { getCurrencySymbol } from '@/app/utils/currency';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { createBudget, generateBudgetPeriod, getDefaultBudgetColors } from '@/services/budgetService';
+import { getAllCategories } from '@/services/categoryService';
+import { getCurrencySymbol } from '@/utils/currency';
 import { Target, X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {

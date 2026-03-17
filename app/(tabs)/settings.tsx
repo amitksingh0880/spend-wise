@@ -1,9 +1,9 @@
-import { useCurrency } from '@/app/contexts/CurrencyContext';
-import { useAppTheme } from '@/app/contexts/ThemeContext';
-import { emitter } from '@/app/libs/emitter';
-import { deleteKey } from '@/app/libs/storage';
-import { getCurrency, getUserPreferences, updateCurrency } from '@/app/services/preferencesService';
-import { CURRENCIES, Currency } from '@/app/utils/currency';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { emitter } from '@/libs/emitter';
+import { deleteKey } from '@/libs/storage';
+import { getCurrency, getUserPreferences, updateCurrency } from '@/services/preferencesService';
+import { CURRENCIES, Currency } from '@/utils/currency';
 import { Card, CardContent } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
