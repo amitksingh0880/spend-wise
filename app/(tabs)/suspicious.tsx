@@ -4,12 +4,15 @@ import { emitter } from '@/app/libs/emitter';
 import { readJson, writeJson } from '@/app/libs/storage';
 import { ExtractedExpense, parseTransactionSMS } from '@/app/services/smsService';
 import { deleteTransaction, getFilteredTransactions, saveTransaction, Transaction, updateTransaction } from '@/app/services/transactionService';
-import { IconButton, PrimaryButton } from '@/components/ui/button';
-import Card from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Typography } from '@/components/ui/text';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { useFocusEffect } from 'expo-router';
-import { CheckCircle, Edit2, Trash2 } from 'lucide-react-native';
+import { CheckCircle, Edit2, Trash2, AlertCircle, ShieldAlert, History, RotateCcw, XCircle, Info } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, View, StatusBar, Platform, TouchableOpacity, ScrollView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInUp, FadeInRight, Layout } from 'react-native-reanimated';
 
 const SuspiciousScreen: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -19,6 +22,11 @@ const SuspiciousScreen: React.FC = () => {
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [showForm, setShowForm] = useState(false);
 
+  const background = useThemeColor({}, 'background');
+  const primary = useThemeColor({}, 'primary');
+  const mutedForeground = useThemeColor({}, 'mutedForeground');
+  const border = useThemeColor({}, 'border');
+
   const loadSuspicious = async () => {
     try {
       setLoading(true);
@@ -26,7 +34,6 @@ const SuspiciousScreen: React.FC = () => {
       setTransactions(suspicious);
     } catch (error) {
       console.error('Error loading suspicious transactions', error);
-      Alert.alert('Error', 'Failed to load suspicious transactions');
     } finally {
       setLoading(false);
     }
@@ -41,19 +48,18 @@ const SuspiciousScreen: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadSuspicious(); }, []);
-  useFocusEffect(
-    useCallback(() => { loadSuspicious(); }, [])
-  );
-  useEffect(() => { loadHeldSuspicious(); }, []);
-  useFocusEffect(
-    useCallback(() => { loadHeldSuspicious(); }, [])
-  );
+  useEffect(() => { loadSuspicious(); loadHeldSuspicious(); }, []);
+  useFocusEffect(useCallback(() => { loadSuspicious(); loadHeldSuspicious(); }, []));
 
   const handleDelete = async (id: string) => {
-    Alert.alert('Delete Transaction', 'Are you sure you want to delete this suspicious transaction?', [
+    Alert.alert('Delete Transaction', 'Permanently remove this transaction?', [
       { text: 'Cancel', style: 'cancel' },
-  { text: 'Delete', style: 'destructive', onPress: async () => { await deleteTransaction(id); await loadSuspicious(); emitter.emit('transactions:changed'); } }
+      { text: 'Delete', style: 'destructive', onPress: async () => { 
+          await deleteTransaction(id); 
+          await loadSuspicious(); 
+          emitter.emit('transactions:changed'); 
+        } 
+      }
     ]);
   };
 
@@ -61,190 +67,151 @@ const SuspiciousScreen: React.FC = () => {
     try {
       const tags = (tx.tags || []).filter(t => t !== 'suspicious');
       await updateTransaction(tx.id, { tags: tags.length ? tags : undefined });
-  await loadSuspicious();
-  emitter.emit('transactions:changed');
+      await loadSuspicious();
+      emitter.emit('transactions:changed');
     } catch (error) {
-      console.error('Error marking reviewed', error);
       Alert.alert('Error', 'Failed to mark as reviewed');
     }
   };
 
   const handleEdit = (tx: Transaction) => { setEditing(tx); setShowForm(true); };
 
-  // Held Suspicious handlers
-  const handleSaveHeldSuspicious = async (expense: ExtractedExpense) => {
+  const handleSaveHeld = async (expense: ExtractedExpense) => {
     try {
       setLoading(true);
-      const tx = await saveTransaction({
+      await saveTransaction({
         amount: expense.amount,
         type: expense.type,
         vendor: expense.vendor ?? 'Unknown',
         category: expense.category ?? 'other',
         description: `(Suspicious SMS) ${expense.description}`,
-        tags: ['sms-import', 'suspicious', `confidence:${Math.round((expense.confidence ?? 0) * 100)}%`],
+        tags: ['sms-import', 'suspicious'],
         smsData: {
           rawMessage: expense.rawMessage,
           sender: expense.sender || 'Unknown',
           timestamp: expense.timestamp || Date.now(),
         },
       });
-      // remove from held list
-      const updated = (heldSuspicious || []).filter((e) => e !== expense);
+      const updated = heldSuspicious.filter((e) => e !== expense);
       setHeldSuspicious(updated);
-    emitter.emit('transactions:changed');
       await writeJson('held_suspicious', updated);
-      Alert.alert('Saved', `Saved suspicious transaction: ${tx.id}`);
+      emitter.emit('transactions:changed');
       await loadSuspicious();
     } catch (err) {
-      console.error('Save held suspicious failed', err);
       Alert.alert('Error', 'Failed to save transaction');
     } finally { setLoading(false); }
   };
 
-  const handleIgnoreHeldSuspicious = async (expense: ExtractedExpense) => {
-    const updated = (heldSuspicious || []).filter((e) => e !== expense);
-    setHeldSuspicious(updated);
-    await writeJson('held_suspicious', updated);
-  emitter.emit('transactions:changed');
-  };
+  const TransactionCard = ({ item, index, isHeld = false, key }: { item: any; index: number; isHeld?: boolean; key?: string }) => {
+    const date = new Date(isHeld ? item.timestamp : item.createdAt).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
-  const handleRegenerateHeldSuspicious = async (expense: ExtractedExpense) => {
-    try {
-      const sms = { id: `regen-${Date.now()}`, address: expense.sender, body: expense.rawMessage, date: expense.timestamp, type: 1 };
-      const parsed = parseTransactionSMS(sms as any);
-      if (!parsed) { Alert.alert('No change', 'Re-parse did not extract a transaction or improved confidence.'); return; }
-      const updated = (heldSuspicious || []).map((e) => (e === expense ? parsed : e));
-      setHeldSuspicious(updated);
-      await writeJson('held_suspicious', updated);
-      Alert.alert('Reparsed', `Re-parse found amount ${formatAmount(parsed.amount)} (confidence ${(parsed.confidence ?? 0) * 100}%)`);
-    } catch (err) {
-      console.warn('Reparse failed', err);
-      Alert.alert('Error', 'Failed to re-parse message');
-    }
+    return (
+      <Animated.View 
+        entering={FadeInUp.delay(index * 100).duration(500)}
+        layout={Layout.springify()}
+      >
+        <Card style={styles.cardItem} delay={0}>
+          <View style={styles.cardHeader}>
+            <View style={[styles.alertBadge, { backgroundColor: isHeld ? '#fff7ed' : '#fef2f2' }]}>
+              <AlertCircle size={14} color={isHeld ? '#f97316' : '#ef4444'} />
+              <Typography variant="small" weight="bold" style={{ color: isHeld ? '#f97316' : '#ef4444', marginLeft: 4 }}>
+                {isHeld ? 'PENDING' : 'FLAGGED'}
+              </Typography>
+            </View>
+            <Typography variant="small" style={{ color: mutedForeground }}>{date}</Typography>
+          </View>
+          
+          <View style={styles.cardBody}>
+            <View style={{ flex: 1 }}>
+              <Typography variant="bold" style={styles.vendorText}>{isHeld ? item.vendor : item.vendor}</Typography>
+              <Typography variant="small" style={{ color: mutedForeground }}>{isHeld ? "Held from SMS" : item.category}</Typography>
+            </View>
+            <Typography variant="large" weight="bold" style={styles.amountText}>{formatAmount(item.amount)}</Typography>
+          </View>
+
+          <View style={[styles.cardFooter, { borderTopColor: '#f1f5f9' }]}>
+            <View style={styles.actionRow}>
+              {isHeld ? (
+                <>
+                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#f0fdf4' }]} onPress={() => handleSaveHeld(item)}>
+                    <CheckCircle size={18} color="#22c55e" />
+                    <Typography variant="small" weight="bold" style={{ color: '#22c55e', marginLeft: 6 }}>Approve</Typography>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.actionBtn} onPress={() => {}}>
+                    <RotateCcw size={18} color={primary} />
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#f0fdf4' }]} onPress={() => handleMarkReviewed(item)}>
+                    <CheckCircle size={18} color="#22c55e" />
+                    <Typography variant="small" weight="bold" style={{ color: '#22c55e', marginLeft: 6 }}>Verify</Typography>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.actionBtn} onPress={() => handleEdit(item)}>
+                    <Edit2 size={18} color={primary} />
+                  </TouchableOpacity>
+                </>
+              )}
+              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#fef2f2' }]} onPress={() => isHeld ? {} : handleDelete(item.id)}>
+                <Trash2 size={18} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Card>
+      </Animated.View>
+    );
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Review Suspicious Transactions</Text>
-
-      <Card style={styles.infoCard}>
-        <Text style={styles.infoText}>
-          These transactions are flagged as suspicious (high amount). You can review, edit, mark them as reviewed, or delete them.
-        </Text>
-      </Card>
-
-      {heldSuspicious.length > 0 && (
-        <Card style={[{ paddingHorizontal: 16, paddingVertical: 12, marginBottom: 12 }]}>
-          <Text style={{ fontWeight: '700', color: '#f9fafb', marginBottom: 8 }}>Held Suspicious (Pending)</Text>
-          {heldSuspicious.map((item, idx) => (
-            <View key={`held-${idx}`} style={{ marginBottom: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View>
-                  <Text style={styles.vendor}>{item.vendor}</Text>
-                  <Text style={styles.date}>{new Date(item.timestamp).toLocaleString()}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <IconButton onPress={() => handleSaveHeldSuspicious(item)}>
-                    <CheckCircle size={18} color="#10b981" />
-                  </IconButton>
-                  <IconButton onPress={() => handleRegenerateHeldSuspicious(item)}>
-                    <Edit2 size={18} color="#4f46e5" />
-                  </IconButton>
-                  <IconButton onPress={() => handleIgnoreHeldSuspicious(item)}>
-                    <Trash2 size={18} color="#ef4444" />
-                  </IconButton>
-                </View>
-              </View>
-              <Text style={styles.amount}>{formatAmount(item.amount)}</Text>
-              <Text style={styles.confidence}>Confidence: {(item.confidence ?? 0) * 100}%</Text>
-            </View>
-          ))}
-        </Card>
-      )}
-
-      <View style={{ padding: 16, flexDirection: 'row', justifyContent: 'flex-end' }}>
-        <PrimaryButton
-          style={[styles.bulkButton, { marginRight: 8 }]}
-          onPress={() => {
-            Alert.alert('Mark All Reviewed', 'Mark all suspicious transactions as reviewed?', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Mark All', onPress: async () => {
-                try {
-                  for (const tx of transactions) {
-                    const tags = (tx.tags || []).filter(t => t !== 'suspicious');
-                    await updateTransaction(tx.id, { tags: tags.length ? tags : undefined });
-                  }
-                  await loadSuspicious();
-                } catch (err) {
-                  console.error('Mark all reviewed failed', err);
-                  Alert.alert('Error', 'Failed to mark all as reviewed');
-                }
-              } }
-            ]);
-          }}
-        >
-          <Text style={{ color: '#fff' }}>Mark All Reviewed</Text>
-        </PrimaryButton>
-        <PrimaryButton
-          style={[styles.bulkButton, { backgroundColor: '#ef4444' }]}
-          onPress={() => {
-            Alert.alert('Delete All Suspicious', 'Delete all suspicious transactions?', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Delete All', style: 'destructive', onPress: async () => {
-                try {
-                  for (const tx of transactions) await deleteTransaction(tx.id);
-                  await loadSuspicious();
-                } catch (err) {
-                  console.error('Delete all failed', err);
-                  Alert.alert('Error', 'Failed to delete all suspicious transactions');
-                }
-              } }
-            ]);
-          }}
-        >
-          <Text style={{ color: '#fff' }}>Delete All</Text>
-  </PrimaryButton>
-      </View>
-
-      {transactions.length === 0 && !loading ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No suspicious transactions found.</Text>
+    <View style={[styles.container, { backgroundColor: background }]}>
+      <StatusBar barStyle="light-content" />
+      <LinearGradient
+        colors={['#ef4444', '#991b1b']}
+        style={styles.headerGradient}
+      >
+        <View style={styles.headerTop}>
+          <ShieldAlert size={32} color="#FFFFFF" />
+          <View style={styles.headerText}>
+            <Typography variant="title" weight="bold" style={{ color: '#FFFFFF' }}>Security Check</Typography>
+            <Typography style={{ color: 'rgba(255,255,255,0.7)' }}>Review high-value transactions</Typography>
+          </View>
         </View>
-      ) : (
-        <FlatList
-          data={transactions}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <Card style={styles.cardItem}>
-              <View style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={styles.vendor}>{item.vendor}</Text>
-                    <Text style={styles.amount}>{formatAmount(item.amount)}</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-                    <Text style={styles.date}>{new Date(item.createdAt).toLocaleString()}</Text>
-                    <Text style={styles.confidence}>{(item.tags || []).find(t => t.startsWith('confidence:')) ?? ''}</Text>
-                  </View>
-                </View>
+      </LinearGradient>
 
-                <View style={styles.actions}>
-                    <IconButton onPress={() => handleMarkReviewed(item)}>
-                      <CheckCircle size={18} color="#10b981" />
-                    </IconButton>
-                    <IconButton onPress={() => handleEdit(item)}>
-                      <Edit2 size={18} color="#4f46e5" />
-                    </IconButton>
-                    <IconButton onPress={() => handleDelete(item.id)}>
-                      <Trash2 size={18} color="#ef4444" />
-                    </IconButton>
-                </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {heldSuspicious.length > 0 && (
+          <View style={styles.section}>
+            <Typography variant="subtitle" weight="bold" style={styles.sectionTitle}>Held Transactions</Typography>
+            {heldSuspicious.map((item, index) => (
+              <TransactionCard key={`held-${index}`} item={item} index={index} isHeld />
+            ))}
+          </View>
+        )}
+
+        <View style={styles.section}>
+          <Typography variant="subtitle" weight="bold" style={styles.sectionTitle}>Flagged History</Typography>
+          {transactions.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconBox}>
+                <CheckCircle size={40} color="#22c55e" />
               </View>
-            </Card>
+              <Typography variant="subtitle" weight="bold">All Clear!</Typography>
+              <Typography variant="small" style={{ color: mutedForeground, textAlign: 'center', marginTop: 8 }}>
+                No suspicious activities detected at this moment.
+              </Typography>
+            </View>
+          ) : (
+            transactions.map((item, index) => (
+              <TransactionCard key={item.id} item={item} index={index} />
+            ))
           )}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-        />
-      )}
+        </View>
+      </ScrollView>
 
       <TransactionForm
         visible={showForm}
@@ -257,21 +224,96 @@ const SuspiciousScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  heading: { fontSize: 24, fontWeight: '800', color: '#f9fafb', marginTop: 18, marginLeft: 16, marginBottom: 8 },
-  infoCard: { margin: 16, padding: 12 },
-  infoText: { color: '#94a3b8', fontSize: 14 },
-  cardItem: { marginBottom: 12, padding: 12 },
-  row: { flexDirection: 'row', alignItems: 'center' },
-  vendor: { color: '#f9fafb', fontSize: 16, fontWeight: '700' },
-  date: { color: '#9ca3af', fontSize: 12, marginTop: 2 },
-  amount: { color: '#ef4444', fontSize: 18, fontWeight: '800', marginTop: 6 },
-  confidence: { color: '#94a3b8', fontSize: 12, fontWeight: '600' },
-  actions: { flexDirection: 'row', alignItems: 'center' },
-  actionBtn: { padding: 8, marginLeft: 8, borderRadius: 6, backgroundColor: 'transparent' },
-  emptyContainer: { padding: 16 },
-  emptyText: { color: '#9ca3af' },
-  bulkButton: { alignSelf: 'flex-end', marginRight: 8, backgroundColor: '#4f46e5', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }
+  container: { flex: 1 },
+  headerGradient: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 40,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerText: {
+    marginLeft: 16,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  cardItem: {
+    marginBottom: 16,
+    borderRadius: 24,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    marginBottom: 12,
+  },
+  alertBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  cardBody: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  vendorText: {
+    fontSize: 17,
+  },
+  amountText: {
+    color: '#ef4444',
+  },
+  cardFooter: {
+    padding: 12,
+    borderTopWidth: 1,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingTop: 40,
+  },
+  emptyIconBox: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f0fdf4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
 });
 
 export default SuspiciousScreen;

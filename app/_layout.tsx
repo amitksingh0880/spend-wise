@@ -1,8 +1,9 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
-import { AppState } from 'react-native';
+import * as React from 'react';
+import { useEffect, useState } from 'react';
+import { AppState, View } from 'react-native';
 import 'react-native-reanimated';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
@@ -39,39 +40,21 @@ export default function RootLayout() {
     const appTheme = useAppTheme();
     const userTheme = appTheme?.theme ?? colorScheme;
     return (
+      /* @ts-ignore */
       <ThemeProvider value={userTheme === 'dark' ? DarkTheme : DefaultTheme}>
-        {showStartup ? (
-          <StartupSplash visible={showStartup} onFinish={() => setShowStartup(false)} />
-        ) : (
-          <>
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-            </Stack>
-            <StatusBar style="auto" />
-          </>
-        )}
-      </ThemeProvider>
-    );
-  }
-
-  function InnerApp() {
-    const colorScheme = useColorScheme();
-    const appTheme = useAppTheme();
-    const userTheme = appTheme?.theme ?? colorScheme;
-    return (
-      <ThemeProvider value={userTheme === 'dark' ? DarkTheme : DefaultTheme}>
-        {showStartup ? (
-          <StartupSplash visible={showStartup} onFinish={() => setShowStartup(false)} />
-        ) : (
-          <>
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-            </Stack>
-            <StatusBar style="auto" />
-          </>
-        )}
+        <View style={{ flex: 1 }}>
+          {showStartup ? (
+            <StartupSplash visible={showStartup} onFinish={() => setShowStartup(false)} />
+          ) : (
+            <>
+              <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+              </Stack>
+              <StatusBar style="auto" />
+            </>
+          )}
+        </View>
       </ThemeProvider>
     );
   }

@@ -1,355 +1,369 @@
-// Voice assistant screen moved to _hidden — placeholder kept for compatibility
+import {
+    chatWithAI,
+    prepareFinancialContext,
+    type ChatMessage,
+    type FinancialContext
+} from '@/app/services/aiService';
+import { Card } from '@/components/ui/card';
+import { Typography } from '@/components/ui/text';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { Bot, Mic, Send, Sparkles, User, ChevronRight, MessageSquare, Info } from 'lucide-react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import {
+    Keyboard,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View,
+    StatusBar,
+    ActivityIndicator,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInUp, FadeInRight, FadeIn, Layout, useAnimatedStyle, useSharedValue, withRepeat, withTiming, withSequence } from 'react-native-reanimated';
 
-export default function VoiceAssistantPlaceholder() {
-	return null;
-}
+const VoiceAssistantScreen: React.FC = () => {
+  const [prompt, setPrompt] = useState('');
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [financialContext, setFinancialContext] = useState<FinancialContext | null>(null);
+  
+  const scrollViewRef = useRef<ScrollView>(null);
+  const background = useThemeColor({}, 'background');
+  const primary = useThemeColor({}, 'primary');
+  const primaryForeground = useThemeColor({}, 'primaryForeground');
+  const mutedForeground = useThemeColor({}, 'mutedForeground');
+  const cardColor = useThemeColor({}, 'card');
 
-// import {
-//     chatWithAI,
-//     getFinancialInsights,
-//     prepareFinancialContext,
-//     type ChatMessage,
-//     type FinancialContext
-// } from '@/app/services/aiService';
+  useEffect(() => {
+    loadInitialData();
+  }, []);
 
-// const VoiceAssistantScreen: React.FC = () => {
-//   const [prompt, setPrompt] = useState('');
-//   const [messages, setMessages] = useState<ChatMessage[]>([]);
-//   const [isLoading, setIsLoading] = useState(false);
-//   const [error, setError] = useState('');
-//   const [financialContext, setFinancialContext] = useState<FinancialContext | null>(null);
-//   const [insights, setInsights] = useState<any[]>([]);
+  const loadInitialData = async () => {
+    try {
+      const context = await prepareFinancialContext();
+      setFinancialContext(context);
+    } catch (error) {
+      console.error('Error loading context:', error);
+    }
+  };
 
-//   useEffect(() => {
-//     loadFinancialContext();
-//     loadInsights();
-//   }, []);
-
-//   const loadFinancialContext = async () => {
-//     try {
-//       const context = await prepareFinancialContext();
-//       setFinancialContext(context);
-//     } catch (error) {
-//       console.error('Error loading financial context:', error);
-//     }
-//   };
-
-//   const loadInsights = async () => {
-//     try {
-//       const insightsData = await getFinancialInsights(financialContext || {} as FinancialContext);
-//       setInsights(insightsData);
-//     } catch (error) {
-//       console.error('Error loading insights:', error);
-//     }
-//   };
-
-//   const handleSend = async () => {
-//     if (!prompt.trim() || !financialContext) return;
+  const handleSend = async (textOverride?: string) => {
+    const finalPrompt = textOverride || prompt;
+    if (!finalPrompt.trim() || !financialContext) return;
     
-//     const userMessage: ChatMessage = {
-//       id: `msg-${Date.now()}-user`,
-//       role: 'user',
-//       content: prompt,
-//       timestamp: new Date().toISOString(),
-//     };
+    const userMessage: ChatMessage = {
+      id: `msg-${Date.now()}-user`,
+      role: 'user',
+      content: finalPrompt,
+      timestamp: new Date().toISOString(),
+    };
 
-//     setMessages(prev => [...prev, userMessage]);
-//     setIsLoading(true);
-//     setError('');
-//     const currentPrompt = prompt;
-//     setPrompt('');
-//     Keyboard.dismiss();
+    setMessages(prev => [...prev, userMessage]);
+    setIsLoading(true);
+    setPrompt('');
+    Keyboard.dismiss();
 
-//     try {
-//       const aiResponse = await chatWithAI(currentPrompt, financialContext);
+    try {
+      const aiResponse = await chatWithAI(finalPrompt, financialContext);
       
-//       const botMessage: ChatMessage = {
-//         id: `msg-${Date.now()}-bot`,
-//         role: 'assistant',
-//         content: aiResponse,
-//         timestamp: new Date().toISOString(),
-//         context: financialContext,
-//       };
+      const botMessage: ChatMessage = {
+        id: `msg-${Date.now()}-bot`,
+        role: 'assistant',
+        content: aiResponse,
+        timestamp: new Date().toISOString(),
+      };
 
-//       setMessages(prev => [...prev, botMessage]);
-//     } catch (e: any) {
-//       setError(e.message || 'An unexpected error occurred.');
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   };
+      setMessages(prev => [...prev, botMessage]);
+    } catch (e: any) {
+      console.error('AI Error:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-//   const handleInsightPress = (insight: any) => {
-//     setPrompt(`Tell me more about: ${insight.title}`);
-//   };
+  const ThinkingIndicator = () => {
+    const opacity = useSharedValue(0.4);
+    useEffect(() => {
+      opacity.value = withRepeat(withSequence(withTiming(1, { duration: 500 }), withTiming(0.4, { duration: 500 })), -1);
+    }, []);
 
-//   return (
-//     <KeyboardAvoidingView
-//       behavior={Platform.select({ ios: 'padding', android: undefined })}
-//       style={styles.container}
-//     >
-//       <View style={styles.header}>
-//         <Text style={styles.title}>AI Assistant</Text>
-//         <Text style={styles.subtitle}>Ask me anything about your finances.</Text>
-//       </View>
+    const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
-//       <ScrollView contentContainerStyle={styles.chatArea}>
-//         {messages.length === 0 && !isLoading && !error && (
-//           <>
-//             <Card>
-//               <View style={styles.centered}>
-//                 <Sparkles color="#60a5fa" size={48} />
-//                 <Text style={styles.exampleText}>Ask me about your finances:</Text>
-//                 <TouchableOpacity 
-//                   style={styles.exampleButton}
-//                   onPress={() => setPrompt("Where did most of my money go this month?")}
-//                 >
-//                   <Text style={styles.examples}>"Where did most of my money go this month?"</Text>
-//                 </TouchableOpacity>
-//                 <TouchableOpacity 
-//                   style={styles.exampleButton}
-//                   onPress={() => setPrompt("How can I improve my savings rate?")}
-//                 >
-//                   <Text style={styles.examples}>"How can I improve my savings rate?"</Text>
-//                 </TouchableOpacity>
-//                 <TouchableOpacity 
-//                   style={styles.exampleButton}
-//                   onPress={() => setPrompt("What are my spending trends?")}
-//                 >
-//                   <Text style={styles.examples}>"What are my spending trends?"</Text>
-//                 </TouchableOpacity>
-//               </View>
-//             </Card>
+    return (
+      <View style={styles.thinkingContainer}>
+        <Animated.View style={[styles.thinkingDot, { backgroundColor: primary }, animatedStyle]} />
+        <Animated.View style={[styles.thinkingDot, { backgroundColor: primary, marginHorizontal: 4 }, animatedStyle]} />
+        <Animated.View style={[styles.thinkingDot, { backgroundColor: primary }, animatedStyle]} />
+      </View>
+    );
+  };
 
-//             {insights.length > 0 && (
-//               <Card style={styles.insightsCard}>
-//                 <Text style={styles.insightsTitle}>💡 Quick Insights</Text>
-//                 {insights.slice(0, 3).map((insight) => (
-//                   <TouchableOpacity 
-//                     key={insight.id}
-//                     style={styles.insightItem}
-//                     onPress={() => handleInsightPress(insight)}
-//                   >
-//                     <View style={[
-//                       styles.insightIndicator,
-//                       { backgroundColor: insight.priority === 'high' ? '#ef4444' : insight.priority === 'medium' ? '#f59e0b' : '#22c55e' }
-//                     ]} />
-//                     <View style={styles.insightContent}>
-//                       <Text style={styles.insightTitle}>{insight.title}</Text>
-//                       <Text style={styles.insightDescription}>{insight.content}</Text>
-//                     </View>
-//                   </TouchableOpacity>
-//                 ))}
-//               </Card>
-//             )}
-//           </>
-//         )}
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={[styles.container, { backgroundColor: background }]}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <StatusBar barStyle="light-content" />
+      <LinearGradient
+        colors={['#4f46e5', '#3730a3']}
+        style={styles.headerGradient}
+      >
+        <Typography variant="title" weight="bold" style={styles.headerTitle}>AI Assistant</Typography>
+        <Typography style={styles.headerSubtitle}>Personalized financial guidance</Typography>
+      </LinearGradient>
 
-//         {messages.map((message) => (
-//           <View 
-//             key={message.id}
-//             style={message.role === 'user' ? styles.messageUser : styles.messageBot}
-//           >
-//             {message.role === 'user' ? (
-//               <>
-//                 <Text style={styles.userMessage}>{message.content}</Text>
-//                 <User size={24} color="#60a5fa" />
-//               </>
-//             ) : (
-//               <>
-//                 <Bot size={24} color="#60a5fa" />
-//                 <Text style={styles.botMessage}>{message.content}</Text>
-//               </>
-//             )}
-//           </View>
-//         ))}
+      <ScrollView 
+        ref={scrollViewRef}
+        contentContainerStyle={styles.chatArea}
+        onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+        showsVerticalScrollIndicator={false}
+      >
+        {messages.length === 0 && (
+          <Animated.View entering={FadeIn.delay(300)} style={styles.welcomeContainer}>
+            <View style={styles.sparkleIcon}>
+              <Sparkles size={40} color="#818cf8" />
+            </View>
+            <Typography variant="subtitle" weight="bold" style={{ textAlign: 'center' }}>How can I help you today?</Typography>
+            <Typography variant="small" style={{ color: mutedForeground, textAlign: 'center', marginTop: 8 }}>
+              I can analyze your spending, help with budgeting, or provide saving tips.
+            </Typography>
 
-//         {isLoading && (
-//           <View style={styles.loadingContainer}>
-//             <Bot size={24} color="#60a5fa" />
-//             <Text style={styles.loadingText}>SpendWise is thinking...</Text>
-//           </View>
-//         )}
+            <View style={styles.suggestionGrid}>
+              {[
+                "Analyze my spending this month",
+                "Where can I save more?",
+                "Am I on track with my budget?",
+                "Give me a financial tip"
+              ].map((suggestion, i) => (
+                <TouchableOpacity 
+                  key={i} 
+                  style={styles.suggestionButton}
+                  onPress={() => handleSend(suggestion)}
+                >
+                  <MessageSquare size={14} color={primary} />
+                  <Typography variant="small" weight="medium" style={styles.suggestionText}>{suggestion}</Typography>
+                  <ChevronRight size={14} color={mutedForeground} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Animated.View>
+        )}
 
-//         {error && (
-//           <Card style={{ backgroundColor: '#fef2f2' }}>
-//             <Text style={{ color: '#dc2626' }}>{error}</Text>
-//           </Card>
-//         )}
-//       </ScrollView>
+        {messages.map((message, index) => (
+          <Animated.View 
+            key={message.id} 
+            entering={message.role === 'user' ? FadeInRight : FadeInUp}
+            layout={Layout.springify()}
+            style={[
+              styles.messageWrapper,
+              message.role === 'user' ? styles.userWrapper : styles.botWrapper
+            ]}
+          >
+            {message.role === 'assistant' && (
+              <View style={[styles.avatar, { backgroundColor: '#eef2ff' }]}>
+                <Bot size={16} color={primary} />
+              </View>
+            )}
+            <View style={[
+              styles.messageBubble,
+              message.role === 'user' ? [styles.userBubble, { backgroundColor: primary }] : [styles.botBubble, { backgroundColor: '#f8fafc' }]
+            ]}>
+              <Typography 
+                style={[
+                  styles.messageText, 
+                  { color: message.role === 'user' ? '#FFFFFF' : '#1e293b' }
+                ]}
+              >
+                {message.content}
+              </Typography>
+            </View>
+            {message.role === 'user' && (
+              <View style={[styles.avatar, { backgroundColor: '#f1f5f9' }]}>
+                <User size={16} color={mutedForeground} />
+              </View>
+            )}
+          </Animated.View>
+        ))}
 
-//       <View style={styles.inputArea}>
-//         <TextInput
-//           style={styles.input}
-//           value={prompt}
-//           placeholder="e.g., How much did I spend on food?"
-//           placeholderTextColor="#9ca3af"
-//           onChangeText={setPrompt}
-//           onSubmitEditing={handleSend}
-//           editable={!isLoading}
-//         />
-//         <TouchableOpacity
-//           onPress={handleSend}
-//           style={[styles.sendButton, isLoading && styles.disabledButton]}
-//           disabled={isLoading}
-//         >
-//           <Send size={20} color="white" />
-//         </TouchableOpacity>
-//       </View>
-//     </KeyboardAvoidingView>
-//   );
-// };
+        {isLoading && (
+          <Animated.View entering={FadeInUp} style={styles.botWrapper}>
+            <View style={[styles.avatar, { backgroundColor: '#eef2ff' }]}>
+              <Bot size={16} color={primary} />
+            </View>
+            <View style={[styles.messageBubble, styles.botBubble, { backgroundColor: '#f8fafc' }]}>
+              <ThinkingIndicator />
+            </View>
+          </Animated.View>
+        )}
+      </ScrollView>
 
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#0f172a',
-//     paddingTop: 20,
-//     paddingHorizontal: 16,
-//   },
-//   header: {
-//     marginBottom: 20,
-//     alignItems: 'center',
-//   },
-//   title: {
-//     fontSize: 28,
-//     fontWeight: '700',
-//     color: '#f9fafb',
-//   },
-//   subtitle: {
-//     color: '#9ca3af',
-//     fontSize: 14,
-//   },
-//   chatArea: {
-//     flexGrow: 1,
-//     paddingBottom: 12,
-//   },
-//   centered: {
-//     alignItems: 'center',
-//   },
-//   exampleText: {
-//     fontSize: 16,
-//     fontWeight: '600',
-//     color: '#f3f4f6',
-//     marginTop: 8,
-//   },
-//   examples: {
-//     fontSize: 13,
-//     color: '#9ca3af',
-//     marginTop: 4,
-//   },
-//   exampleButton: {
-//     paddingVertical: 8,
-//     paddingHorizontal: 12,
-//     marginVertical: 2,
-//     borderRadius: 8,
-//     backgroundColor: 'rgba(96, 165, 250, 0.1)',
-//   },
-//   insightsCard: {
-//     marginTop: 16,
-//     backgroundColor: 'rgba(34, 197, 94, 0.05)',
-//   },
-//   insightsTitle: {
-//     fontSize: 16,
-//     fontWeight: '600',
-//     color: '#22c55e',
-//     marginBottom: 12,
-//   },
-//   insightItem: {
-//     flexDirection: 'row',
-//     alignItems: 'flex-start',
-//     marginBottom: 12,
-//     paddingBottom: 12,
-//     borderBottomWidth: 1,
-//     borderBottomColor: '#1f2937',
-//   },
-//   insightIndicator: {
-//     width: 4,
-//     height: 30,
-//     borderRadius: 2,
-//     marginRight: 12,
-//   },
-//   insightContent: {
-//     flex: 1,
-//   },
-//   insightTitle: {
-//     fontSize: 14,
-//     fontWeight: '600',
-//     color: '#f9fafb',
-//     marginBottom: 4,
-//   },
-//   insightDescription: {
-//     fontSize: 12,
-//     color: '#9ca3af',
-//     lineHeight: 16,
-//   },
-//   loadingContainer: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     gap: 8,
-//     padding: 12,
-//     backgroundColor: '#1e293b',
-//     borderRadius: 12,
-//     marginBottom: 8,
-//   },
-//   loadingText: {
-//     color: '#9ca3af',
-//   },
-//   messageUser: {
-//     flexDirection: 'row',
-//     justifyContent: 'flex-end',
-//     alignItems: 'flex-start',
-//     gap: 8,
-//     marginBottom: 8,
-//   },
-//   userMessage: {
-//     backgroundColor: '#4f46e5',
-//     color: 'white',
-//     padding: 10,
-//     borderRadius: 16,
-//     maxWidth: '75%',
-//   },
-//   messageBot: {
-//     flexDirection: 'row',
-//     alignItems: 'flex-start',
-//     gap: 8,
-//     marginBottom: 8,
-//   },
-//   botMessage: {
-//     backgroundColor: '#1e293b',
-//     color: '#f9fafb',
-//     padding: 10,
-//     borderRadius: 16,
-//     maxWidth: '75%',
-//     // whiteSpace: 'pre-wrap',
-//   },
-//   inputArea: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     backgroundColor: '#0f172a',
-//     paddingVertical: 12,
-//     paddingHorizontal: 4,
-//   },
-//   input: {
-//     flex: 1,
-//     backgroundColor: '#1e293b',
-//     color: '#f9fafb',
-//     padding: 14,
-//     borderRadius: 24,
-//     borderColor: '#334155',
-//     borderWidth: 1,
-//     paddingHorizontal: 16,
-//     fontSize: 14,
-//   },
-//   sendButton: {
-//     backgroundColor: '#4f46e5',
-//     padding: 14,
-//     marginLeft: 8,
-//     borderRadius: 50,
-//   },
-//   disabledButton: {
-//     backgroundColor: '#9ca3af',
-//   },
-// });
+      <View style={[styles.inputContainer, { borderTopColor: '#f1f5f9' }]}>
+        <View style={styles.inputWrapper}>
+          <TextInput
+            style={styles.input}
+            value={prompt}
+            onChangeText={setPrompt}
+            placeholder="Ask anything..."
+            placeholderTextColor={mutedForeground}
+            multiline
+            maxHeight={100}
+          />
+          <TouchableOpacity 
+            style={[styles.sendButton, { backgroundColor: prompt.trim() ? primary : '#f1f5f9' }]}
+            onPress={() => handleSend()}
+            disabled={!prompt.trim() || isLoading}
+          >
+            <Send size={20} color={prompt.trim() ? '#FFFFFF' : mutedForeground} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
+  );
+};
 
-// export default VoiceAssistantScreen;
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  headerGradient: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 30,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 26,
+  },
+  headerSubtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  chatArea: {
+    flexGrow: 1,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  welcomeContainer: {
+    marginTop: 40,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  sparkleIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#eef2ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  suggestionGrid: {
+    marginTop: 32,
+    width: '100%',
+    gap: 12,
+  },
+  suggestionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  suggestionText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  messageWrapper: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    alignItems: 'flex-end',
+    maxWidth: '85%',
+  },
+  userWrapper: {
+    alignSelf: 'flex-end',
+  },
+  botWrapper: {
+    alignSelf: 'flex-start',
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  messageBubble: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  userBubble: {
+    borderBottomRightRadius: 4,
+  },
+  botBubble: {
+    borderBottomLeftRadius: 4,
+  },
+  messageText: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  thinkingContainer: {
+    flexDirection: 'row',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  thinkingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  inputContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    backgroundColor: '#f8fafc',
+    borderRadius: 24,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+    color: '#1e293b',
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+});
+
+export default VoiceAssistantScreen;

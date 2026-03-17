@@ -7,39 +7,52 @@ import {
   getFilteredTransactions,
   Transaction
 } from '@/app/services/transactionService';
-import Card from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Typography } from '@/components/ui/text';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { useFocusEffect } from 'expo-router';
-import { ArrowDownLeft, ArrowUpRight, Calendar, MessageCircle, Plus, Search } from 'lucide-react-native';
-import React, { useCallback, useEffect, useState } from 'react';
+import { ArrowDownLeft, ArrowUpRight, Calendar, MessageCircle, Plus, Search, X, Filter, SlidersHorizontal } from 'lucide-react-native';
+import * as React from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Dimensions,
   FlatList,
   Modal,
   StyleSheet,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
+  StatusBar,
+  Platform,
+  ScrollView,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInUp, FadeInRight, Layout } from 'react-native-reanimated';
 
 const screenWidth = Dimensions.get('window').width;
 
 const TransactionItem = ({ 
   transaction, 
+  index,
   onDelete,
-  onEdit
+  onEdit,
+  key
 }: { 
   transaction: Transaction; 
+  index: number;
   onDelete: (id: string) => void;
   onEdit: (transaction: Transaction) => void;
+  key?: string;
 }) => {
   const { formatAmount } = useCurrency();
+  const mutedForeground = useThemeColor({}, 'mutedForeground');
+  const border = useThemeColor({}, 'border');
   const isIncome = transaction.type === 'income';
   const Icon = isIncome ? ArrowDownLeft : ArrowUpRight;
-  const formattedDate = new Date(transaction.createdAt).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
+  const formattedDate = new Date(transaction.createdAt).toLocaleDateString(undefined, {
+    month: 'short',
     day: 'numeric',
   });
 
@@ -55,39 +68,49 @@ const TransactionItem = ({
   };
 
   return (
-    <TouchableOpacity onPress={() => onEdit(transaction)} onLongPress={handleLongPress}>
-      <Card style={styles.transactionCard}>
-        <View style={styles.transactionRow}>
-          <View style={styles.leftGroup}>
-            <View
-              style={[
-                styles.iconBox,
-                isIncome ? styles.incomeIcon : styles.expenseIcon,
-              ]}
-            >
-              <Icon
-                size={20}
-                color={isIncome ? '#22c55e' : '#ef4444'}
-                strokeWidth={2}
-              />
+    <Animated.View 
+      entering={FadeInUp.delay(index * 50).duration(500).springify()}
+      layout={Layout.springify()}
+    >
+      <TouchableOpacity 
+        onPress={() => onEdit(transaction)} 
+        onLongPress={handleLongPress}
+        activeOpacity={0.7}
+      >
+        <Card style={styles.transactionCard} delay={0}>
+          <View style={styles.transactionRow}>
+            <View style={styles.leftGroup}>
+              <View
+                style={[
+                  styles.iconBox,
+                  { backgroundColor: isIncome ? '#f0fdf4' : '#fef2f2' },
+                ]}
+              >
+                <Icon
+                  size={20}
+                  color={isIncome ? '#22c55e' : '#ef4444'}
+                  strokeWidth={2.5}
+                />
+              </View>
+              <View>
+                <Typography variant="bold" style={styles.vendorText}>{transaction.vendor}</Typography>
+                <Typography variant="small" style={{ color: mutedForeground }}>{transaction.category}</Typography>
+              </View>
             </View>
-            <View>
-              <Text style={styles.vendor}>{transaction.vendor}</Text>
-              <Text style={styles.date}>{formattedDate}</Text>
-            </View>
-          </View>
 
-          <View style={styles.rightGroup}>
-            <Text style={[styles.amount, isIncome ? styles.income : styles.expense]}>
-              {isIncome ? '+' : '-'}{formatAmount(transaction.amount)}
-            </Text>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{transaction.category}</Text>
+            <View style={styles.rightGroup}>
+              <Typography 
+                variant="bold" 
+                style={[styles.amountText, isIncome ? styles.income : styles.expense]}
+              >
+                {isIncome ? '+' : '-'}{formatAmount(transaction.amount)}
+              </Typography>
+              <Typography variant="small" style={{ color: mutedForeground }}>{formattedDate}</Typography>
             </View>
           </View>
-        </View>
-      </Card>
-    </TouchableOpacity>
+        </Card>
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
@@ -100,6 +123,13 @@ const TransactionsScreen: React.FC = () => {
   const [showSMSImport, setShowSMSImport] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showTodayOnly, setShowTodayOnly] = useState(false);
+
+  const background = useThemeColor({}, 'background');
+  const cardColor = useThemeColor({}, 'card');
+  const border = useThemeColor({}, 'border');
+  const primary = useThemeColor({}, 'primary');
+  const primaryForeground = useThemeColor({}, 'primaryForeground');
+  const mutedForeground = useThemeColor({}, 'mutedForeground');
 
   useEffect(() => {
     loadTransactions();
@@ -122,7 +152,6 @@ const TransactionsScreen: React.FC = () => {
       setTransactions(allTransactions);
     } catch (error) {
       console.error('Error loading transactions:', error);
-      Alert.alert('Error', 'Failed to load transactions');
     } finally {
       setLoading(false);
     }
@@ -133,13 +162,8 @@ const TransactionsScreen: React.FC = () => {
       if (searchTerm.trim() === '' && !showTodayOnly) {
         setFilteredTransactions(transactions);
       } else {
-        // Use advanced filtering for search and date filtering
         const filters: any = {};
-        
-        if (searchTerm.trim() !== '') {
-          filters.vendor = searchTerm;
-        }
-        
+        if (searchTerm.trim() !== '') filters.vendor = searchTerm;
         if (showTodayOnly) {
           const today = new Date();
           const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -147,31 +171,21 @@ const TransactionsScreen: React.FC = () => {
           filters.dateFrom = startOfDay.toISOString();
           filters.dateTo = endOfDay.toISOString();
         }
-        
         const filtered = await getFilteredTransactions(filters);
         setFilteredTransactions(filtered);
       }
     } catch (error) {
-      console.error('Error filtering transactions:', error);
-      // Fallback to basic filtering
       let filtered = transactions;
-      
       if (searchTerm.trim() !== '') {
-        filtered = transactions.filter(
-          (t) =>
-            t.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            t.category.toLowerCase().includes(searchTerm.toLowerCase())
+        filtered = transactions.filter(t => 
+          t.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          t.category.toLowerCase().includes(searchTerm.toLowerCase())
         );
       }
-      
       if (showTodayOnly) {
-        const today = new Date();
-        const todayString = today.toDateString();
-        filtered = filtered.filter(t => 
-          new Date(t.createdAt).toDateString() === todayString
-        );
+        const todayString = new Date().toDateString();
+        filtered = filtered.filter(t => new Date(t.createdAt).toDateString() === todayString);
       }
-      
       setFilteredTransactions(filtered);
     }
   };
@@ -179,10 +193,9 @@ const TransactionsScreen: React.FC = () => {
   const handleDeleteTransaction = async (id: string) => {
     try {
       await deleteTransaction(id);
-      await loadTransactions(); // Reload transactions after deletion
+      await loadTransactions();
     } catch (error) {
       console.error('Error deleting transaction:', error);
-      Alert.alert('Error', 'Failed to delete transaction');
     }
   };
 
@@ -197,73 +210,99 @@ const TransactionsScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Transaction History</Text>
-
-      <View style={styles.searchWrapper}>
-        <Search size={18} color="#9ca3af" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search transactions..."
-          placeholderTextColor="#9ca3af"
-          value={searchTerm}
-          onChangeText={(text) => setSearchTerm(text)}
-        />
-      </View>
-
-      {/* Today's Date Filter Toggle */}
-      <View style={styles.filterRow}>
-        <TouchableOpacity
-          style={[styles.filterButton, showTodayOnly && styles.filterButtonActive]}
-          onPress={() => setShowTodayOnly(!showTodayOnly)}
-        >
-          <Calendar size={16} color={showTodayOnly ? "#ffffff" : "#9ca3af"} />
-          <Text style={[styles.filterButtonText, showTodayOnly && styles.filterButtonTextActive]}>
-            Today's Transactions
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading transactions...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredTransactions}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <TransactionItem 
-              transaction={item} 
-              onDelete={handleDeleteTransaction}
-              onEdit={handleEditTransaction}
-            />
+    <View style={[styles.container, { backgroundColor: background }]}>
+      <StatusBar barStyle="light-content" />
+      <LinearGradient
+        colors={['#0f172a', '#1e293b']}
+        style={styles.headerGradient}
+      >
+        <Typography variant="title" weight="bold" style={styles.headerTitle}>Transactions</Typography>
+        
+        <View style={[styles.searchWrapper, { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.1)' }]}>
+          <Search size={18} color="rgba(255,255,255,0.4)" style={styles.searchIcon} />
+          <TextInput
+            style={[styles.searchInput, { color: '#FFFFFF' }]}
+            placeholder="Search merchants, categories..."
+            placeholderTextColor="rgba(255,255,255,0.4)"
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+          />
+          {searchTerm !== '' && (
+            <TouchableOpacity onPress={() => setSearchTerm('')}>
+              <X size={18} color="rgba(255,255,255,0.4)" />
+            </TouchableOpacity>
           )}
-          contentContainerStyle={{ paddingTop: 8, paddingBottom: 64 }}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No transactions found</Text>
-              <Text style={styles.emptySubtext}>
-                {searchTerm ? 'Try adjusting your search' : 'Add your first transaction to get started'}
-              </Text>
-            </View>
-          }
-        />
-      )}
+        </View>
 
-      <View style={styles.actionButtons}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll}>
+          <TouchableOpacity
+            style={[
+              styles.filterChip, 
+              showTodayOnly && { backgroundColor: '#FFFFFF' }
+            ]}
+            onPress={() => setShowTodayOnly(!showTodayOnly)}
+          >
+            <Calendar size={14} color={showTodayOnly ? '#0f172a' : 'rgba(255,255,255,0.6)'} />
+            <Typography 
+              variant="small" 
+              weight="bold"
+              style={[styles.filterChipText, showTodayOnly && { color: '#0f172a' }]}
+            >
+              Today
+            </Typography>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.filterChip}>
+            <SlidersHorizontal size={14} color="rgba(255,255,255,0.6)" />
+            <Typography variant="small" weight="bold" style={styles.filterChipText}>Filters</Typography>
+          </TouchableOpacity>
+        </ScrollView>
+      </LinearGradient>
+
+      <View style={styles.content}>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <Typography variant="muted">Refreshing transactions...</Typography>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredTransactions}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item, index }) => (
+              <TransactionItem 
+                transaction={item} 
+                index={index}
+                onDelete={handleDeleteTransaction}
+                onEdit={handleEditTransaction}
+              />
+            )}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Typography variant="subtitle" weight="bold">No transactions</Typography>
+                <Typography variant="small" style={{ color: mutedForeground, textAlign: 'center', marginTop: 8 }}>
+                  {searchTerm ? "We couldn't find anything matching your search." : "Your transaction history will appear here."}
+                </Typography>
+              </View>
+            }
+          />
+        )}
+      </View>
+
+      <View style={styles.fabContainer}>
         <TouchableOpacity 
-          style={styles.smsImportButton}
+          style={[styles.miniFab, { backgroundColor: '#334155' }]}
           onPress={() => setShowSMSImport(true)}
         >
-          <MessageCircle size={24} color="white" />
+          <MessageCircle size={22} color="#FFFFFF" />
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={styles.addButton}
+          style={[styles.mainFab, { backgroundColor: primary }]}
           onPress={() => setShowForm(true)}
         >
-          <Plus size={28} color="white" />
+          <Plus size={28} color={primaryForeground} />
         </TouchableOpacity>
       </View>
 
@@ -280,24 +319,21 @@ const TransactionsScreen: React.FC = () => {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowSMSImport(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Import from SMS</Text>
+        <View style={[styles.modalContainer, { backgroundColor: background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: border }]}>
+            <Typography variant="subtitle" weight="bold">Import Data</Typography>
             <TouchableOpacity
-              style={styles.closeButton}
+              style={[styles.closeModalButton, { backgroundColor: primary }]}
               onPress={() => setShowSMSImport(false)}
             >
-              <Text style={styles.closeButtonText}>Done</Text>
+              <Typography variant="small" weight="bold" style={{ color: primaryForeground }}>Close</Typography>
             </TouchableOpacity>
           </View>
           <SMSImport
             onImportComplete={(result) => {
               setShowSMSImport(false);
-              loadTransactions(); // Refresh the transaction list
-              Alert.alert(
-                'Import Complete',
-                `Successfully imported ${result.expenses.length} expenses from SMS.`
-              );
+              loadTransactions();
+              Alert.alert('Import Success', `Added ${result.expenses.length} transactions.`);
             }}
           />
         </View>
@@ -308,45 +344,65 @@ const TransactionsScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    backgroundColor: '#0f172a',
     flex: 1,
   },
-  heading: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#f9fafb',
+  headerGradient: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 26,
     marginBottom: 20,
-    letterSpacing: -0.5,
   },
   searchWrapper: {
-    position: 'relative',
-    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 52,
+    borderWidth: 1,
   },
   searchIcon: {
-    position: 'absolute',
-    top: 18,
-    left: 16,
-    zIndex: 10,
+    marginRight: 12,
   },
   searchInput: {
-    backgroundColor: '#1e293b',
-    borderColor: '#334155',
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingLeft: 44,
-    paddingRight: 20,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: '#f3f4f6',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  filtersScroll: {
+    marginTop: 16,
+    flexDirection: 'row',
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginRight: 8,
+    gap: 6,
+  },
+  filterChipText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+  },
+  content: {
+    flex: 1,
+  },
+  listContent: {
+    padding: 20,
+    paddingBottom: 100,
   },
   transactionCard: {
     marginBottom: 12,
+    borderRadius: 20,
+    padding: 16,
   },
   transactionRow: {
     flexDirection: 'row',
@@ -356,163 +412,88 @@ const styles = StyleSheet.create({
   leftGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
   iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 14,
   },
-  incomeIcon: {
-    backgroundColor: '#dcfce7',
-  },
-  expenseIcon: {
-    backgroundColor: '#fee2e2',
-  },
-  vendor: {
-    fontWeight: '700',
+  vendorText: {
     fontSize: 16,
-    color: '#f9fafb',
-  },
-  date: {
-    fontSize: 12,
-    color: '#9ca3af',
+    marginBottom: 2,
   },
   rightGroup: {
     alignItems: 'flex-end',
   },
-  amount: {
-    fontWeight: '700',
+  amountText: {
     fontSize: 16,
+    marginBottom: 2,
   },
   income: {
     color: '#22c55e',
   },
   expense: {
-    color: '#ef4444',
-  },
-  categoryBadge: {
-    backgroundColor: '#1f2937',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 999,
-    marginTop: 4,
-  },
-  categoryText: {
-    fontSize: 12,
-    color: '#e5e7eb',
+    color: '#0f172a',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 50,
-  },
-  loadingText: {
-    color: '#9ca3af',
-    fontSize: 16,
   },
   emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    paddingTop: 60,
     alignItems: 'center',
-    paddingTop: 50,
+    paddingHorizontal: 40,
   },
-  emptyText: {
-    color: '#f9fafb',
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    color: '#9ca3af',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  actionButtons: {
+  fabContainer: {
     position: 'absolute',
     right: 24,
     bottom: 32,
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
-  smsImportButton: {
-    backgroundColor: '#06b6d4',
-    borderRadius: 999,
-    padding: 16,
+  mainFab: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
     shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
     shadowRadius: 6,
-    elevation: 6,
   },
-  addButton: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 999,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 6,
+  miniFab: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
     elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
-    backgroundColor: '#0f172a',
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#f9fafb',
-  },
-  closeButton: {
+  closeModalButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-  },
-  closeButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  filterRow: {
-    marginBottom: 16,
-    alignItems: 'flex-start',
-  },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1e293b',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  filterButtonActive: {
-    backgroundColor: '#4f46e5',
-    borderColor: '#4f46e5',
-  },
-  filterButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#9ca3af',
-    marginLeft: 8,
-  },
-  filterButtonTextActive: {
-    color: '#ffffff',
+    borderRadius: 12,
   },
 });
 

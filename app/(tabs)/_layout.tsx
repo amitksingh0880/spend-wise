@@ -3,70 +3,70 @@ import { readJson } from '@/app/libs/storage';
 import { getFilteredTransactions } from '@/app/services/transactionService';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Platform } from 'react-native';
 
 import { useAppTheme } from '@/app/contexts/ThemeContext';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-// no direct RN styles required in this layout
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const appTheme = useAppTheme();
   const theme = appTheme?.theme ?? colorScheme;
+  const isDark = theme === 'dark';
   const [suspiciousCount, setSuspiciousCount] = useState<number>(0);
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const tx = await getFilteredTransactions({ tags: ['suspicious'] });
-        const held = await readJson<any[]>('held_suspicious');
-        if (mounted) setSuspiciousCount(((tx || []).length || 0) + (held?.length || 0));
-      } catch (err) {
-        console.warn('Failed to update suspicious badge', err);
-      }
-    })();
-    // not using sidebar; read held suspicious list only
-    return () => { mounted = false; };
-  }, []);
-
-  useEffect(() => {
-    const unsub = emitter.addListener('transactions:changed', async () => {
-      try {
-        const tx = await getFilteredTransactions({ tags: ['suspicious'] });
-        const held = await readJson<any[]>('held_suspicious');
-        setSuspiciousCount(((tx || []).length || 0) + (held?.length || 0));
-      } catch (err) {
-        console.warn('Failed to refresh suspicious badge', err);
-      }
-    });
+    updateBadge();
+    const unsub = emitter.addListener('transactions:changed', updateBadge);
     return () => { unsub(); };
   }, []);
 
+  const updateBadge = async () => {
+    try {
+      const tx = await getFilteredTransactions({ tags: ['suspicious'] });
+      const held = await readJson<any[]>('held_suspicious');
+      setSuspiciousCount(((tx || []).length || 0) + (held?.length || 0));
+    } catch (err) {
+      console.warn('Failed to update badge', err);
+    }
+  };
+
   return (
-        <Tabs
-          screenOptions={{
-            tabBarActiveTintColor: Colors[theme ?? 'light'].tint,
-            headerShown: false,
-            tabBarButton: HapticTab,
-            tabBarStyle: {
-              backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
-              borderTopColor: theme === 'dark' ? '#1e293b' : '#e5e7eb',
-            },
-          }}>
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: isDark ? '#818cf8' : '#4f46e5',
+        tabBarInactiveTintColor: isDark ? '#64748b' : '#94a3b8',
+        headerShown: false,
+        tabBarButton: HapticTab,
+        tabBarStyle: {
+          backgroundColor: isDark ? '#0f172a' : '#ffffff',
+          borderTopColor: isDark ? '#1e293b' : '#f1f5f9',
+          height: Platform.OS === 'ios' ? 88 : 68,
+          paddingBottom: Platform.OS === 'ios' ? 32 : 12,
+          paddingTop: 12,
+          position: 'absolute',
+          elevation: 0,
+          borderTopWidth: 1,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+        },
+      }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: 'Home',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="house.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="transaction"
         options={{
-          title: 'Transactions',
+          title: 'Activity',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="list.bullet" color={color} />,
         }}
       />
@@ -75,6 +75,17 @@ export default function TabLayout() {
         options={{
           title: 'Budget',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="chart.pie.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="voice"
+        options={{
+          title: 'AI Box',
+          tabBarIcon: ({ color }) => (
+            <View style={styles.voiceTabIcon}>
+              <IconSymbol size={24} name="sparkles" color={color} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
@@ -87,9 +98,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="suspicious"
         options={{
-          title: 'Suspicious',
+          title: 'Alerts',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="exclamationmark.triangle.fill" color={color} />,
           tabBarBadge: suspiciousCount > 0 ? suspiciousCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: '#ef4444',
+            fontSize: 10,
+          }
         }}
       />
       <Tabs.Screen
@@ -99,9 +114,36 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="gearshape.fill" color={color} />,
         }}
       />
-      {/* Voice and Explore tabs removed from main tabs — moved to _hidden for dev-only access */}
-        </Tabs>
+      <Tabs.Screen
+        name="sms-import"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="sms-review"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="_hidden/voice"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="_hidden/explore"
+        options={{
+          href: null,
+        }}
+      />
+    </Tabs>
   );
 }
 
-// no styles required for this layout
+const styles = StyleSheet.create({
+  voiceTabIcon: {
+    // Custom styling if needed for central tab
+  }
+});
