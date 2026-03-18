@@ -139,6 +139,7 @@ const styles = StyleSheet.create({
     bottom: Platform.OS === 'ios' ? 25 : 15,
     alignSelf: 'center',
     width: width * 0.9,
+    maxWidth: 600,
     height: 70,
     borderRadius: 35,
     overflow: 'hidden',

@@ -69,7 +69,7 @@ export default function RootLayout() {
     return (
       /* @ts-ignore */
       <ThemeProvider value={userTheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, width: '100%' }}>
           {showStartup ? (
             <StartupSplash visible={showStartup} onFinish={() => setShowStartup(false)} />
           ) : (
@@ -89,7 +89,7 @@ export default function RootLayout() {
     <CurrencyProvider>
       <AppThemeProvider>
         <SafeAreaProvider>
-          <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+          <SafeAreaView style={{ flex: 1, width: '100%' }} edges={['top']}>
             <InnerApp />
           </SafeAreaView>
         </SafeAreaProvider>

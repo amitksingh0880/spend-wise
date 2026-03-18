@@ -449,6 +449,9 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     marginTop: -20,
+    maxWidth: 800,
+    width: '100%',
+    alignSelf: 'center',
   },
   metricsGrid: {
     flexDirection: 'row',
