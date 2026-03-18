@@ -12,6 +12,7 @@ import {
 import { saveTransaction } from '@/services/transactionService';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useAppTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Link } from 'expo-router';
@@ -42,7 +43,12 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   const { formatAmount } = useCurrency();
   const primary = useThemeColor({}, 'primary');
   const cardColor = useThemeColor({}, 'card');
+  const border = useThemeColor({}, 'border');
+  const text = useThemeColor({}, 'text');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
+  
+  const { theme } = useAppTheme();
+  const isDark = theme === 'dark';
   
   const [customDays, setCustomDays] = useState<number>(7);
   const [customStart, setCustomStart] = useState<string>(''); 
@@ -269,7 +275,7 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
           }}>
             <Typography style={styles.calendarNav}>{'<'}</Typography>
           </TouchableOpacity>
-          <Typography style={styles.calendarTitle}>{monthName} {calendarYear}</Typography>
+          <Typography style={[styles.calendarTitle, { color: text }]}>{monthName} {calendarYear}</Typography>
           <TouchableOpacity onPress={() => {
             const m = calendarMonth === 11 ? 0 : calendarMonth + 1;
             const y = calendarMonth === 11 ? calendarYear + 1 : calendarYear;
@@ -287,7 +293,7 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
             const isSel = (calendarMode === 'start' ? filterStart : filterEnd) === `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             return (
               <TouchableOpacity key={i} onPress={() => handlePickDate(d)} style={[styles.dayCell, isOther && styles.dayCellFaded, isSel && styles.dayCellSelected]}>
-                <Typography style={[styles.dayText, isOther && styles.dayTextFaded, isSel && styles.dayTextSelected]}>{d.getDate()}</Typography>
+                <Typography style={[styles.dayText, { color: text }, isOther && styles.dayTextFaded, isSel && styles.dayTextSelected]}>{d.getDate()}</Typography>
               </TouchableOpacity>
             );
           })}
@@ -302,7 +308,7 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
       {
         backgroundColor: cardColor,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: border,
         borderRadius: 16,
         padding: 16,
         marginBottom: 12,
@@ -314,10 +320,10 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
       <Container key={index} style={itemStyle}>
         <View style={styles.expenseHeader}>
           <View>
-            <Typography style={{ fontSize: 16, fontWeight: '700' }}>{expense.vendor}</Typography>
-            <Typography style={{ color: '#64748b', fontSize: 12 }}>{expense.category}</Typography>
+            <Typography style={{ fontSize: 16, fontWeight: '700', color: text }}>{expense.vendor}</Typography>
+            <Typography style={{ color: mutedForeground, fontSize: 12 }}>{expense.category}</Typography>
           </View>
-          <Typography style={{ fontSize: 18, fontWeight: '800', color: expense.type === 'income' ? '#10b981' : '#1e293b' }}>
+          <Typography style={{ fontSize: 18, fontWeight: '800', color: expense.type === 'income' ? '#10b981' : text }}>
             {expense.type === 'income' ? '+' : '-'}{formatAmount(expense.amount)}
           </Typography>
         </View>
@@ -356,29 +362,31 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
-      <Card style={styles.card}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
+      <Card style={[styles.card, { backgroundColor: cardColor, borderColor: border }]}>
         <CardHeader>
           <View style={styles.header}>
-            <View style={styles.headerIconContainer}>
+            <View style={[styles.headerIconContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#fff7ed' }]}>
               <MessageCircle size={24} color={primary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Typography style={styles.title}>SMS Alerts</Typography>
-              <Typography style={styles.description}>AI-powered expense extraction</Typography>
+              <Typography style={[styles.title, { color: text }]}>SMS Alerts</Typography>
+              <Typography style={[styles.description, { color: mutedForeground }]}>AI-powered expense extraction</Typography>
             </View>
           </View>
         </CardHeader>
         <CardContent>
           <Modal visible={calendarVisible} transparent animationType="fade" onRequestClose={closeCalendar}>
             <View style={styles.modalBackdrop}>
-              <View style={styles.modalContent}>
+              <View style={[styles.modalContent, { backgroundColor: cardColor }]}>
                 {renderCalendar()}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
                   <Button variant="ghost" onPress={() => { if(calendarMode==='start') setFilterStart(''); else setFilterEnd(''); setCalendarVisible(false); }}>
                     <Typography style={{ color: '#ef4444' }}>Clear</Typography>
                   </Button>
-                  <Button onPress={closeCalendar}>OK</Button>
+                  <Button onPress={closeCalendar}>
+                    <Typography style={{ color: '#fff', fontWeight: 'bold' }}>OK</Typography>
+                  </Button>
                 </View>
               </View>
             </View>
@@ -409,16 +417,18 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
             </View>
           </View>
 
-          <View style={styles.alertBlock}>
-            <View style={[styles.headerIconContainer, { backgroundColor: hasPermission ? '#f0fdf4' : '#fef2f2', width: 40, height: 40 }]}>
+          <View style={[styles.alertBlock, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#fff7ed' }]}>
+            <View style={[styles.headerIconContainer, { backgroundColor: hasPermission ? (isDark ? 'rgba(16,185,129,0.15)' : '#f0fdf4') : (isDark ? 'rgba(239,68,68,0.15)' : '#fef2f2'), width: 40, height: 40, marginRight: 12 }]}>
               {hasPermission ? <CheckCircle size={20} color="#10b981" /> : <AlertCircle size={20} color="#ef4444" />}
             </View>
             <View style={{ flex: 1 }}>
-              <Typography style={{ fontWeight: 'bold' }}>{hasPermission ? 'Ready to Sync' : 'Access Needed'}</Typography>
-              <Typography style={{ fontSize: 12 }}>{hasPermission ? 'SMS reading is enabled' : 'Grant permission to automate'}</Typography>
+              <Typography style={{ fontWeight: 'bold', color: text }}>{hasPermission ? 'Ready to Sync' : 'Access Needed'}</Typography>
+              <Typography style={{ fontSize: 12, color: mutedForeground }}>{hasPermission ? 'SMS reading is enabled' : 'Grant permission to automate'}</Typography>
             </View>
             {!hasPermission && (
-              <Button style={{ paddingVertical: 6, height: 'auto' }} onPress={handleRequestPermission}>Allow</Button>
+              <Button style={{ paddingVertical: 6, paddingHorizontal: 16, height: 'auto', minWidth: 80 }} onPress={handleRequestPermission}>
+                <Typography style={{ color: '#fff', fontWeight: 'bold' }}>Allow</Typography>
+              </Button>
             )}
           </View>
 
@@ -427,12 +437,12 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
           </Button>
 
           {lastResult && (
-            <View style={styles.resultsContainer}>
+            <View style={[styles.resultsContainer, { borderTopColor: border }]}>
               <View style={styles.statGrid}>
-                <View style={styles.statCard}><Typography style={[styles.statNum, {color:primary}]}>{lastResult.expenses.length}</Typography><Typography style={styles.statLab}>Found</Typography></View>
-                <View style={styles.statCard}><Typography style={styles.statNum}>{lastResult.totalProcessed}</Typography><Typography style={styles.statLab}>Total</Typography></View>
+                <View style={[styles.statCard, { backgroundColor: cardColor, borderColor: border }]}><Typography style={[styles.statNum, {color:primary}]}>{lastResult.expenses.length}</Typography><Typography style={styles.statLab}>Found</Typography></View>
+                <View style={[styles.statCard, { backgroundColor: cardColor, borderColor: border }]}><Typography style={[styles.statNum, { color: text }]}>{lastResult.totalProcessed}</Typography><Typography style={styles.statLab}>Total</Typography></View>
                 {lastResult.suspicious && lastResult.suspicious.length > 0 && (
-                  <View style={[styles.statCard, {borderColor:'#fee2e2'}]}><Typography style={[styles.statNum, {color:'#ef4444'}]}>{lastResult.suspicious.length}</Typography><Typography style={styles.statLab}>Flagged</Typography></View>
+                  <View style={[styles.statCard, { borderColor:'#fee2e2', backgroundColor: cardColor }]}><Typography style={[styles.statNum, {color:'#ef4444'}]}>{lastResult.suspicious.length}</Typography><Typography style={styles.statLab}>Flagged</Typography></View>
                 )}
               </View>
 
@@ -466,24 +476,24 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  card: { margin: 16, padding: 16, borderRadius: 24 },
+  container: { flex: 1, paddingHorizontal: 16 },
+  card: { padding: 16, borderRadius: 24, marginTop: 16 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  headerIconContainer: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  title: { fontSize: 20, fontWeight: '700', color: '#1f2937' },
-  description: { fontSize: 13, color: '#6b7280' },
+  headerIconContainer: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  title: { fontSize: 20, fontWeight: '700' },
+  description: { fontSize: 13 },
   sectionTitle: { fontSize: 12, fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
   rangeSelector: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  rangePill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#f1f5f9' },
+  rangePill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#64748b55' },
   rangePillActive: { backgroundColor: '#f97316', borderColor: '#f97316' },
   rangePillText: { fontSize: 12, fontWeight: '600', color: '#64748b' },
   rangePillTextActive: { color: '#fff' },
   inputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 },
   numericInput: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, width: 60, fontSize: 14 },
-  alertBlock: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 18, backgroundColor: '#fff7ed', marginTop: 20, marginBottom: 12 },
-  resultsContainer: { marginTop: 24, paddingTop: 24, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+  alertBlock: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 18, marginTop: 20, marginBottom: 12 },
+  resultsContainer: { marginTop: 24, paddingTop: 24, borderTopWidth: 1 },
   statGrid: { flexDirection: 'row', gap: 10 },
-  statCard: { flex: 1, padding: 12, borderRadius: 16, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f1f5f9', alignItems: 'center' },
+  statCard: { flex: 1, padding: 12, borderRadius: 16, borderWidth: 1, alignItems: 'center' },
   statNum: { fontSize: 18, fontWeight: '800' },
   statLab: { fontSize: 10, color: '#94a3b8', fontWeight: '600' },
   expenseItem: { overflow: 'hidden' },
@@ -497,7 +507,7 @@ const styles = StyleSheet.create({
   suspiciousBlock: { marginTop: 24, padding: 16, borderRadius: 20, backgroundColor: '#fff8f7', borderWidth: 1, borderColor: '#fee2e2' },
   suspItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#fdeceb' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: '90%', backgroundColor: '#fff', borderRadius: 28, padding: 24 },
+  modalContent: { width: '90%', borderRadius: 28, padding: 24 },
   calendarContainer: { width: '100%' },
   calendarHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   calendarTitle: { fontSize: 16, fontWeight: '700' },

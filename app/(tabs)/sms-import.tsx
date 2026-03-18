@@ -1,10 +1,13 @@
 import React from 'react';
 import { View, StyleSheet, SafeAreaView } from 'react-native';
 import SMSImport from '@/components/SMSImport';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 export default function SMSImportScreen() {
+  const background = useThemeColor({}, 'background');
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
       <View style={styles.content}>
         <SMSImport
           onImportComplete={(result) => {
@@ -20,7 +23,6 @@ export default function SMSImportScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   content: {
     flex: 1,
