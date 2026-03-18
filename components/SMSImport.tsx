@@ -12,12 +12,12 @@ import {
 import { saveTransaction } from '@/services/transactionService';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { useAppTheme } from '@/contexts/ThemeContext';
+import ThemeContext from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Link } from 'expo-router';
 import { AlertCircle, CheckCircle, Download, Info, MessageCircle, Calendar as CalendarIcon } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -47,8 +47,8 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   const text = useThemeColor({}, 'text');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
   
-  const { theme } = useAppTheme();
-  const isDark = theme === 'dark';
+  const ctx = useContext(ThemeContext);
+  const isDark = (ctx?.theme ?? 'dark') === 'dark';
   
   const [customDays, setCustomDays] = useState<number>(7);
   const [customStart, setCustomStart] = useState<string>(''); 

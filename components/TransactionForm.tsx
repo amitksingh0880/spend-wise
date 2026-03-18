@@ -3,7 +3,7 @@ import { getAllCategories } from '@/services/categoryService';
 import { saveTransaction, Transaction, updateTransaction } from '@/services/transactionService';
 import { getCurrencySymbol } from '@/utils/currency';
 import { FileText, Tag, X } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { useAppTheme } from '@/contexts/ThemeContext';
+import ThemeContext from '@/contexts/ThemeContext';
 
 interface TransactionFormProps {
   visible: boolean;
@@ -49,8 +49,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   const text = useThemeColor({}, 'text');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
   
-  const { theme } = useAppTheme();
-  const isDark = theme === 'dark';
+  const ctx = useContext(ThemeContext);
+  const isDark = (ctx?.theme ?? 'dark') === 'dark';
 
   useEffect(() => {
     if (visible) {
