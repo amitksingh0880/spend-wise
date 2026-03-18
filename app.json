@@ -20,7 +20,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "permissions": ["READ_SMS", "RECEIVE_SMS", "SEND_SMS"],
+      "permissions": ["READ_SMS", "RECEIVE_SMS", "SEND_SMS", "RECEIVE_BOOT_COMPLETED", "WAKE_LOCK", "POST_NOTIFICATIONS"],
       "package": "com.amit.k.singh.spendwise"
     },
     "web": {
@@ -41,7 +41,10 @@
           }
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-background-fetch",
+      "expo-task-manager",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,

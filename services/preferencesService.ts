@@ -18,6 +18,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
     pushNotifications: true,
   },
   defaultCategories: [],
+  smsAutoFetch: false,
 };
 
 export const getUserPreferences = async (): Promise<UserPreferences> => {

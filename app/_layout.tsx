@@ -1,5 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as React from 'react';
 import { useEffect, useState } from 'react';
@@ -13,6 +13,7 @@ import { ThemeProvider as AppThemeProvider, useAppTheme } from '@/contexts/Theme
 // Auth code removed
 import { getUserPreferences } from '@/services/preferencesService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { registerSmsAutoFetch } from '@/services/backgroundTaskService';
 import { 
   useFonts, 
   JetBrainsMono_400Regular, 
@@ -28,6 +29,7 @@ import { Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold
 import { Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from '@expo-google-fonts/roboto';
 import { OpenSans_400Regular, OpenSans_500Medium, OpenSans_600SemiBold, OpenSans_700Bold } from '@expo-google-fonts/open-sans';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Notifications from 'expo-notifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -38,9 +40,50 @@ export const unstable_settings = {
 export default function RootLayout() {
   const [showStartup, setShowStartup] = useState(true);
   const [isLocked, setIsLocked] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    // Listener for notification responses (when user taps a notification)
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const { screen } = response.notification.request.content.data;
+      if (screen === 'transactions') {
+        router.push('/(tabs)/transaction');
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     // Authentication flow removed for now
+    
+    // Register background tasks if enabled
+    const initBackgroundTasks = async () => {
+      try {
+        const prefs = await getUserPreferences();
+        if (prefs.smsAutoFetch) {
+          // Request notification permissions
+          const { status: existingStatus } = await Notifications.getPermissionsAsync();
+          let finalStatus = existingStatus;
+          if (existingStatus !== 'granted') {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+          }
+          
+          if (finalStatus === 'granted') {
+            await registerSmsAutoFetch();
+          } else {
+             console.warn('Notification permission not granted, but SMS auto-fetch is enabled.');
+             // We still register the task, but notify user that notifications won't work
+             await registerSmsAutoFetch();
+          }
+        }
+      } catch (error) {
+        console.error('Failed to initialize background tasks', error);
+      }
+    };
+    
+    initBackgroundTasks();
   }, []);
 
   useEffect(() => {

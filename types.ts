@@ -92,5 +92,6 @@ export interface UserPreferences {
     appName?: string;
     avatarUri?: string;
     fontFamily?: FontFamily;
+    smsAutoFetch?: boolean;
     // authentication preferences removed
 }
