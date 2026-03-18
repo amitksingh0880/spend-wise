@@ -1,11 +1,11 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
 import React from 'react';
-import { StyleSheet, View, ViewStyle } from 'react-native';
+import { StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 interface CardProps {
   children?: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   delay?: number;
 }
 

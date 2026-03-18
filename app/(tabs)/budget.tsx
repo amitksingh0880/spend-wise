@@ -220,17 +220,20 @@ const BudgetScreen: React.FC = () => {
       >
         <Typography variant="title" weight="bold" style={styles.headerTitle}>Budgeting</Typography>
         
-        <Card style={styles.summaryCard} delay={100}>
+        <Card style={[styles.summaryCard, { 
+          backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)',
+          borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.2)',
+        }]} delay={100}>
           <CardContent style={styles.summaryContent}>
             <View style={styles.summaryHeader}>
               <View>
                 <Typography variant="small" style={{ color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>Total Spent</Typography>
                 <View style={styles.summaryRow}>
-                  <Typography variant="title" weight="bold" style={{ color: '#FFFFFF', fontSize: 28 }}>{formatAmount(summary?.totalSpent || 0)}</Typography>
-                  <Typography style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 8, fontSize: 16 }}>/ {formatAmount(summary?.totalBudgeted || 0)}</Typography>
+                  <Typography variant="title" weight="bold" style={{ color: '#FFFFFF', fontSize: 32 }}>{formatAmount(summary?.totalSpent || 0)}</Typography>
+                  <Typography style={{ color: 'rgba(255,255,255,0.6)', marginLeft: 8, fontSize: 18, marginBottom: 4 }}>/ {formatAmount(summary?.totalBudgeted || 0)}</Typography>
                 </View>
               </View>
-              <View style={[styles.summaryIcon, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]}>
+              <View style={[styles.summaryIcon, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
                 <Wallet size={24} color="#FFFFFF" />
               </View>
             </View>
@@ -240,8 +243,8 @@ const BudgetScreen: React.FC = () => {
                 <View style={[styles.summaryProgressFill, { width: `${totalPercentage}%`, backgroundColor: '#FFFFFF' }]} />
               </View>
               <View style={styles.summaryFooter}>
-                 <Typography variant="small" weight="bold" style={{ color: '#FFFFFF', marginTop: 8 }}>{totalPercentage.toFixed(0)}% utilized</Typography>
-                 <Typography variant="small" style={{ color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>
+                 <Typography variant="small" weight="bold" style={{ color: '#FFFFFF', marginTop: 10 }}>{totalPercentage.toFixed(0)}% utilized</Typography>
+                 <Typography variant="small" weight="medium" style={{ color: 'rgba(255,255,255,0.85)', marginTop: 10 }}>
                     {formatAmount(Math.max(0, (summary?.totalBudgeted || 0) - (summary?.totalSpent || 0)))} left
                  </Typography>
               </View>
@@ -251,6 +254,7 @@ const BudgetScreen: React.FC = () => {
       </LinearGradient>
 
       <ScrollView
+        style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={primary} />}
@@ -334,10 +338,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   summaryCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 24,
+    borderRadius: 28,
     padding: 2,
+    marginTop: 8,
   },
   summaryContent: {
     padding: 20,
@@ -369,9 +372,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryProgressBar: {
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 4,
+    height: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 5,
     overflow: 'hidden',
   },
   summaryProgressFill: {
@@ -381,6 +384,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+    paddingBottom: 120, // To ensure content isn't hidden by bottom tab bar
   },
   alertCard: {
     backgroundColor: '#fffbeb',

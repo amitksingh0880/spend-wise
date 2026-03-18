@@ -3,6 +3,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { emitter } from '@/libs/emitter';
 import { deleteKey } from '@/libs/storage';
 import { getCurrency, getUserPreferences, saveUserPreferences, updateCurrency } from '@/services/preferencesService';
+import { seedMockData } from '@/services/seedService';
 import { CURRENCIES, Currency } from '@/utils/currency';
 import { Card, CardContent } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
@@ -131,6 +132,30 @@ const SettingsScreen: React.FC = () => {
               Alert.alert('Success', 'All data has been cleared!');
             } catch (error) {
               Alert.alert('Error', 'Failed to clear data');
+            } finally {
+              setLoading(false);
+            }
+          }
+        },
+      ]
+    );
+  };
+
+  const handleLoadMockData = async () => {
+    Alert.alert(
+      'Load Mock Data',
+      'This will add sample transactions and budgets to your app. Do you want to proceed?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Load', 
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const result = await seedMockData();
+              Alert.alert('Success', `Successfully loaded ${result.transactionsCount} transactions and ${result.budgetsCount} budgets!`);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to load mock data');
             } finally {
               setLoading(false);
             }
@@ -301,6 +326,14 @@ const SettingsScreen: React.FC = () => {
           />
           <SettingRow
             index={5}
+            icon={Database}
+            title="Load Mock Data"
+            subtitle="Populate app with sample data"
+            color="#10b981"
+            onPress={handleLoadMockData}
+          />
+          <SettingRow
+            index={6}
             icon={Trash2}
             title="Clear All Data"
             subtitle="Delete all app data"
@@ -312,14 +345,14 @@ const SettingsScreen: React.FC = () => {
         <Typography variant="subtitle" weight="bold" style={styles.sectionHeading}>About</Typography>
         <Card style={styles.sectionCard} delay={0}>
           <SettingRow
-            index={6}
+            index={7}
             icon={Info}
             title="Version"
             subtitle="1.0.0 (Build 42)"
             color="#64748b"
           />
           <SettingRow
-            index={7}
+            index={8}
             icon={HelpCircle}
             title="Help & Support"
             subtitle="Contact us for assistance"
@@ -340,13 +373,14 @@ const SettingsScreen: React.FC = () => {
         onRequestClose={() => setShowCurrencyModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <Animated.View entering={FadeInUp} style={styles.modalContent}>
+          <Animated.View entering={FadeInUp} style={[styles.modalContent, { backgroundColor: cardColor }]}>
             <Typography variant="bold" style={styles.modalTitle}>Select Currency</Typography>
             {Object.values(CURRENCIES).map((curr) => (
               <TouchableOpacity
                 key={curr.code}
                 style={[
                   styles.currencyOption,
+                  { borderColor: border },
                   currency === curr.code && { backgroundColor: `${primary}15`, borderColor: primary },
                 ]}
                 onPress={() => handleCurrencyChange(curr.code)}
@@ -359,7 +393,7 @@ const SettingsScreen: React.FC = () => {
                 {currency === curr.code && <Typography style={{ color: primary }}>✓</Typography>}
               </TouchableOpacity>
             ))}
-            <TouchableOpacity style={styles.closeModal} onPress={() => setShowCurrencyModal(false)}>
+            <TouchableOpacity style={[styles.closeModal, { backgroundColor: isDark ? '#334155' : '#1e293b' }]} onPress={() => setShowCurrencyModal(false)}>
               <Typography variant="bold" style={{ color: '#FFFFFF' }}>Cancel</Typography>
             </TouchableOpacity>
           </Animated.View>
@@ -373,7 +407,7 @@ const SettingsScreen: React.FC = () => {
         onRequestClose={() => setShowSupportModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <Animated.View entering={FadeInUp} style={styles.modalContent}>
+          <Animated.View entering={FadeInUp} style={[styles.modalContent, { backgroundColor: cardColor }]}>
             <View style={[styles.iconBox, { backgroundColor: `#06b6d415`, alignSelf: 'center', marginBottom: 16 }]}>
               <HelpCircle size={24} color="#06b6d4" />
             </View>
@@ -392,7 +426,7 @@ const SettingsScreen: React.FC = () => {
               <Typography variant="bold" style={{ flex: 1 }}>divyanox.dev@gmail.com</Typography>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.closeModal} onPress={() => setShowSupportModal(false)}>
+            <TouchableOpacity style={[styles.closeModal, { backgroundColor: isDark ? '#334155' : '#1e293b' }]} onPress={() => setShowSupportModal(false)}>
               <Typography variant="bold" style={{ color: '#FFFFFF' }}>Close</Typography>
             </TouchableOpacity>
           </Animated.View>
