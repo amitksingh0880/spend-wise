@@ -54,8 +54,8 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
       styles.container, 
       animatedStyle, 
       { 
-        backgroundColor: isDark ? 'rgba(24, 24, 27, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.5)'
+        backgroundColor: isDark ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)',
+        borderColor: border // Use theme border to match app aesthetic
       }
     ]}>
       <BlurView intensity={Platform.OS === 'ios' ? 80 : 0} tint={isDark ? "dark" : "light"} style={styles.blurContainer}>

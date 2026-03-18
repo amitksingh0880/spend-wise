@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 interface TransactionFormProps {
   visible: boolean;
@@ -47,6 +48,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   const primary = useThemeColor({}, 'primary');
   const text = useThemeColor({}, 'text');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
+  
+  const { theme } = useAppTheme();
+  const isDark = theme === 'dark';
 
   useEffect(() => {
     if (visible) {
@@ -152,14 +156,14 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           <Typography variant="title" weight="bold" style={{ color: text }}>
             {transaction ? 'Edit Transaction' : 'Add Transaction'}
           </Typography>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
             <X size={24} color={mutedForeground} />
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.form}>
           {/* Transaction Type */}
-          <View style={[styles.typeContainer, { backgroundColor: border }]}>
+          <View style={[styles.typeContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
             <TouchableOpacity
               style={[
                 styles.typeButton,
@@ -318,7 +322,6 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: '#00000008',
   },
   form: {
     flex: 1,
@@ -329,7 +332,6 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     borderRadius: 16,
     padding: 6,
-    backgroundColor: '#00000005',
   },
   typeButton: {
     flex: 1,
