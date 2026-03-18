@@ -4,7 +4,7 @@
     "slug": "spend-wise",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.jpg",
+    "icon": "./assets/images/icon.png",
     "scheme": "spendwise",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
