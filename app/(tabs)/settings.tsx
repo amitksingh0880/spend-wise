@@ -5,6 +5,7 @@ import { deleteKey } from '@/libs/storage';
 import { getCurrency, getUserPreferences, saveUserPreferences, updateCurrency } from '@/services/preferencesService';
 import { seedMockData } from '@/services/seedService';
 import { CURRENCIES, Currency } from '@/utils/currency';
+import { FontFamily } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -20,6 +21,7 @@ import {
   Settings,
   Trash2,
   Upload,
+  Type,
   ChevronRight,
   ShieldAlert,
   HelpCircle,
@@ -53,9 +55,10 @@ const SettingsScreen: React.FC = () => {
   const [appName, setAppName] = useState('');
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [showFontModal, setShowFontModal] = useState(false);
   const { refreshCurrency } = useCurrency();
 
-  const { theme } = useAppTheme();
+  const { theme, fontFamily, setFontFamily } = useAppTheme();
   const isDark = theme === 'dark';
 
   const background = useThemeColor({}, 'background');
@@ -297,12 +300,20 @@ const SettingsScreen: React.FC = () => {
             color="#22c55e"
             onPress={() => setShowCurrencyModal(true)}
           />
+          <SettingRow
+            index={3}
+            icon={Type}
+            title="Font Style"
+            subtitle={fontFamily === 'jetbrains' ? 'JetBrains Mono' : fontFamily === 'opensans' ? 'Open Sans' : fontFamily.charAt(0).toUpperCase() + fontFamily.slice(1)}
+            color="#f59e0b"
+            onPress={() => setShowFontModal(true)}
+          />
         </Card>
 
         <Typography variant="subtitle" weight="bold" style={styles.sectionHeading}>Data Management</Typography>
         <Card style={styles.sectionCard} delay={0}>
           <SettingRow
-            index={3}
+            index={4}
             icon={ShieldAlert}
             title="Review Suspicious"
             subtitle="Verify flagged transactions"
@@ -317,7 +328,7 @@ const SettingsScreen: React.FC = () => {
             }
           />
           <SettingRow
-            index={4}
+            index={5}
             icon={Download}
             title="Export Data"
             subtitle="Export to CSV or JSON"
@@ -325,7 +336,7 @@ const SettingsScreen: React.FC = () => {
             onPress={() => {}}
           />
           <SettingRow
-            index={5}
+            index={6}
             icon={Database}
             title="Load Mock Data"
             subtitle="Populate app with sample data"
@@ -333,7 +344,7 @@ const SettingsScreen: React.FC = () => {
             onPress={handleLoadMockData}
           />
           <SettingRow
-            index={6}
+            index={7}
             icon={Trash2}
             title="Clear All Data"
             subtitle="Delete all app data"
@@ -345,14 +356,14 @@ const SettingsScreen: React.FC = () => {
         <Typography variant="subtitle" weight="bold" style={styles.sectionHeading}>About</Typography>
         <Card style={styles.sectionCard} delay={0}>
           <SettingRow
-            index={7}
+            index={8}
             icon={Info}
             title="Version"
             subtitle="1.0.0 (Build 42)"
             color="#64748b"
           />
           <SettingRow
-            index={8}
+            index={9}
             icon={HelpCircle}
             title="Help & Support"
             subtitle="Contact us for assistance"
@@ -394,6 +405,51 @@ const SettingsScreen: React.FC = () => {
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={[styles.closeModal, { backgroundColor: isDark ? '#334155' : '#1e293b' }]} onPress={() => setShowCurrencyModal(false)}>
+              <Typography variant="bold" style={{ color: '#FFFFFF' }}>Cancel</Typography>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showFontModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowFontModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View entering={FadeInUp} style={[styles.modalContent, { backgroundColor: cardColor }]}>
+            <View style={[styles.iconBox, { backgroundColor: `#f59e0b15`, alignSelf: 'center', marginBottom: 16 }]}>
+              <Type size={24} color="#f59e0b" />
+            </View>
+            <Typography variant="bold" style={styles.modalTitle}>Select Font Style</Typography>
+            {[
+              { id: 'inter', name: 'Inter', desc: 'Clean & Modern' },
+              { id: 'outfit', name: 'Outfit', desc: 'Sleek & Rounded' },
+              { id: 'roboto', name: 'Roboto', desc: 'Classic Sans' },
+              { id: 'opensans', name: 'Open Sans', desc: 'Highly Legible' },
+              { id: 'jetbrains', name: 'JetBrains Mono', desc: 'Coding Style' }
+            ].map((fontVariant) => (
+              <TouchableOpacity
+                key={fontVariant.id}
+                style={[
+                  styles.currencyOption,
+                  { borderColor: border },
+                  fontFamily === fontVariant.id && { backgroundColor: `${primary}15`, borderColor: primary },
+                ]}
+                onPress={() => {
+                  setFontFamily(fontVariant.id as FontFamily);
+                  setShowFontModal(false);
+                }}
+              >
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Typography variant="bold">{fontVariant.name}</Typography>
+                  <Typography variant="small" style={{ color: mutedForeground }}>{fontVariant.desc}</Typography>
+                </View>
+                {fontFamily === fontVariant.id && <Typography style={{ color: primary }}>✓</Typography>}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={[styles.closeModal, { backgroundColor: isDark ? '#334155' : '#1e293b' }]} onPress={() => setShowFontModal(false)}>
               <Typography variant="bold" style={{ color: '#FFFFFF' }}>Cancel</Typography>
             </TouchableOpacity>
           </Animated.View>

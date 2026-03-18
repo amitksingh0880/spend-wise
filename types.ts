@@ -80,6 +80,8 @@ export interface NotificationSettings {
 
 export type Currency = 'USD' | 'INR';
 
+export type FontFamily = 'jetbrains' | 'inter' | 'outfit' | 'roboto' | 'opensans';
+
 export interface UserPreferences {
     currency: Currency;
     dateFormat: string;
@@ -89,5 +91,6 @@ export interface UserPreferences {
     name?: string;
     appName?: string;
     avatarUri?: string;
+    fontFamily?: FontFamily;
     // authentication preferences removed
 }
