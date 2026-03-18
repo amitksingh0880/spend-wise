@@ -171,7 +171,7 @@ const InsightsScreen: React.FC = () => {
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: background }]} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { backgroundColor: background }]} showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 }}>
       <StatusBar barStyle="light-content" />
       
       <LinearGradient
@@ -291,7 +291,7 @@ const InsightsScreen: React.FC = () => {
         </Card>
 
         {categoryData.length > 0 && (
-          <>
+          <View>
             <Card style={styles.chartCard} delay={400}>
               <CardHeader style={styles.chartHeader}>
                 <View>
@@ -353,14 +353,14 @@ const InsightsScreen: React.FC = () => {
               </View>
             </CardContent>
           </Card>
-          </>
+          </View>
         )}
 
         <Typography variant="subtitle" weight="bold" style={styles.sectionTitle}>Smart Insights</Typography>
         
         {insights.map((insight, index) => (
           <Animated.View 
-            key={insight.title} 
+            key={insight.id || `insight-${index}`} 
             entering={FadeInRight.delay(500 + index * 100).duration(500)}
           >
             <Card style={styles.insightCard} delay={0}>

@@ -11,9 +11,12 @@ import { DashboardHeader } from '@/components/DashboardHeader';
 import { BudgetHeroCard } from '@/components/BudgetHeroCard';
 import { RecentTransactionsList } from '@/components/RecentTransactionsList';
 import { Typography } from '@/components/ui/text';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { ArrowDownLeft, ArrowUpRight } from 'lucide-react-native';
 
 const DashboardScreen: React.FC = () => {
   const router = useRouter();
+  const { formatAmount } = useCurrency();
   const [summary, setSummary] = useState<any>(null);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +96,7 @@ const DashboardScreen: React.FC = () => {
   return (
     <ScrollView 
       style={[styles.container, { backgroundColor: background }]}
+      contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 }}
       showsVerticalScrollIndicator={false}
       onScroll={handleScroll}
       scrollEventThrottle={16}
@@ -101,6 +105,28 @@ const DashboardScreen: React.FC = () => {
       
       <DashboardHeader userName={userName} />
       
+      <View style={styles.summaryCardsRow}>
+        <View style={[styles.summaryCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#f1f5f9' }]}>
+           <View style={[styles.iconBox, { backgroundColor: '#f0fdf4' }]}>
+               <ArrowDownLeft size={20} color="#22c55e" />
+           </View>
+           <View>
+              <Typography variant="small" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>Total Income</Typography>
+              <Typography variant="bold" style={styles.summaryValue}>{formatAmount(summary?.totalIncome || 0)}</Typography>
+           </View>
+        </View>
+
+        <View style={[styles.summaryCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#f1f5f9' }]}>
+           <View style={[styles.iconBox, { backgroundColor: '#fef2f2' }]}>
+               <ArrowUpRight size={20} color="#ef4444" />
+           </View>
+           <View>
+              <Typography variant="small" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>Total Spent</Typography>
+              <Typography variant="bold" style={styles.summaryValue}>{formatAmount(summary?.totalExpenses || 0)}</Typography>
+           </View>
+        </View>
+      </View>
+
       <View style={styles.cardWrapper}>
         <BudgetHeroCard 
           title="Your daily budget"
@@ -131,6 +157,34 @@ const styles = StyleSheet.create({
   cardWrapper: {
     marginTop: 20,
     marginBottom: 10,
+    paddingHorizontal: 24,
+  },
+  summaryCardsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    marginTop: 10,
+  },
+  summaryCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginHorizontal: 4,
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  summaryValue: {
+    fontSize: 16,
+    marginTop: 2,
   }
 });
 
