@@ -5,6 +5,11 @@ import { deleteKey } from '@/libs/storage';
 import { getCurrency, getUserPreferences, saveUserPreferences, updateCurrency } from '@/services/preferencesService';
 import { seedMockData } from '@/services/seedService';
 import { CURRENCIES, Currency } from '@/utils/currency';
+import { 
+  registerSmsAutoFetch, 
+  unregisterSmsAutoFetch, 
+  isSmsAutoFetchRegistered 
+} from '@/services/backgroundTaskService';
 import { FontFamily } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
@@ -56,6 +61,7 @@ const SettingsScreen: React.FC = () => {
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showFontModal, setShowFontModal] = useState(false);
+  const [smsAutoFetch, setSmsAutoFetch] = useState(false);
   const { refreshCurrency } = useCurrency();
 
   const { theme, fontFamily, setFontFamily } = useAppTheme();
@@ -83,6 +89,7 @@ const SettingsScreen: React.FC = () => {
       setUserName(prefs.name || 'Amit Kumar');
       setAppName(prefs.appName || 'SpendWise');
       setNotifications(prefs.notifications.budgetAlerts);
+      setSmsAutoFetch(!!prefs.smsAutoFetch);
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -308,6 +315,31 @@ const SettingsScreen: React.FC = () => {
             color="#f59e0b"
             onPress={() => setShowFontModal(true)}
           />
+          {Platform.OS === 'android' && (
+            <SettingRow
+              index={4}
+              icon={MessageCircle}
+              title="Daily SMS Auto-Fetch"
+              subtitle="Process bank alerts at 10 PM"
+              color="#ec4899"
+              rightElement={
+                <Switch
+                  value={smsAutoFetch}
+                  onValueChange={async (v) => { 
+                    setSmsAutoFetch(v); 
+                    await saveUserPreferences({ smsAutoFetch: v });
+                    if (v) {
+                      await registerSmsAutoFetch();
+                    } else {
+                      await unregisterSmsAutoFetch();
+                    }
+                  }}
+                  trackColor={{ false: '#e2e8f0', true: primary }}
+                  thumbColor="#FFFFFF"
+                />
+              }
+            />
+          )}
         </Card>
 
         <Typography variant="subtitle" weight="bold" style={styles.sectionHeading}>Data Management</Typography>
