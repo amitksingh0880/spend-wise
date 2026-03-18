@@ -93,5 +93,6 @@ export interface UserPreferences {
     avatarUri?: string;
     fontFamily?: FontFamily;
     smsAutoFetch?: boolean;
+    smsAutoFetchHour?: number; // 0-23
     // authentication preferences removed
 }

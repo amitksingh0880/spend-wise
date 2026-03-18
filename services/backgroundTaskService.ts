@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { readJson, writeJson } from '@/libs/storage';
 import { importExpensesFromSMS } from './smsService';
+import { getUserPreferences } from './preferencesService';
 
 const SMS_AUTO_FETCH_TASK = 'SMS_AUTO_FETCH_TASK';
 const LAST_AUTO_FETCH_RUN_KEY = 'smsAutoFetch:lastRun';
@@ -20,14 +21,17 @@ Notifications.setNotificationHandler({
 });
 
 /**
- * Validates if the task should run (Checks if it's after 10 PM and hasn't run today)
+ * Validates if the task should run (Checks if it's after the user-specified hour and hasn't run today)
  */
 const shouldRunAutoFetch = async (): Promise<boolean> => {
   const now = new Date();
   const currentHour = now.getHours();
 
-  // Condition 1: Must be 10 PM (22:00) or later
-  if (currentHour < 22) {
+  const prefs = await getUserPreferences();
+  const targetHour = prefs.smsAutoFetchHour ?? 22;
+
+  // Condition 1: Must be the target hour or later
+  if (currentHour < targetHour) {
     return false;
   }
 
