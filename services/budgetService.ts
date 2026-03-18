@@ -18,7 +18,7 @@ export interface Budget {
   updatedAt: string;
 }
 
-export interface BudgetAlert {
+interface BudgetAlert {
   id: string;
   budgetId: string;
   type: 'warning' | 'exceeded' | 'approaching';
@@ -28,7 +28,7 @@ export interface BudgetAlert {
   createdAt: string;
 }
 
-export interface BudgetSummary {
+interface BudgetSummary {
   totalBudgeted: number;
   totalSpent: number;
   totalRemaining: number;
@@ -53,7 +53,7 @@ export const getAllBudgets = async (): Promise<Budget[]> => {
   return (await readJson<Budget[]>(BUDGETS_STORAGE_KEY)) || [];
 };
 
-export const getBudgetById = async (id: string): Promise<Budget | null> => {
+const getBudgetById = async (id: string): Promise<Budget | null> => {
   const budgets = await getAllBudgets();
   return budgets.find(budget => budget.id === id) || null;
 };
@@ -73,7 +73,7 @@ export const createBudget = async (budgetData: Omit<Budget, 'id' | 'spent' | 'cr
   return newBudget;
 };
 
-export const updateBudget = async (id: string, updates: Partial<Omit<Budget, 'id' | 'createdAt'>>): Promise<void> => {
+const updateBudget = async (id: string, updates: Partial<Omit<Budget, 'id' | 'createdAt'>>): Promise<void> => {
   const budgets = await getAllBudgets();
   const updatedBudgets = budgets.map(budget =>
     budget.id === id 
@@ -97,7 +97,7 @@ export const deleteBudget = async (id: string): Promise<void> => {
 };
 
 // Budget Calculation and Updates
-export const updateBudgetSpending = async (): Promise<void> => {
+const updateBudgetSpending = async (): Promise<void> => {
   const budgets = await getAllBudgets();
   const transactions = await getAllTransactions();
   
@@ -123,7 +123,7 @@ const calculateSpentAmount = (budget: Budget, transactions: any[]): number => {
     .reduce((sum, tx) => sum + tx.amount, 0);
 };
 
-export const getBudgetProgress = async (budgetId: string): Promise<{
+const getBudgetProgress = async (budgetId: string): Promise<{
   budget: Budget;
   percentage: number;
   remaining: number;
@@ -168,12 +168,9 @@ export const getBudgetProgress = async (budgetId: string): Promise<{
 };
 
 // Budget Categories and Templates
-export const getBudgetsByCategory = async (category: string): Promise<Budget[]> => {
-  const budgets = await getAllBudgets();
-  return budgets.filter(budget => budget.category === category && budget.isActive);
-};
 
-export const getActiveBudgets = async (): Promise<Budget[]> => {
+
+const getActiveBudgets = async (): Promise<Budget[]> => {
   const budgets = await getAllBudgets();
   const now = new Date();
   return budgets.filter(budget => 
@@ -183,37 +180,14 @@ export const getActiveBudgets = async (): Promise<Budget[]> => {
   );
 };
 
-export const createBudgetTemplate = async (name: string, categories: { category: string; amount: number; color: string }[]): Promise<void> => {
-  const templates = (await readJson<any[]>('budget_templates')) || [];
-  const newTemplate = {
-    id: uuidv4(),
-    name,
-    categories,
-    createdAt: new Date().toISOString()
-  };
-  await writeJson('budget_templates', [newTemplate, ...templates]);
-};
 
-export const getBudgetTemplates = async (): Promise<any[]> => {
-  return (await readJson<any[]>('budget_templates')) || [];
-};
 
 // Budget Alerts
-export const getAllBudgetAlerts = async (): Promise<BudgetAlert[]> => {
+const getAllBudgetAlerts = async (): Promise<BudgetAlert[]> => {
   return (await readJson<BudgetAlert[]>(BUDGET_ALERTS_STORAGE_KEY)) || [];
 };
 
-export const createBudgetAlert = async (alertData: Omit<BudgetAlert, 'id' | 'createdAt'>): Promise<BudgetAlert> => {
-  const alerts = await getAllBudgetAlerts();
-  const newAlert: BudgetAlert = {
-    id: uuidv4(),
-    createdAt: new Date().toISOString(),
-    ...alertData,
-  };
-  
-  await writeJson(BUDGET_ALERTS_STORAGE_KEY, [newAlert, ...alerts]);
-  return newAlert;
-};
+
 
 export const checkBudgetAlerts = async (): Promise<BudgetAlert[]> => {
   const budgets = await getActiveBudgets();
@@ -254,13 +228,7 @@ export const checkBudgetAlerts = async (): Promise<BudgetAlert[]> => {
   return newAlerts;
 };
 
-export const dismissAlert = async (alertId: string): Promise<void> => {
-  const alerts = await getAllBudgetAlerts();
-  const updatedAlerts = alerts.map(alert =>
-    alert.id === alertId ? { ...alert, isActive: false } : alert
-  );
-  await writeJson(BUDGET_ALERTS_STORAGE_KEY, updatedAlerts);
-};
+
 
 // Budget Analytics and Reporting
 export const getBudgetSummary = async (): Promise<BudgetSummary> => {
@@ -305,42 +273,7 @@ export const getBudgetSummary = async (): Promise<BudgetSummary> => {
   };
 };
 
-export const getBudgetTrends = async (months: number = 6): Promise<{
-  month: string;
-  budgeted: number;
-  spent: number;
-  variance: number;
-}[]> => {
-  const budgets = await getAllBudgets();
-  const trends: { month: string; budgeted: number; spent: number; variance: number }[] = [];
-  
-  const now = new Date();
-  
-  for (let i = months - 1; i >= 0; i--) {
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-    const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-    
-    const monthBudgets = budgets.filter(budget => {
-      const budgetStart = new Date(budget.startDate);
-      const budgetEnd = new Date(budget.endDate);
-      return budgetStart <= monthEnd && budgetEnd >= monthStart;
-    });
-    
-    const budgeted = monthBudgets.reduce((sum, budget) => sum + budget.amount, 0);
-    const spent = monthBudgets.reduce((sum, budget) => sum + budget.spent, 0);
-    const variance = budgeted - spent;
-    
-    trends.push({
-      month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-      budgeted,
-      spent,
-      variance
-    });
-  }
-  
-  return trends;
-};
+
 
 // Utility Functions
 export const generateBudgetPeriod = (period: 'weekly' | 'monthly' | 'yearly', startDate?: Date): { startDate: string; endDate: string } => {

@@ -1,0 +1,123 @@
+[93m[4mUnused files[24m[39m (14)
+components/external-link.tsx       
+components/hello-wave.tsx          
+components/parallax-scroll-view.tsx
+components/themed-text.tsx         
+components/themed-view.tsx         
+hooks/use-color-scheme.web.ts      
+services/apiService.ts             
+services/exportService.ts          
+services/smsImportModel.ts         
+utils/sampleData.ts                
+components/ui/collapsible.tsx      
+components/ui/icon-symbol.ios.tsx  
+components/ui/input.tsx            
+components/ui/picker.tsx           
+[93m[4mUnused dependencies[24m[39m (2)
+expo-file-system  package.json:31:6
+expo-sharing      package.json:38:6
+[93m[4mUnlisted dependencies[24m[39m (1)
+expo-updates  app.json
+[93m[4mUnlisted binaries[24m[39m (1)
+expo-doctor  package.json
+[93m[4mUnused exports[24m[39m (71)
+updateTheme                        services/preferencesService.ts:49:14        
+default                            libs/emitter.ts:28:16                       
+getBudgetById                      services/budgetService.ts:56:14             
+updateBudget                       services/budgetService.ts:76:14             
+updateBudgetSpending               services/budgetService.ts:100:14            
+getBudgetProgress                  services/budgetService.ts:126:14            
+getBudgetsByCategory               services/budgetService.ts:171:14            
+getActiveBudgets                   services/budgetService.ts:176:14            
+createBudgetTemplate               services/budgetService.ts:186:14            
+getBudgetTemplates                 services/budgetService.ts:197:14            
+getAllBudgetAlerts                 services/budgetService.ts:202:14            
+createBudgetAlert                  services/budgetService.ts:206:14            
+dismissAlert                       services/budgetService.ts:257:14            
+getBudgetTrends                    services/budgetService.ts:308:14            
+default                            components/ui/button.tsx:234:16             
+CardFooter                         components/ui/card.tsx:42:14                
+default                            components/ui/text.tsx:135:16               
+getTransactionById                 services/transactionService.ts:51:14        
+clearAllTransactions               services/transactionService.ts:85:14        
+searchTransactions                 services/transactionService.ts:110:14       
+importTransactions                 services/transactionService.ts:219:14       
+exportTransactions                 services/transactionService.ts:231:14       
+default                            components/RecentTransactionsList.tsx:182:16
+analyzeSpendingPatternsByCategory  services/analyticsService.ts:251:14         
+calculateFinancialHealthScore      services/analyticsService.ts:330:14         
+analyzeCashFlow                    services/analyticsService.ts:400:14         
+generateFinancialReport            services/analyticsService.ts:459:14         
+getCurrencyName                    utils/currency.ts:31:14                     
+readSMSMessages                    services/smsService.ts:193:14               
+startSmsListener                   services/smsService.ts:243:14               
+stopSmsListener                    services/smsService.ts:267:14               
+isBankSMS                          services/smsService.ts:276:14               
+isTransactionSMS                   services/smsService.ts:292:14               
+extractAmount                      services/smsService.ts:301:14               
+extractVendor                      services/smsService.ts:314:14               
+determineTransactionType           services/smsService.ts:325:14               
+categorizeTransaction              services/smsService.ts:332:14               
+calculateConfidence                services/smsService.ts:345:14               
+processSMSMessages                 services/smsService.ts:391:14               
+getSMSImportStats                  services/smsService.ts:598:14               
+getLastSyncForDate                 services/smsService.ts:628:14               
+setLastSyncForDate                 services/smsService.ts:639:14               
+isNativeAvailable                  services/smsService.ts:649:14               
+default                            services/smsService.ts:654:16               
+getFinancialInsights               services/aiService.ts:58:14                 
+generateSpendingInsights           services/aiService.ts:158:14                
+suggestBudgetOptimizations         services/aiService.ts:162:14                
+generateSavingRecommendations      services/aiService.ts:166:14                
+callGeminiAPI                      services/aiService.ts:170:14                
+Fonts                              constants/theme.ts:66:14                    
+default                            components/CustomTabBar.tsx:192:16          
+getCategoryById                    services/categoryService.ts:68:14           
+createCategory                     services/categoryService.ts:73:14           
+updateCategory                     services/categoryService.ts:87:14           
+deleteCategory                     services/categoryService.ts:99:14           
+getCategoriesByType                services/categoryService.ts:114:14          
+getParentCategories                services/categoryService.ts:119:14          
+getSubCategories                   services/categoryService.ts:124:14          
+searchCategories                   services/categoryService.ts:129:14          
+getCategoryUsageStats              services/categoryService.ts:139:14          
+getUnusedCategories                services/categoryService.ts:183:14          
+suggestCategoriesForTransaction    services/categoryService.ts:193:14          
+exportCategories                   services/categoryService.ts:234:14          
+importCategories                   services/categoryService.ts:239:14          
+initializeDefaultCategories        services/categoryService.ts:259:14          
+resetToDefaultCategories           services/categoryService.ts:271:14          
+getCategoryColors                  services/categoryService.ts:275:14          
+getCategoryIcons                   services/categoryService.ts:280:14          
+generateUUID                       utils/uuid.ts:4:14                          
+generateUUIDFallback               utils/uuid.ts:9:14                          
+default                            utils/uuid.ts:27:16                         
+[93m[4mUnused exported types[24m[39m (20)
+BudgetAlert         interface  services/budgetService.ts:21:18     
+BudgetSummary       interface  services/budgetService.ts:31:18     
+ButtonVariant       type       components/ui/button.tsx:23:13      
+ButtonSize          type       components/ui/button.tsx:24:13      
+TransactionFilters  interface  services/transactionService.ts:23:18
+TransactionSummary  interface  services/transactionService.ts:34:18
+FinancialInsight    interface  services/analyticsService.ts:4:18   
+SpendingPattern     interface  services/analyticsService.ts:16:18  
+FinancialHealth     interface  services/analyticsService.ts:33:18  
+CashFlowAnalysis    interface  services/analyticsService.ts:45:18  
+GoalProgress        interface  services/analyticsService.ts:63:18  
+CurrencyConfig      interface  utils/currency.ts:3:18              
+Screen              enum       types.ts:2:13                       
+Category            interface  types.ts:38:18                      
+Budget              interface  types.ts:49:18                      
+FinancialGoal       interface  types.ts:62:18                      
+SMSMessage          interface  services/smsService.ts:29:18        
+AIInsight           interface  services/aiService.ts:4:18          
+Category            interface  services/categoryService.ts:4:18    
+CategoryUsage       interface  services/categoryService.ts:17:18   
+[93m[4mDuplicate exports[24m[39m (6)
+emitter|default                 libs/emitter.ts                      
+Button|default                  components/ui/button.tsx             
+Typography|default              components/ui/text.tsx               
+RecentTransactionsList|default  components/RecentTransactionsList.tsx
+CustomTabBar|default            components/CustomTabBar.tsx          
+uuidv4|default                  utils/uuid.ts                        
+[33m[4mConfiguration hints[24m (1)[39m
