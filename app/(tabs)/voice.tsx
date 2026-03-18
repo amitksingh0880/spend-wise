@@ -1,39 +1,39 @@
-import {
-    chatWithAI,
-    prepareFinancialContext,
-    type ChatMessage,
-    type FinancialContext
-} from '@/services/aiService';
-import { Card } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
-import { useThemeColor } from '@/hooks/use-theme-color';
-import { Bot, Mic, Send, Sparkles, User, ChevronRight, MessageSquare, Info } from 'lucide-react-native';
-import React, { useEffect, useState, useRef } from 'react';
-import {
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
-    StatusBar,
-    ActivityIndicator,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInUp, FadeInRight, FadeIn, Layout, useAnimatedStyle, useSharedValue, withRepeat, withTiming, withSequence } from 'react-native-reanimated';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import {
+  chatWithAI,
+  prepareFinancialContext,
+  type ChatMessage,
+  type FinancialContext
+} from '@/services/aiService';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Bot, ChevronRight, MessageSquare, Send, Sparkles, User } from 'lucide-react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import Animated, { FadeIn, FadeInRight, FadeInUp, Layout, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const VoiceAssistantScreen: React.FC = () => {
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [financialContext, setFinancialContext] = useState<FinancialContext | null>(null);
-  
+
   const scrollViewRef = useRef<any>(null);
   const { theme } = useAppTheme();
   const isDark = theme === 'dark';
+  const insets = useSafeAreaInsets();
 
   const background = useThemeColor({}, 'background');
   const primary = useThemeColor({}, 'primary');
@@ -59,7 +59,7 @@ const VoiceAssistantScreen: React.FC = () => {
   const handleSend = async (textOverride?: string) => {
     const finalPrompt = textOverride || prompt;
     if (!finalPrompt.trim() || !financialContext) return;
-    
+
     const userMessage: ChatMessage = {
       id: `msg-${Date.now()}-user`,
       role: 'user',
@@ -74,7 +74,7 @@ const VoiceAssistantScreen: React.FC = () => {
 
     try {
       const aiResponse = await chatWithAI(finalPrompt, financialContext);
-      
+
       const botMessage: ChatMessage = {
         id: `msg-${Date.now()}-bot`,
         role: 'assistant',
@@ -116,15 +116,16 @@ const VoiceAssistantScreen: React.FC = () => {
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <LinearGradient
         colors={isDark ? ['#1e1b4b', '#0f172a'] : ['#4f46e5', '#3730a3']}
-        style={styles.headerGradient}
+        style={[styles.headerGradient, { paddingTop: Math.max(insets.top, 20) }]}
       >
         <Typography variant="title" weight="bold" style={styles.headerTitle}>AI Assistant</Typography>
         <Typography style={styles.headerSubtitle}>Personalized financial guidance</Typography>
       </LinearGradient>
 
-      <ScrollView 
+      <ScrollView
         ref={scrollViewRef}
-        contentContainerStyle={[styles.chatArea, { paddingBottom: 150 }]} // Increased padding for tab bar
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.chatArea, { paddingBottom: 60 }]}
         onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         showsVerticalScrollIndicator={false}
       >
@@ -145,8 +146,8 @@ const VoiceAssistantScreen: React.FC = () => {
                 "Am I on track with my budget?",
                 "Give me a financial tip"
               ].map((suggestion, i) => (
-                <TouchableOpacity 
-                  key={i} 
+                <TouchableOpacity
+                  key={i}
                   style={[styles.suggestionButton, { backgroundColor: cardColor, borderColor: border }]}
                   onPress={() => handleSend(suggestion)}
                 >
@@ -161,7 +162,7 @@ const VoiceAssistantScreen: React.FC = () => {
 
         {messages.map((message, index) => (
           <View key={message.id} style={[styles.messageWrapper, message.role === 'user' ? styles.userWrapper : styles.botWrapper]}>
-            <Animated.View 
+            <Animated.View
               entering={message.role === 'user' ? FadeInRight : FadeInUp}
               layout={Layout.springify()}
               style={{ flexDirection: 'row', alignItems: 'flex-end', width: '100%' }}
@@ -175,9 +176,9 @@ const VoiceAssistantScreen: React.FC = () => {
                 styles.messageBubble,
                 message.role === 'user' ? [styles.userBubble, { backgroundColor: primary }] : [styles.botBubble, { backgroundColor: cardColor, borderColor: border, borderWidth: 1 }]
               ]}>
-                <Typography 
+                <Typography
                   style={[
-                    styles.messageText, 
+                    styles.messageText,
                     { color: message.role === 'user' ? '#FFFFFF' : text }
                   ]}
                 >
@@ -205,7 +206,7 @@ const VoiceAssistantScreen: React.FC = () => {
         )}
       </ScrollView>
 
-      <View style={[styles.inputContainer, { backgroundColor: background, borderTopColor: border, paddingBottom: Platform.OS === 'ios' ? 40 : 20, marginBottom: 100 }]}>
+      <View style={[styles.inputContainer, { backgroundColor: cardColor, borderTopColor: border, paddingBottom: Platform.OS === 'ios' ? 120 : 100 }]}>
         <View style={[styles.inputWrapper, { backgroundColor: cardColor, borderColor: border }]}>
           <TextInput
             style={[styles.input, { color: text, maxHeight: 100 }]}
@@ -215,7 +216,7 @@ const VoiceAssistantScreen: React.FC = () => {
             placeholderTextColor={mutedForeground}
             multiline
           />
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.sendButton, { backgroundColor: prompt.trim() ? primary : (isDark ? '#27272a' : '#f1f5f9') }]}
             onPress={() => handleSend()}
             disabled={!prompt.trim() || isLoading}
@@ -233,7 +234,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerGradient: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: 30,
     paddingHorizontal: 24,
     borderBottomLeftRadius: 32,
