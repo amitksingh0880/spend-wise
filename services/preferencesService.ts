@@ -9,6 +9,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   currency: 'INR',
   dateFormat: 'MM/dd/yyyy',
   theme: 'dark',
+  fontFamily: 'jetbrains',
   notifications: {
     budgetAlerts: true,
     goalReminders: true,
