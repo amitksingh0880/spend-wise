@@ -1,44 +1,43 @@
 import BudgetForm from '@/components/BudgetForm';
-import { useCurrency } from '@/contexts/CurrencyContext';
-import { emitter } from '@/libs/emitter';
-import {
-    checkBudgetAlerts,
-    createBudget,
-    deleteBudget,
-    getAllBudgets,
-    getBudgetSummary
-} from '@/services/budgetService';
-import { Button, IconButton } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
-import { useThemeColor } from '@/hooks/use-theme-color';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { emitter } from '@/libs/emitter';
+import {
+  checkBudgetAlerts,
+  createBudget,
+  deleteBudget,
+  getAllBudgets,
+  getBudgetSummary
+} from '@/services/budgetService';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
-import { AlertTriangle, PlusCircle, Target, Trash2, TrendingUp, Wallet, Bell, Plus } from 'lucide-react-native';
+import { Bell, Plus, Target, Trash2, Wallet } from 'lucide-react-native';
 import * as React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import {
-    Alert,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    View,
-    StatusBar,
-    Platform,
-    Dimensions,
+  Alert,
+  Dimensions,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withSpring, withTiming, Layout } from 'react-native-reanimated';
+import Animated, { FadeInUp, Layout, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 const screenWidth = Dimensions.get('window').width;
 
-const BudgetCard = ({ 
-  budget, 
+const BudgetCard = ({
+  budget,
   index,
   onDelete,
-}: { 
-  budget: any; 
+}: {
+  budget: any;
   index: number;
   onDelete: (id: string) => void;
 }) => {
@@ -71,14 +70,14 @@ const BudgetCard = ({
   };
 
   return (
-    <Animated.View 
+    <Animated.View
       entering={FadeInUp.delay(300 + index * 100).duration(600).springify()}
       layout={Layout.springify()}
     >
-      <TouchableOpacity 
-        onLongPress={handleLongPress} 
+      <TouchableOpacity
+        onLongPress={handleLongPress}
         activeOpacity={0.9}
-        onPress={() => {}} // Could navigate to details
+        onPress={() => { }} // Could navigate to details
       >
         <Card style={styles.budgetCard} delay={0}>
           <CardHeader style={styles.budgetHeader}>
@@ -170,7 +169,7 @@ const BudgetScreen: React.FC = () => {
         getBudgetSummary(),
         checkBudgetAlerts(),
       ]);
-      
+
       setBudgets(budgetData);
       setSummary(summaryData);
       setAlerts(alertData);
@@ -193,15 +192,17 @@ const BudgetScreen: React.FC = () => {
       await deleteBudget(id);
       await loadBudgetData();
       Alert.alert('Budget Deleted', 'The budget has been removed.', [
-        { text: 'Undo', onPress: async () => {
-          if (!toDelete) return;
-          try {
-            await createBudget(toDelete);
-            await loadBudgetData();
-          } catch (err) {
-            console.error('Undo failed', err);
+        {
+          text: 'Undo', onPress: async () => {
+            if (!toDelete) return;
+            try {
+              await createBudget(toDelete);
+              await loadBudgetData();
+            } catch (err) {
+              console.error('Undo failed', err);
+            }
           }
-        }},
+        },
         { text: 'OK' }
       ]);
     } catch (error) {
@@ -219,10 +220,10 @@ const BudgetScreen: React.FC = () => {
         style={styles.headerGradient}
       >
         <Typography variant="title" weight="bold" style={styles.headerTitle}>Budgeting</Typography>
-        
-        <Card style={[styles.summaryCard, { 
-          backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)',
-          borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.2)',
+
+        <Card style={[styles.summaryCard, {
+          backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.15)',
+          borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.25)',
         }]} delay={100}>
           <CardContent style={styles.summaryContent}>
             <View style={styles.summaryHeader}>
@@ -237,16 +238,16 @@ const BudgetScreen: React.FC = () => {
                 <Wallet size={24} color="#FFFFFF" />
               </View>
             </View>
-            
+
             <View style={styles.summaryProgressContainer}>
               <View style={[styles.summaryProgressBar, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
                 <View style={[styles.summaryProgressFill, { width: `${totalPercentage}%`, backgroundColor: '#FFFFFF' }]} />
               </View>
               <View style={styles.summaryFooter}>
-                 <Typography variant="small" weight="bold" style={{ color: '#FFFFFF', marginTop: 10 }}>{totalPercentage.toFixed(0)}% utilized</Typography>
-                 <Typography variant="small" weight="medium" style={{ color: 'rgba(255,255,255,0.85)', marginTop: 10 }}>
-                    {formatAmount(Math.max(0, (summary?.totalBudgeted || 0) - (summary?.totalSpent || 0)))} left
-                 </Typography>
+                <Typography variant="small" weight="bold" style={{ color: '#FFFFFF', marginTop: 10 }}>{totalPercentage.toFixed(0)}% utilized</Typography>
+                <Typography variant="small" weight="medium" style={{ color: 'rgba(255,255,255,0.85)', marginTop: 10 }}>
+                  {formatAmount(Math.max(0, (summary?.totalBudgeted || 0) - (summary?.totalSpent || 0)))} left
+                </Typography>
               </View>
             </View>
           </CardContent>
@@ -284,9 +285,9 @@ const BudgetScreen: React.FC = () => {
 
         {budgets.length > 0 ? (
           budgets.map((budget, index) => (
-            <BudgetCard 
-              key={budget.id || index.toString()} 
-              budget={budget} 
+            <BudgetCard
+              key={budget.id || index.toString()}
+              budget={budget}
               index={index}
               onDelete={handleDeleteBudget}
             />
@@ -305,7 +306,7 @@ const BudgetScreen: React.FC = () => {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.fab, { backgroundColor: primary }]}
         onPress={() => setShowForm(true)}
       >
@@ -339,7 +340,6 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     borderRadius: 28,
-    padding: 2,
     marginTop: 8,
   },
   summaryContent: {
