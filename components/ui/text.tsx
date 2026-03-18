@@ -1,4 +1,5 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useAppTheme } from '@/contexts/ThemeContext';
 import React from 'react';
 import { StyleSheet, Text, TextProps } from 'react-native';
 
@@ -17,6 +18,7 @@ export const Typography = ({
   ...rest 
 }: ThemedTextProps) => {
   const color = useThemeColor({}, variant === 'muted' ? 'mutedForeground' : variant === 'error' ? 'destructive' : 'text');
+  const { fontFamily: activeFontFamily } = useAppTheme();
   
   const getVariantStyle = () => {
     switch (variant) {
@@ -40,16 +42,48 @@ export const Typography = ({
   const fontWeight = weight || (variant === 'title' ? 'bold' : variant === 'subtitle' ? 'semibold' : 'normal');
 
   const getFontFamily = () => {
-    switch (fontWeight) {
-      case 'bold':
-        return 'JetBrainsMono_700Bold';
-      case 'semibold':
-        return 'JetBrainsMono_600SemiBold';
-      case 'medium':
-        return 'JetBrainsMono_500Medium';
-      case 'normal':
+    switch(activeFontFamily) {
+      case 'inter':
+        switch (fontWeight) {
+          case 'bold': return 'Inter_700Bold';
+          case 'semibold': return 'Inter_600SemiBold';
+          case 'medium': return 'Inter_500Medium';
+          default: return 'Inter_400Regular';
+        }
+      case 'outfit':
+        switch (fontWeight) {
+          case 'bold': return 'Outfit_700Bold';
+          case 'semibold': return 'Outfit_600SemiBold';
+          case 'medium': return 'Outfit_500Medium';
+          default: return 'Outfit_400Regular';
+        }
+      case 'roboto':
+        switch (fontWeight) {
+          case 'bold': return 'Roboto_700Bold';
+          case 'semibold': return 'Roboto_500Medium';
+          case 'medium': return 'Roboto_500Medium';
+          default: return 'Roboto_400Regular';
+        }
+      case 'opensans':
+        switch (fontWeight) {
+          case 'bold': return 'OpenSans_700Bold';
+          case 'semibold': return 'OpenSans_600SemiBold';
+          case 'medium': return 'OpenSans_500Medium';
+          default: return 'OpenSans_400Regular';
+        }
+      case 'jetbrains':
       default:
-        return 'JetBrainsMono_400Regular';
+        switch (fontWeight) {
+          case 'bold':
+            return 'JetBrainsMono_700Bold';
+          case 'semibold':
+            return 'JetBrainsMono_600SemiBold';
+          case 'medium':
+            return 'JetBrainsMono_500Medium';
+          case 'normal':
+          default:
+            return 'JetBrainsMono_400Regular';
+        }
     }
   };
 

@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
     color: '#22c55e',
   },
   expense: {
-    color: '#0f172a',
+    color: '#ef4444',
   },
   loadingContainer: {
     flex: 1,
