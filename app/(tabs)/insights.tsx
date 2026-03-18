@@ -6,7 +6,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { Activity, BarChart3, DollarSign, PieChart as PieChartIcon, TrendingUp, Calendar, Info } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View, StatusBar, Platform } from 'react-native';
-import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
+import { BarChart, LineChart, PieChart, StackedBarChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
 
@@ -23,6 +23,8 @@ interface CategoryData {
 interface SpendingTrend {
   month: string;
   amount: number;
+  income: number;
+  expenses: number;
 }
 
 interface TransactionSummary {
@@ -30,7 +32,7 @@ interface TransactionSummary {
   transactionCount: number;
   totalIncome: number;
   categoryBreakdown: { [key: string]: number };
-  monthlyTrend: { month: string; expenses: number }[];
+  monthlyTrend: { month: string; income: number; expenses: number }[];
 }
 
 interface FinancialInsight {
@@ -93,6 +95,8 @@ const InsightsScreen: React.FC = () => {
         const trendData = summaryData.monthlyTrend.slice(-6).map((item: any) => ({
           month: item.month?.slice(0, 3) || 'N/A',
           amount: Number(item.expenses) || 0,
+          income: Number(item.income) || 0,
+          expenses: Number(item.expenses) || 0,
         }));
         setSpendingTrend(trendData);
       } else {
@@ -122,6 +126,41 @@ const InsightsScreen: React.FC = () => {
       }],
     };
   }, [spendingTrend]);
+
+  const cashFlowChartData = useMemo(() => {
+    if (spendingTrend.length === 0) {
+      return {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        legend: ['Income', 'Expenses'],
+        data: [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]],
+        barColors: ['#10b981', '#ef4444'],
+      };
+    }
+
+    return {
+      labels: spendingTrend.map((item: any) => item.month),
+      legend: ['Income', 'Expenses'],
+      data: spendingTrend.map((item: any) => [item.income, item.expenses]),
+      barColors: ['#10b981', '#ef4444'],
+    };
+  }, [spendingTrend]);
+
+  const topCategoriesChartData = useMemo(() => {
+    if (categoryData.length === 0) {
+      return {
+        labels: ['N/A'],
+        datasets: [{ data: [0] }],
+      };
+    }
+    
+    const topCats = categoryData.slice(0, 5);
+    return {
+      labels: topCats.map((cat) => cat.name.length > 7 ? cat.name.substring(0, 6) + '..' : cat.name),
+      datasets: [{
+        data: topCats.map((cat) => cat.amount),
+      }],
+    };
+  }, [categoryData]);
 
   if (loading) {
     return (
@@ -197,10 +236,38 @@ const InsightsScreen: React.FC = () => {
         <Card style={styles.chartCard} delay={300}>
           <CardHeader style={styles.chartHeader}>
             <View>
+              <Typography variant="bold">Cash Flow</Typography>
+              <Typography variant="small" style={{ color: mutedForeground }}>Income vs Expenses</Typography>
+            </View>
+            <BarChart3 size={20} color={mutedForeground} />
+          </CardHeader>
+          <CardContent style={styles.chartContent}>
+            <StackedBarChart
+              data={cashFlowChartData}
+              width={screenWidth - 72}
+              height={220}
+              chartConfig={{
+                backgroundColor: cardColor,
+                backgroundGradientFrom: cardColor,
+                backgroundGradientTo: cardColor,
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(161, 161, 170, ${opacity})`,
+                labelColor: (opacity = 1) => mutedForeground,
+                style: { borderRadius: 16 }
+              }}
+              style={styles.chart}
+              hideLegend={false}
+            />
+          </CardContent>
+        </Card>
+
+        <Card style={styles.chartCard} delay={350}>
+          <CardHeader style={styles.chartHeader}>
+            <View>
               <Typography variant="bold">Spending Trend</Typography>
               <Typography variant="small" style={{ color: mutedForeground }}>Monthly overview</Typography>
             </View>
-            <BarChart3 size={20} color={mutedForeground} />
+            <TrendingUp size={20} color={mutedForeground} />
           </CardHeader>
           <CardContent style={styles.chartContent}>
             <LineChart
@@ -224,14 +291,47 @@ const InsightsScreen: React.FC = () => {
         </Card>
 
         {categoryData.length > 0 && (
-          <Card style={styles.chartCard} delay={400}>
-            <CardHeader style={styles.chartHeader}>
-              <View>
-                <Typography variant="bold">Categories</Typography>
-                <Typography variant="small" style={{ color: mutedForeground }}>Top spending areas</Typography>
-              </View>
-              <PieChartIcon size={20} color={mutedForeground} />
-            </CardHeader>
+          <>
+            <Card style={styles.chartCard} delay={400}>
+              <CardHeader style={styles.chartHeader}>
+                <View>
+                  <Typography variant="bold">Top Categories</Typography>
+                  <Typography variant="small" style={{ color: mutedForeground }}>Highest spending areas</Typography>
+                </View>
+                <BarChart3 size={20} color={mutedForeground} />
+              </CardHeader>
+              <CardContent style={styles.chartContent}>
+                <BarChart
+                  data={topCategoriesChartData}
+                  width={screenWidth - 72}
+                  height={220}
+                  yAxisLabel=""
+                  yAxisSuffix=""
+                  chartConfig={{
+                    backgroundColor: cardColor,
+                    backgroundGradientFrom: cardColor,
+                    backgroundGradientTo: cardColor,
+                    decimalPlaces: 0,
+                    color: (opacity = 1) => `rgba(245, 158, 11, ${opacity})`,
+                    labelColor: (opacity = 1) => mutedForeground,
+                    style: { borderRadius: 16 },
+                    barPercentage: 0.7,
+                  }}
+                  style={styles.chart}
+                  showValuesOnTopOfBars={true}
+                  withHorizontalLabels={false}
+                />
+              </CardContent>
+            </Card>
+
+            <Card style={styles.chartCard} delay={450}>
+              <CardHeader style={styles.chartHeader}>
+                <View>
+                  <Typography variant="bold">Category Breakdown</Typography>
+                  <Typography variant="small" style={{ color: mutedForeground }}>All categories</Typography>
+                </View>
+                <PieChartIcon size={20} color={mutedForeground} />
+              </CardHeader>
             <CardContent>
               <PieChart
                 data={categoryData}
@@ -253,6 +353,7 @@ const InsightsScreen: React.FC = () => {
               </View>
             </CardContent>
           </Card>
+          </>
         )}
 
         <Typography variant="subtitle" weight="bold" style={styles.sectionTitle}>Smart Insights</Typography>
