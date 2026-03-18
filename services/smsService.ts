@@ -240,7 +240,7 @@ export const readSMSMessages = async (options: {
 /* ---------- Listener helpers (optional) ---------- */
 
 /** Start listener for incoming SMS. Returns subscription with .remove() */
-export const startSmsListener = (onMessage: (m: any) => void) => {
+const startSmsListener = (onMessage: (m: any) => void) => {
   if (Platform.OS !== 'android') {
     console.warn('[smsService] SMS listener only supported on Android');
     return { remove: () => {} };
@@ -264,7 +264,7 @@ export const startSmsListener = (onMessage: (m: any) => void) => {
 };
 
 /** Stop listener started by startSmsListener */
-export const stopSmsListener = () => {
+const stopSmsListener = () => {
   if (smsListenerSubscription && typeof smsListenerSubscription.remove === 'function') {
     try { smsListenerSubscription.remove(); } catch (e) {}
     smsListenerSubscription = null;
@@ -273,7 +273,7 @@ export const stopSmsListener = () => {
 
 /* ---------- Heuristics & parsing logic (preserved from your code) ---------- */
 
-export const isBankSMS = (sender: string, message: string): boolean => {
+const isBankSMS = (sender: string, message: string): boolean => {
   const upperSender = (sender || '').toUpperCase();
   const upperMessage = (message || '').toUpperCase();
 
@@ -289,7 +289,7 @@ export const isBankSMS = (sender: string, message: string): boolean => {
   return isBankSender || hasBankKeywords;
 };
 
-export const isTransactionSMS = (message: string): boolean => {
+const isTransactionSMS = (message: string): boolean => {
   const lowerMessage = (message || '').toLowerCase();
   // Exclude OTP/verification messages which often contain numeric codes
   if (/\botp\b/i.test(message || '') || /one[\s-]*time[\s-]*password/i.test(message || '') || /verification code/i.test(message || '')) {
@@ -298,7 +298,7 @@ export const isTransactionSMS = (message: string): boolean => {
   return TRANSACTION_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
 };
 
-export const extractAmount = (message: string): number | null => {
+const extractAmount = (message: string): number | null => {
   if (!message) return null;
   for (const pattern of AMOUNT_PATTERNS) {
     const match = message.match(pattern);
@@ -311,7 +311,7 @@ export const extractAmount = (message: string): number | null => {
   return null;
 };
 
-export const extractVendor = (message: string): string | null => {
+const extractVendor = (message: string): string | null => {
   if (!message) return null;
   for (const pattern of VENDOR_PATTERNS) {
     const match = message.match(pattern);
@@ -322,14 +322,14 @@ export const extractVendor = (message: string): string | null => {
   return null;
 };
 
-export const determineTransactionType = (message: string): TransactionType => {
+const determineTransactionType = (message: string): TransactionType => {
   const lowerMessage = (message || '').toLowerCase();
   const incomeKeywords = ['credited', 'received', 'deposit', 'refund', 'cashback', 'salary'];
   if (incomeKeywords.some(k => lowerMessage.includes(k))) return 'income';
   return 'expense';
 };
 
-export const categorizeTransaction = (vendor: string | null, message: string): string => {
+const categorizeTransaction = (vendor: string | null, message: string): string => {
   const lowerMessage = (message || '').toLowerCase();
   const lowerVendor = (vendor || '').toLowerCase();
   for (const [category, keywords] of Object.entries(CATEGORY_MAPPING)) {
@@ -342,7 +342,7 @@ export const categorizeTransaction = (vendor: string | null, message: string): s
   return 'other';
 };
 
-export const calculateConfidence = (expense: Partial<ExtractedExpense>): number => {
+const calculateConfidence = (expense: Partial<ExtractedExpense>): number => {
   let confidence = 0;
   if (expense.amount && expense.amount > 0) {
     confidence += 0.5;
@@ -388,7 +388,7 @@ export const parseTransactionSMS = (message: SMSMessage): ExtractedExpense | nul
   return expense;
 };
 
-export const processSMSMessages = async (messages: SMSMessage[]): Promise<SMSParsingResult> => {
+const processSMSMessages = async (messages: SMSMessage[]): Promise<SMSParsingResult> => {
   const result: SMSParsingResult = {
     success: true,
     expenses: [],
@@ -595,7 +595,7 @@ export const importExpensesFromSMS = async (options: {
 };
 
 /* ---------- Utility: import stats (placeholder) ---------- */
-export const getSMSImportStats = async (): Promise<{
+const getSMSImportStats = async (): Promise<{
   totalImported: number;
   lastImportDate: string | null;
   averageConfidence: number;
@@ -625,7 +625,7 @@ const getLastSyncKeyForDate = (timestamp: number): string => {
   return `${SMS_LAST_SYNC_KEY_PREFIX}${dateStr}`;
 };
 
-export const getLastSyncForDate = async (timestamp: number = Date.now()): Promise<number | null> => {
+const getLastSyncForDate = async (timestamp: number = Date.now()): Promise<number | null> => {
   const key = getLastSyncKeyForDate(timestamp);
   try {
     const val = await readJson<number>(key);
@@ -636,7 +636,7 @@ export const getLastSyncForDate = async (timestamp: number = Date.now()): Promis
   }
 };
 
-export const setLastSyncForDate = async (timestamp: number, valueTs: number): Promise<void> => {
+const setLastSyncForDate = async (timestamp: number, valueTs: number): Promise<void> => {
   const key = getLastSyncKeyForDate(timestamp);
   try {
     await writeJson<number>(key, valueTs);
@@ -646,23 +646,9 @@ export const setLastSyncForDate = async (timestamp: number, valueTs: number): Pr
 };
 
 /* ---------- Convenience: isNativeAvailable ---------- */
-export const isNativeAvailable = (): boolean => {
+const isNativeAvailable = (): boolean => {
   return Platform.OS === 'android' && tryLoadNativeModules() && !!SmsAndroid;
 };
 
 /* ---------- End of module ---------- */
-export default {
-  tryLoadNativeModules,
-  isNativeAvailable,
-  requestSMSPermission,
-  checkSMSPermission,
-  readSMSMessages,
-  startSmsListener,
-  stopSmsListener,
-  parseTransactionSMS,
-  processSMSMessages,
-  importExpensesFromSMS,
-  getSMSImportStats,
-  getLastSyncForDate,
-  setLastSyncForDate,
-};
+

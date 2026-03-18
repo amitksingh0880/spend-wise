@@ -55,7 +55,7 @@ const MOCK_RESPONSES = {
 };
 
 // AI Service Functions
-export const getFinancialInsights = async (context: FinancialContext): Promise<AIInsight[]> => {
+const getFinancialInsights = async (context: FinancialContext): Promise<AIInsight[]> => {
   const insights: AIInsight[] = [];
   
   // Spending analysis
@@ -155,19 +155,19 @@ export const prepareFinancialContext = async (): Promise<FinancialContext> => {
   };
 };
 
-export const generateSpendingInsights = async (context: FinancialContext): Promise<string[]> => {
+const generateSpendingInsights = async (context: FinancialContext): Promise<string[]> => {
   return MOCK_RESPONSES.spending_analysis;
 };
 
-export const suggestBudgetOptimizations = async (context: FinancialContext): Promise<string[]> => {
+const suggestBudgetOptimizations = async (context: FinancialContext): Promise<string[]> => {
   return MOCK_RESPONSES.budget_advice;
 };
 
-export const generateSavingRecommendations = async (context: FinancialContext): Promise<string[]> => {
+const generateSavingRecommendations = async (context: FinancialContext): Promise<string[]> => {
   return MOCK_RESPONSES.saving_tips;
 };
 
-export const callGeminiAPI = async (prompt: string, context?: any): Promise<string> => {
+const callGeminiAPI = async (prompt: string, context?: any): Promise<string> => {
   await new Promise(resolve => setTimeout(resolve, 1000));
   return "I've analyzed your data. You're doing well, but consider reducing your dining out expenses to save more.";
 };
