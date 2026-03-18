@@ -10,6 +10,7 @@ import {
   unregisterSmsAutoFetch, 
   isSmsAutoFetchRegistered 
 } from '@/services/backgroundTaskService';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { FontFamily } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
@@ -62,6 +63,8 @@ const SettingsScreen: React.FC = () => {
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showFontModal, setShowFontModal] = useState(false);
   const [smsAutoFetch, setSmsAutoFetch] = useState(false);
+  const [smsAutoFetchHour, setSmsAutoFetchHour] = useState(22);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const { refreshCurrency } = useCurrency();
 
   const { theme, fontFamily, setFontFamily } = useAppTheme();
@@ -90,6 +93,7 @@ const SettingsScreen: React.FC = () => {
       setAppName(prefs.appName || 'SpendWise');
       setNotifications(prefs.notifications.budgetAlerts);
       setSmsAutoFetch(!!prefs.smsAutoFetch);
+      setSmsAutoFetchHour(prefs.smsAutoFetchHour ?? 22);
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -315,29 +319,64 @@ const SettingsScreen: React.FC = () => {
             color="#f59e0b"
             onPress={() => setShowFontModal(true)}
           />
-          {Platform.OS === 'android' && (
+          <SettingRow
+            index={4}
+            icon={MessageCircle}
+            title="Daily SMS Auto-Fetch"
+            subtitle={`Process bank alerts at ${smsAutoFetchHour}:00 ${Platform.OS !== 'android' ? '(Android Only)' : ''}`}
+            color="#ec4899"
+            rightElement={
+              <Switch
+                value={smsAutoFetch}
+                onValueChange={async (v) => { 
+                  setSmsAutoFetch(v); 
+                  await saveUserPreferences({ smsAutoFetch: v });
+                  if (v && Platform.OS === 'android') {
+                    await registerSmsAutoFetch();
+                  } else if (Platform.OS === 'android') {
+                    await unregisterSmsAutoFetch();
+                  }
+                }}
+                trackColor={{ false: '#e2e8f0', true: primary }}
+                thumbColor="#FFFFFF"
+              />
+            }
+          />
+          {smsAutoFetch && (
             <SettingRow
-              index={4}
-              icon={MessageCircle}
-              title="Daily SMS Auto-Fetch"
-              subtitle="Process bank alerts at 10 PM"
-              color="#ec4899"
+              index={5}
+              icon={Bell}
+              title="Auto-Fetch Time"
+              subtitle={`Current: ${smsAutoFetchHour}:00 ${smsAutoFetchHour >= 12 ? 'PM' : 'AM'}`}
+              color="#06b6d4"
+              onPress={() => setShowTimePicker(true)}
               rightElement={
-                <Switch
-                  value={smsAutoFetch}
-                  onValueChange={async (v) => { 
-                    setSmsAutoFetch(v); 
-                    await saveUserPreferences({ smsAutoFetch: v });
-                    if (v) {
-                      await registerSmsAutoFetch();
-                    } else {
-                      await unregisterSmsAutoFetch();
-                    }
-                  }}
-                  trackColor={{ false: '#e2e8f0', true: primary }}
-                  thumbColor="#FFFFFF"
-                />
+                <TouchableOpacity onPress={() => setShowTimePicker(true)} style={[styles.linkBtn, { backgroundColor: `${primary}15` }]}>
+                  <Typography variant="small" weight="bold" style={{ color: primary }}>Change</Typography>
+                </TouchableOpacity>
               }
+            />
+          )}
+          {showTimePicker && (
+            <DateTimePicker
+              value={(() => {
+                const d = new Date();
+                d.setHours(smsAutoFetchHour, 0, 0, 0);
+                return d;
+              })()}
+              mode="time"
+              is24Hour={false}
+              display="default"
+              onChange={async (event, selectedDate) => {
+                setShowTimePicker(false);
+                if (selectedDate) {
+                  const hour = selectedDate.getHours();
+                  setSmsAutoFetchHour(hour);
+                  await saveUserPreferences({ smsAutoFetchHour: hour });
+                  // If already registered, re-registering might be needed for some plugins, 
+                  // but for our logic it just checks the hour each time.
+                }
+              }}
             />
           )}
         </Card>

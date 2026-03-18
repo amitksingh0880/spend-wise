@@ -19,6 +19,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   },
   defaultCategories: [],
   smsAutoFetch: false,
+  smsAutoFetchHour: 22,
 };
 
 export const getUserPreferences = async (): Promise<UserPreferences> => {
