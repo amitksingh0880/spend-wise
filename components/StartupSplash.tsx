@@ -177,6 +177,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: -1,
+    paddingBottom: 4,
   },
   divider: {
     width: 40,
