@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from './ui/text';
 import { Bell } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -9,6 +10,7 @@ import { emitter } from '@/libs/emitter';
 
 export const DashboardHeader = ({ userName: propUserName }: { userName?: string }) => {
   const background = useThemeColor({}, 'background');
+  const insets = useSafeAreaInsets();
   const text = useThemeColor({}, 'text');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [userName, setUserName] = useState(propUserName || 'User');
@@ -68,7 +70,7 @@ export const DashboardHeader = ({ userName: propUserName }: { userName?: string 
   };
   
   return (
-    <View style={[styles.container, { backgroundColor: background }]}>
+    <View style={[styles.container, { backgroundColor: background, paddingTop: Math.max(insets.top, 10) }]}>
       <View>
         <Typography variant="title" weight="bold" style={{ color: text }}>
           {appName}
@@ -99,7 +101,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 10,
     paddingBottom: 20,
   },
   rightSection: {
