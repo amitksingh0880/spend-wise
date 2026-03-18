@@ -37,17 +37,15 @@ const BudgetCard = ({
   budget, 
   index,
   onDelete,
-  key
 }: { 
   budget: any; 
   index: number;
   onDelete: (id: string) => void;
-  key?: string;
 }) => {
   const { formatAmount } = useCurrency();
   const mutedForeground = useThemeColor({}, 'mutedForeground');
   const border = useThemeColor({}, 'border');
-  const percentage = Math.min((budget.spent / budget.amount) * 100, 100);
+  const percentage = budget.amount > 0 ? Math.min((budget.spent / budget.amount) * 100, 100) : 0;
   const isOverBudget = budget.spent > budget.amount;
   const remaining = budget.amount - budget.spent;
 
@@ -77,7 +75,11 @@ const BudgetCard = ({
       entering={FadeInUp.delay(300 + index * 100).duration(600).springify()}
       layout={Layout.springify()}
     >
-      <TouchableOpacity onLongPress={handleLongPress} activeOpacity={0.9}>
+      <TouchableOpacity 
+        onLongPress={handleLongPress} 
+        activeOpacity={0.9}
+        onPress={() => {}} // Could navigate to details
+      >
         <Card style={styles.budgetCard} delay={0}>
           <CardHeader style={styles.budgetHeader}>
             <View>
@@ -207,7 +209,7 @@ const BudgetScreen: React.FC = () => {
     }
   };
 
-  const totalPercentage = summary ? Math.min((summary.totalSpent / summary.totalBudgeted) * 100, 100) : 0;
+  const totalPercentage = summary?.totalBudgeted > 0 ? Math.min((summary.totalSpent / summary.totalBudgeted) * 100, 100) : 0;
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
@@ -222,22 +224,27 @@ const BudgetScreen: React.FC = () => {
           <CardContent style={styles.summaryContent}>
             <View style={styles.summaryHeader}>
               <View>
-                <Typography variant="small" style={{ color: 'rgba(255,255,255,0.6)' }}>Total Spent</Typography>
+                <Typography variant="small" style={{ color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>Total Spent</Typography>
                 <View style={styles.summaryRow}>
-                  <Typography variant="title" weight="bold" style={{ color: '#FFFFFF' }}>{formatAmount(summary?.totalSpent || 0)}</Typography>
-                  <Typography style={{ color: 'rgba(255,255,255,0.4)', marginLeft: 8 }}>/ {formatAmount(summary?.totalBudgeted || 0)}</Typography>
+                  <Typography variant="title" weight="bold" style={{ color: '#FFFFFF', fontSize: 28 }}>{formatAmount(summary?.totalSpent || 0)}</Typography>
+                  <Typography style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 8, fontSize: 16 }}>/ {formatAmount(summary?.totalBudgeted || 0)}</Typography>
                 </View>
               </View>
-              <View style={[styles.summaryIcon, { backgroundColor: 'rgba(99, 102, 241, 0.2)' }]}>
-                <Wallet size={24} color="#818cf8" />
+              <View style={[styles.summaryIcon, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]}>
+                <Wallet size={24} color="#FFFFFF" />
               </View>
             </View>
             
             <View style={styles.summaryProgressContainer}>
-              <View style={styles.summaryProgressBar}>
-                <View style={[styles.summaryProgressFill, { width: `${totalPercentage}%` }]} />
+              <View style={[styles.summaryProgressBar, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
+                <View style={[styles.summaryProgressFill, { width: `${totalPercentage}%`, backgroundColor: '#FFFFFF' }]} />
               </View>
-              <Typography variant="small" weight="bold" style={{ color: '#FFFFFF', marginTop: 8 }}>{totalPercentage.toFixed(0)}% utilized</Typography>
+              <View style={styles.summaryFooter}>
+                 <Typography variant="small" weight="bold" style={{ color: '#FFFFFF', marginTop: 8 }}>{totalPercentage.toFixed(0)}% utilized</Typography>
+                 <Typography variant="small" style={{ color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>
+                    {formatAmount(Math.max(0, (summary?.totalBudgeted || 0) - (summary?.totalSpent || 0)))} left
+                 </Typography>
+              </View>
             </View>
           </CardContent>
         </Card>
@@ -355,6 +362,11 @@ const styles = StyleSheet.create({
   },
   summaryProgressContainer: {
     marginTop: 10,
+  },
+  summaryFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   summaryProgressBar: {
     height: 8,

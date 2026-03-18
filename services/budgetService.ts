@@ -139,7 +139,7 @@ export const getBudgetProgress = async (budgetId: string): Promise<{
   const updatedBudget = await getBudgetById(budgetId);
   if (!updatedBudget) throw new Error('Budget not found after update');
   
-  const percentage = (updatedBudget.spent / updatedBudget.amount) * 100;
+  const percentage = updatedBudget.amount > 0 ? (updatedBudget.spent / updatedBudget.amount) * 100 : 0;
   const remaining = updatedBudget.amount - updatedBudget.spent;
   
   const now = new Date();
@@ -149,7 +149,7 @@ export const getBudgetProgress = async (budgetId: string): Promise<{
   const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   const daysElapsed = totalDays - daysLeft;
   
-  const dailyBudget = updatedBudget.amount / totalDays;
+  const dailyBudget = totalDays > 0 ? updatedBudget.amount / totalDays : 0;
   const projectedSpending = daysElapsed > 0 ? (updatedBudget.spent / daysElapsed) * totalDays : 0;
   
   let status: 'on-track' | 'warning' | 'exceeded' = 'on-track';
@@ -277,7 +277,7 @@ export const getBudgetSummary = async (): Promise<BudgetSummary> => {
   let onTrackBudgets = 0;
   
   const categoryBreakdown = updatedBudgets.map(budget => {
-    const percentage = (budget.spent / budget.amount) * 100;
+    const percentage = budget.amount > 0 ? (budget.spent / budget.amount) * 100 : 0;
     const remaining = budget.amount - budget.spent;
     
     if (percentage >= 100) exceededBudgets++;
