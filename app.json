@@ -20,7 +20,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "permissions": ["READ_SMS", "RECEIVE_SMS", "SEND_SMS", "RECEIVE_BOOT_COMPLETED", "WAKE_LOCK", "POST_NOTIFICATIONS"],
+      "permissions": ["READ_SMS", "RECEIVE_BOOT_COMPLETED", "WAKE_LOCK", "POST_NOTIFICATIONS"],
       "package": "com.amit.k.singh.spendwise"
     },
     "web": {
