@@ -9,6 +9,8 @@ import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View, StatusBar, 
 import { BarChart, LineChart, PieChart, StackedBarChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -44,6 +46,7 @@ interface FinancialInsight {
 }
 
 const InsightsScreen: React.FC = () => {
+  const { formatAmount } = useCurrency();
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
   const [insights, setInsights] = useState<FinancialInsight[]>([]);
   const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
@@ -51,12 +54,16 @@ const InsightsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year'>('month');
 
+  const { theme } = useAppTheme();
+  const isDark = theme === 'dark';
+
   const background = useThemeColor({}, 'background');
   const cardColor = useThemeColor({}, 'card');
   const border = useThemeColor({}, 'border');
   const primary = useThemeColor({}, 'primary');
   const primaryForeground = useThemeColor({}, 'primaryForeground');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
+  const text = useThemeColor({}, 'text');
 
   useEffect(() => {
     loadInsightsData();
@@ -153,14 +160,18 @@ const InsightsScreen: React.FC = () => {
       };
     }
     
-    const topCats = categoryData.slice(0, 5);
+    const topCats = categoryData.slice(0, 4); // Show top 4 to give labels more space
     return {
-      labels: topCats.map((cat) => cat.name.length > 7 ? cat.name.substring(0, 6) + '..' : cat.name),
+      labels: topCats.map((cat) => cat.name.length > 8 ? cat.name.substring(0, 7) + '..' : cat.name),
       datasets: [{
         data: topCats.map((cat) => cat.amount),
       }],
     };
   }, [categoryData]);
+
+  const currencySymbol = useMemo(() => {
+    return formatAmount(0).replace(/[0-9.,\s-]/g, '');
+  }, [formatAmount]);
 
   if (loading) {
     return (
@@ -213,7 +224,7 @@ const InsightsScreen: React.FC = () => {
               <DollarSign size={20} color="#059669" />
             </View>
             <Typography variant="small" style={{ color: mutedForeground, marginBottom: 4 }}>Total Spent</Typography>
-            <Typography variant="large" weight="bold">${summary?.totalExpenses?.toLocaleString() || '0'}</Typography>
+            <Typography variant="large" weight="bold">{formatAmount(summary?.totalExpenses || 0)}</Typography>
             <View style={styles.metricTrend}>
               <TrendingUp size={12} color="#059669" />
               <Typography variant="small" style={{ color: '#059669', marginLeft: 4 }}>-2.4%</Typography>
@@ -239,7 +250,16 @@ const InsightsScreen: React.FC = () => {
               <Typography variant="bold">Cash Flow</Typography>
               <Typography variant="small" style={{ color: mutedForeground }}>Income vs Expenses</Typography>
             </View>
-            <BarChart3 size={20} color={mutedForeground} />
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10b981', marginRight: 4 }} />
+                <Typography variant="small" style={{ fontSize: 10, color: mutedForeground }}>Income</Typography>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444', marginRight: 4 }} />
+                <Typography variant="small" style={{ fontSize: 10, color: mutedForeground }}>Expenses</Typography>
+              </View>
+            </View>
           </CardHeader>
           <CardContent style={styles.chartContent}>
             <StackedBarChart
@@ -253,10 +273,11 @@ const InsightsScreen: React.FC = () => {
                 decimalPlaces: 0,
                 color: (opacity = 1) => `rgba(161, 161, 170, ${opacity})`,
                 labelColor: (opacity = 1) => mutedForeground,
-                style: { borderRadius: 16 }
+                style: { borderRadius: 16 },
+                propsForBackgroundLines: { strokeWidth: 1, stroke: 'rgba(255,255,255,0.05)' }
               }}
               style={styles.chart}
-              hideLegend={false}
+              hideLegend={true}
             />
           </CardContent>
         </Card>
@@ -281,11 +302,13 @@ const InsightsScreen: React.FC = () => {
                 decimalPlaces: 0,
                 color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
                 labelColor: (opacity = 1) => mutedForeground,
-                propsForDots: { r: "5", strokeWidth: "2", stroke: "#fff" },
-                style: { borderRadius: 16 }
+                propsForDots: { r: "4", strokeWidth: "2", stroke: cardColor },
+                style: { borderRadius: 16 },
+                propsForBackgroundLines: { strokeWidth: 1, stroke: 'rgba(255,255,255,0.05)' }
               }}
               bezier
               style={styles.chart}
+              yAxisLabel={currencySymbol}
             />
           </CardContent>
         </Card>
@@ -303,9 +326,9 @@ const InsightsScreen: React.FC = () => {
               <CardContent style={styles.chartContent}>
                 <BarChart
                   data={topCategoriesChartData}
-                  width={screenWidth - 72}
+                  width={screenWidth - 60}
                   height={220}
-                  yAxisLabel=""
+                  yAxisLabel={currencySymbol}
                   yAxisSuffix=""
                   chartConfig={{
                     backgroundColor: cardColor,
@@ -315,11 +338,13 @@ const InsightsScreen: React.FC = () => {
                     color: (opacity = 1) => `rgba(245, 158, 11, ${opacity})`,
                     labelColor: (opacity = 1) => mutedForeground,
                     style: { borderRadius: 16 },
-                    barPercentage: 0.7,
+                    barPercentage: 0.5,
+                    propsForBackgroundLines: { strokeWidth: 1, stroke: 'rgba(255,255,255,0.05)' }
                   }}
                   style={styles.chart}
-                  showValuesOnTopOfBars={true}
-                  withHorizontalLabels={false}
+                  showValuesOnTopOfBars={false}
+                  withHorizontalLabels={true}
+                  fromZero={true}
                 />
               </CardContent>
             </Card>
@@ -340,14 +365,15 @@ const InsightsScreen: React.FC = () => {
                 chartConfig={{ color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})` }}
                 accessor="amount"
                 backgroundColor="transparent"
-                paddingLeft="0"
+                paddingLeft="15"
                 absolute
+                hasLegend={false}
               />
               <View style={styles.categoryList}>
-                {categoryData.slice(0, 4).map((cat, idx) => (
-                  <View key={cat.name} style={styles.categoryBadge}>
+                {categoryData.slice(0, 6).map((cat, idx) => (
+                  <View key={cat.name} style={[styles.categoryBadge, { backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderColor: isDark ? '#334155' : '#f1f5f9' }]}>
                     <View style={[styles.colorDot, { backgroundColor: cat.color }]} />
-                    <Typography variant="small" weight="medium">{cat.name}</Typography>
+                    <Typography variant="small" weight="medium" style={{ color: text }}>{cat.name}</Typography>
                   </View>
                 ))}
               </View>
