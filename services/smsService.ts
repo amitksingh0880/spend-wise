@@ -323,9 +323,52 @@ export const extractVendor = (message: string): string | null => {
 };
 
 export const determineTransactionType = (message: string): TransactionType => {
-  const lowerMessage = (message || '').toLowerCase();
-  const incomeKeywords = ['credited', 'received', 'deposit', 'refund', 'cashback', 'salary'];
-  if (incomeKeywords.some(k => lowerMessage.includes(k))) return 'income';
+  const lowerMessage = (message || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!lowerMessage) return 'expense';
+
+  const hasDebit = /\b(?:debit|debited|dr)\b/.test(lowerMessage);
+  const hasCredit = /\b(?:credit|credited|cr)\b/.test(lowerMessage);
+
+  if (/\b(?:reversal|reversed)\b/.test(lowerMessage)) {
+    if (hasDebit) return 'income';
+    if (hasCredit) return 'expense';
+  }
+
+  if (/\b(?:refund|cashback|salary|interest|dividend)\b/.test(lowerMessage)) {
+    return 'income';
+  }
+
+  if (hasDebit && hasCredit) {
+    const debitIndex = lowerMessage.search(/\b(?:debit|debited|dr)\b/);
+    const creditIndex = lowerMessage.search(/\b(?:credit|credited|cr)\b/);
+    if (debitIndex !== -1 && creditIndex !== -1) {
+      return debitIndex <= creditIndex ? 'expense' : 'income';
+    }
+  }
+
+  const expensePatterns: RegExp[] = [
+    /\b(?:a\/c|account)\b.{0,40}\bdebited\b/,
+    /\bdebited\b.{0,40}\b(?:a\/c|account)\b/,
+    /\b(?:paid|payment|spent|purchase|withdrawn|withdrawal|sent|transferred\s+to|charged|fee|emi|installment)\b/,
+    /\b(?:upi|card|atm|pos)\b.{0,40}\b(?:debit|debited|paid|payment|sent|spent)\b/
+  ];
+
+  const incomePatterns: RegExp[] = [
+    /\b(?:a\/c|account)\b.{0,40}\bcredited\b/,
+    /\bcredited\b.{0,40}\b(?:a\/c|account)\b/,
+    /\b(?:received|deposited|deposit|refund|cashback|salary|interest|dividend|transferred\s+from)\b/,
+    /\b(?:upi|imps|neft|rtgs)\b.{0,40}\b(?:credit|credited|received)\b/
+  ];
+
+  const expenseScore = expensePatterns.reduce((score, pattern) => score + (pattern.test(lowerMessage) ? 1 : 0), 0);
+  const incomeScore = incomePatterns.reduce((score, pattern) => score + (pattern.test(lowerMessage) ? 1 : 0), 0);
+
+  if (incomeScore > expenseScore) return 'income';
+  if (expenseScore > incomeScore) return 'expense';
+
+  if (hasCredit && !hasDebit) return 'income';
+  if (hasDebit && !hasCredit) return 'expense';
+
   return 'expense';
 };
 
