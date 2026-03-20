@@ -155,7 +155,8 @@ const VENDOR_STOPWORDS = new Set([
   'on', 'the', 'is', 'your', 'for', 'with', 'by', 'to', 'from', 'at',
   'a', 'an', 'of', 'and', 'or', 'in', 'as', 'vpa', 'upi', 'ac', 'a/c',
   'account', 'rs', 'inr', 'bank', 'bal', 'ref', 'no',
-  'user', 'cust', 'mandate', 'aspresented', 'hear', 'pickup', 'mobile', 'instant'
+  'user', 'cust', 'mandate', 'aspresented', 'hear', 'pickup', 'mobile', 'instant',
+  'debited with', 'credited with', 'ending'
 ]);
 
 const VENDOR_CHANNEL_WORDS = new Set([
@@ -226,6 +227,9 @@ const normalizeVendor = (candidate: string): string => {
     .replace(/^(?:mr|mrs|ms|dr)\.?\s+/i, '')
     .replace(/^(?:at|to|from|via|by|on)\s+/i, '')
     .replace(/\s*(?:on|by|for)\s+\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}.*$/i, '')
+    // Strip fraud-warning / dispute phrases appended after the actual name
+    .replace(/\s+(?:not you\??|not u\??|if not you\??).*/i, '')
+    .replace(/\s+sms\s+blockupi.*$/i, '')
     .replace(/(?:\.|\s|\-)*(?:avl|avail|available|clear|bal|balance|ref|utr|txn|report|dispute).*$/i, '')
     .replace(/\s{2,}/g, ' ')
     .trim()

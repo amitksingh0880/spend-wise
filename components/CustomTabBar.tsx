@@ -8,6 +8,7 @@ import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { emitter } from '@/libs/emitter';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
@@ -19,6 +20,7 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
   const mutedForeground = useThemeColor({}, 'mutedForeground');
   const { theme } = useAppTheme();
   const isDark = theme === 'dark';
+  const insets = useSafeAreaInsets();
 
   const translateY = useSharedValue(0);
 
@@ -39,6 +41,10 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
     transform: [{ translateY: translateY.value }],
   }));
 
+  const bottomOffset = Platform.OS === 'ios'
+		? insets.bottom + 20
+		: insets.bottom + 10;
+
   const routes = [
     { name: 'index', label: 'Home', Icon: Compass },
     { name: 'transaction', label: 'Activity', Icon: List },
@@ -54,6 +60,7 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
       styles.container, 
       animatedStyle, 
       { 
+        bottom: bottomOffset,
         backgroundColor: isDark ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)',
         borderColor: border // Use theme border to match app aesthetic
       }
@@ -136,7 +143,6 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 25 : 15,
     alignSelf: 'center',
     width: width * 0.9,
     maxWidth: 600,

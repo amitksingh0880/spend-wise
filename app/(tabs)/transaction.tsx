@@ -52,7 +52,10 @@ const TransactionItem = ({
   const border = useThemeColor({}, 'border');
   const isIncome = transaction.type === 'income';
   const Icon = isIncome ? ArrowDownLeft : ArrowUpRight;
-  const formattedDate = new Date(transaction.createdAt).toLocaleDateString(undefined, {
+  const txDate = transaction.smsData?.timestamp
+    ? new Date(transaction.smsData.timestamp)
+    : new Date(transaction.createdAt);
+  const formattedDate = txDate.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
   });
@@ -186,7 +189,12 @@ const TransactionsScreen: React.FC = () => {
       }
       if (showTodayOnly) {
         const todayString = new Date().toDateString();
-        filtered = filtered.filter(t => new Date(t.createdAt).toDateString() === todayString);
+        filtered = filtered.filter(t => {
+          const date = t.smsData?.timestamp
+            ? new Date(t.smsData.timestamp)
+            : new Date(t.createdAt);
+          return date.toDateString() === todayString;
+        });
       }
       setFilteredTransactions(filtered);
     }
