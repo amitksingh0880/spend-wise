@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Typography } from './ui/text';
 import { Transaction } from '@/services/transactionService';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -18,9 +18,7 @@ const TransactionItem = ({ transaction, index }: { transaction: Transaction, ind
   const { theme } = useAppTheme();
   const isDark = theme === 'dark';
 
-  const border = useThemeColor({}, 'border');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
-  const card = useThemeColor({}, 'card');
 
   const isIncome = transaction.type === 'income';
   
@@ -40,41 +38,38 @@ const TransactionItem = ({ transaction, index }: { transaction: Transaction, ind
     };
   };
 
-  const catTheme = getCategoryTheme(transaction.category);
   const iconColor = isIncome ? '#10b981' : '#ef4444'; 
 
-  const date = new Date(transaction.createdAt);
-  const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const rawDate = transaction.smsData?.timestamp
+    ? new Date(transaction.smsData.timestamp)
+    : new Date(transaction.createdAt);
+  const timeString = rawDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const dateString = rawDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
   return (
-    <Animated.View entering={FadeInUp.delay(300 + index * 100).duration(500).springify()}>
-      <TouchableOpacity style={[styles.transactionCard, { backgroundColor: card, borderColor: border }]}>
-        <View style={styles.cardHeader}>
-          <View style={[styles.categoryPill, { backgroundColor: catTheme.bg }]}>
-            <Tag size={12} color={catTheme.text} style={{ marginRight: 4 }} />
-            <Typography variant="small" style={{ color: catTheme.text, fontSize: 10, fontWeight: 'bold' }}>
-              {transaction.category}
-            </Typography>
+    <Animated.View entering={FadeInUp.delay(150 + index * 50).duration(400).springify()}>
+      <View style={styles.row}>
+        <View style={styles.cellDate}>
+          <View style={styles.dateTimeWrapper}>
+            <Clock size={12} color={mutedForeground} style={{ marginRight: 4 }} />
+            <View>
+              <Typography variant="small" style={{ color: mutedForeground }}>{dateString}</Typography>
+              <Typography variant="small" style={{ color: mutedForeground }}>{timeString}</Typography>
+            </View>
           </View>
         </View>
-
-        <Typography variant="large" weight="bold" style={styles.vendorText}>
-          {transaction.vendor}
-        </Typography>
-
-        <View style={styles.cardFooter}>
-          <View style={styles.timeWrapper}>
-            <Clock size={14} color={mutedForeground} style={{ marginRight: 4 }} />
-            <Typography variant="small" style={{ color: mutedForeground }}>
-              {timeString}
-            </Typography>
-          </View>
-          
-          <Typography variant="bold" style={{ color: iconColor }}>
+        <View style={styles.cellVendor}>
+          <Typography variant="small" weight="bold" numberOfLines={1}>{transaction.vendor}</Typography>
+        </View>
+        <View style={styles.cellCategory}>
+          <Typography variant="small" numberOfLines={1}>{transaction.category}</Typography>
+        </View>
+        <View style={styles.cellAmount}>
+          <Typography variant="small" weight="bold" style={{ color: iconColor }}>
             {isIncome ? '+' : '-'}{formatAmount(transaction.amount)}
           </Typography>
         </View>
-      </TouchableOpacity>
+      </View>
     </Animated.View>
   );
 };
@@ -83,6 +78,15 @@ export const RecentTransactionsList: React.FC<RecentTransactionsListProps> = ({ 
   const text = useThemeColor({}, 'text');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
   const primary = useThemeColor({}, 'primary');
+  const border = useThemeColor({}, 'border');
+
+  const today = new Date().toDateString();
+  const todayTransactions = transactions.filter(tx => {
+    const d = tx.smsData?.timestamp
+      ? new Date(tx.smsData.timestamp)
+      : new Date(tx.createdAt);
+    return d.toDateString() === today;
+  });
 
   return (
     <View style={styles.container}>
@@ -97,18 +101,27 @@ export const RecentTransactionsList: React.FC<RecentTransactionsListProps> = ({ 
         </TouchableOpacity>
       </View>
 
-      <View style={styles.list}>
-        {transactions.length > 0 ? (
-          transactions.map((tx, idx) => (
-            <View key={tx.id}>
-              <TransactionItem transaction={tx} index={idx} />
-            </View>
-          ))
+      <View style={styles.tableWrapper}>
+        <View style={[styles.headerRow, { borderBottomColor: border }]}> 
+          <Typography variant="small" weight="bold" style={[styles.headerCell, styles.headerCellDate]}>Date</Typography>
+          <Typography variant="small" weight="bold" style={[styles.headerCell, styles.headerCellVendor]}>Vendor</Typography>
+          <Typography variant="small" weight="bold" style={[styles.headerCell, styles.headerCellCategory]}>Category</Typography>
+          <Typography variant="small" weight="bold" style={[styles.headerCell, styles.headerCellAmount, { textAlign: 'right' }]}>Amount</Typography>
+        </View>
+
+        {todayTransactions.length > 0 ? (
+          <View style={styles.list}>
+            {todayTransactions.map((tx, idx) => (
+              <View key={tx.id}>
+                <TransactionItem transaction={tx} index={idx} />
+              </View>
+            ))}
+          </View>
         ) : (
           <View style={styles.emptyState}>
             <Wallet size={48} color={mutedForeground} />
             <Typography style={{ marginTop: 16, color: mutedForeground }}>
-              No transactions yet
+              No transactions for today
             </Typography>
           </View>
         )}
@@ -130,46 +143,54 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   list: {
-    gap: 16,
+    gap: 4,
   },
-  transactionCard: {
-    padding: 20,
-    borderRadius: 24,
-    borderWidth: 1,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 15,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    marginBottom: 12,
-  },
-  categoryPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  tableWrapper: {
+    marginTop: 8,
     borderRadius: 12,
+    overflow: 'hidden',
   },
-  vendorText: {
-    marginBottom: 16,
-    fontSize: 18,
-  },
-  cardFooter: {
+  headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  timeWrapper: {
+  headerCell: {
+    fontSize: 11,
+  },
+  headerCellDate: {
+    flex: 1.3,
+  },
+  headerCellVendor: {
+    flex: 2,
+  },
+  headerCellCategory: {
+    flex: 1.4,
+  },
+  headerCellAmount: {
+    flex: 1.2,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  cellDate: {
+    flex: 1.3,
+  },
+  cellVendor: {
+    flex: 2,
+    paddingRight: 6,
+  },
+  cellCategory: {
+    flex: 1.4,
+    paddingRight: 6,
+  },
+  cellAmount: {
+    flex: 1.2,
+    alignItems: 'flex-end',
+  },
+  dateTimeWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
   },

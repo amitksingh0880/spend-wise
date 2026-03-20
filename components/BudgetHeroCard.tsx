@@ -74,7 +74,7 @@ export const BudgetHeroCard: React.FC<BudgetHeroCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 24,
+		marginHorizontal: 0,
     borderRadius: 32,
     padding: 24,
     shadowColor: '#F97316',

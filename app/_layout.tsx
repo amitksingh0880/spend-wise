@@ -10,7 +10,9 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import StartupSplash from '@/components/StartupSplash';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { ThemeProvider as AppThemeProvider, useAppTheme } from '@/contexts/ThemeContext';
+import { emitter } from '@/libs/emitter';
 // Auth code removed
+import { runBudgetWarningAutomation } from '@/services/budgetService';
 import { getUserPreferences } from '@/services/preferencesService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { registerSmsAutoFetch } from '@/services/backgroundTaskService';
@@ -91,6 +93,22 @@ export default function RootLayout() {
       // Background auth behavior removed
     });
     return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    const runChecks = async () => {
+      try {
+        await runBudgetWarningAutomation();
+      } catch (error) {
+        console.warn('Budget warning automation failed', error);
+      }
+    };
+
+    runChecks();
+    const unsub = emitter.addListener('transactions:changed', runChecks);
+    return () => {
+      unsub();
+    };
   }, []);
 
   // auth emitter removed

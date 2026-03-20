@@ -2,6 +2,8 @@ import { emitter } from '../libs/emitter';
 import { readJson, writeJson } from '../libs/storage';
 import { uuidv4 } from '../utils/uuid';
 import { getAllTransactions } from './transactionService';
+import * as Notifications from 'expo-notifications';
+import { getUserPreferences } from './preferencesService';
 
 export interface Budget {
   id: string;
@@ -251,6 +253,41 @@ export const checkBudgetAlerts = async (): Promise<BudgetAlert[]> => {
     await writeJson(BUDGET_ALERTS_STORAGE_KEY, [...newAlerts, ...existingAlerts]);
   }
   
+  return newAlerts;
+};
+
+const sendBudgetAlertNotifications = async (alerts: BudgetAlert[]): Promise<void> => {
+  if (!alerts.length) return;
+
+  const prefs = await getUserPreferences();
+  const canNotify = !!prefs.notifications?.budgetAlerts && !!prefs.notifications?.pushNotifications;
+  if (!canNotify) return;
+
+  for (const alert of alerts) {
+    if (!alert.isActive) continue;
+
+    const title = alert.type === 'exceeded' ? 'Budget Exceeded' : 'Budget Warning';
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body: alert.message,
+        data: { screen: 'budget' },
+      },
+      trigger: null,
+    });
+  }
+};
+
+export const runBudgetWarningAutomation = async (): Promise<BudgetAlert[]> => {
+  await updateBudgetSpending();
+  const newAlerts = await checkBudgetAlerts();
+
+  if (newAlerts.length > 0) {
+    await sendBudgetAlertNotifications(newAlerts);
+    try { emitter.emit('budgets:alerts', newAlerts); } catch (err) { /* ignore */ }
+  }
+
   return newAlerts;
 };
 

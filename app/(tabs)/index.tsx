@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   cardWrapper: {
     marginTop: 20,
     marginBottom: 10,
-    paddingHorizontal: 24,
+		paddingHorizontal: 16,
   },
   summaryCardsRow: {
     flexDirection: 'row',

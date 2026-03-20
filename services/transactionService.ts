@@ -55,9 +55,12 @@ export const getTransactionById = async (id: string): Promise<Transaction | null
 
 export const saveTransaction = async (tx: Omit<Transaction, 'id' | 'createdAt'>): Promise<Transaction> => {
   const all = await getAllTransactions();
+  const createdAt = tx.smsData?.timestamp
+		? new Date(tx.smsData.timestamp).toISOString()
+		: new Date().toISOString();
   const newTx: Transaction = {
     id: uuidv4(),
-    createdAt: new Date().toISOString(),
+    createdAt,
     ...tx,
   };
   await writeJson(STORAGE_KEY, [newTx, ...all]);
@@ -220,7 +223,9 @@ export const importTransactions = async (transactions: Omit<Transaction, 'id' | 
   const existing = await getAllTransactions();
   const newTransactions = transactions.map(tx => ({
     id: uuidv4(),
-    createdAt: new Date().toISOString(),
+    createdAt: tx.smsData?.timestamp
+			? new Date(tx.smsData.timestamp).toISOString()
+			: new Date().toISOString(),
     ...tx
   }));
   
