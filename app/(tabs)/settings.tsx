@@ -10,7 +10,9 @@ import {
   unregisterSmsAutoFetch, 
   isSmsAutoFetchRegistered 
 } from '@/services/backgroundTaskService';
-import DateTimePicker from '@react-native-community/datetimepicker';
+// Lazy-load DateTimePicker only on native platforms to avoid web runtime issues
+// We'll require it at runtime so bundlers don't try to resolve unsupported web module paths.
+let DateTimePicker: any = undefined;
 import { FontFamily } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
@@ -34,7 +36,7 @@ import {
   User,
   Layout as LayoutIcon,
 } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+
 import {
   Alert,
   Modal,
@@ -48,8 +50,16 @@ import {
   TextInput,
   Linking,
 } from 'react-native';
+import { ExportOptions, exportTransactions, getExportFormats, validateExportOptions } from '@/services/exportService';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
+
+import React, { useEffect, useState } from 'react';
+
+if (Platform.OS !== 'web') {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  DateTimePicker = require('@react-native-community/datetimepicker').default;
+}
 
 const SettingsScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -177,6 +187,82 @@ const SettingsScreen: React.FC = () => {
         },
       ]
     );
+  };
+
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'pdf'>('csv');
+  const [includeTransactionsExport, setIncludeTransactionsExport] = useState(true);
+  const [includeBudgetsExport, setIncludeBudgetsExport] = useState(false);
+  const [includeAnalyticsExport, setIncludeAnalyticsExport] = useState(false);
+  const [exportFromDate, setExportFromDate] = useState<Date | undefined>(undefined);
+  const [exportToDate, setExportToDate] = useState<Date | undefined>(undefined);
+  const [showExportFromPicker, setShowExportFromPicker] = useState(false);
+  const [showExportToPicker, setShowExportToPicker] = useState(false);
+  // Web-specific inputs
+  const [showWebExportInputs, setShowWebExportInputs] = useState(false);
+  const [webExportFromValue, setWebExportFromValue] = useState(''); // YYYY-MM-DD
+  const [webExportToValue, setWebExportToValue] = useState('');
+
+  const [showWebSmsInput, setShowWebSmsInput] = useState(false);
+  const [webSmsHourValue, setWebSmsHourValue] = useState(String(smsAutoFetchHour));
+
+  const handleStartExport = async () => {
+    try {
+      setLoading(true);
+
+      const options: ExportOptions = {
+        format: exportFormat,
+        includeTransactions: includeTransactionsExport,
+        includeBudgets: includeBudgetsExport,
+        includeAnalytics: includeAnalyticsExport,
+      };
+
+      if (exportFromDate && exportToDate) {
+        options.dateRange = { from: exportFromDate.toISOString(), to: exportToDate.toISOString() };
+      }
+
+      const validation = validateExportOptions(options);
+      if (!validation.valid) {
+        Alert.alert('Invalid options', validation.errors.join('\n'));
+        return;
+      }
+
+      const result = await exportTransactions(options);
+      if (result.success) {
+        Alert.alert('Export complete', `File saved to ${result.filePath}`);
+        setShowExportModal(false);
+      } else {
+        Alert.alert('Export failed', result.error || 'Unknown error');
+      }
+    } catch (error) {
+      Alert.alert('Export error', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportDatePress = async (which: 'from' | 'to') => {
+    if (Platform.OS === 'web') {
+      // show in-modal inputs on web
+      if (which === 'from') {
+        setWebExportFromValue(exportFromDate ? exportFromDate.toISOString().slice(0, 10) : '');
+      } else {
+        setWebExportToValue(exportToDate ? exportToDate.toISOString().slice(0, 10) : '');
+      }
+      setShowWebExportInputs(true);
+    } else {
+      if (which === 'from') setShowExportFromPicker(true);
+      else setShowExportToPicker(true);
+    }
+  };
+
+  const handleSmsTimePress = async () => {
+    if (Platform.OS === 'web') {
+      setWebSmsHourValue(String(smsAutoFetchHour));
+      setShowWebSmsInput(true);
+    } else {
+      setShowTimePicker(true);
+    }
   };
 
   const SettingRow = ({ 
@@ -349,15 +435,15 @@ const SettingsScreen: React.FC = () => {
               title="Auto-Fetch Time"
               subtitle={`Current: ${smsAutoFetchHour}:00 ${smsAutoFetchHour >= 12 ? 'PM' : 'AM'}`}
               color="#06b6d4"
-              onPress={() => setShowTimePicker(true)}
+              onPress={() => handleSmsTimePress()}
               rightElement={
-                <TouchableOpacity onPress={() => setShowTimePicker(true)} style={[styles.linkBtn, { backgroundColor: `${primary}15` }]}>
+                <TouchableOpacity onPress={() => handleSmsTimePress()} style={[styles.linkBtn, { backgroundColor: `${primary}15` }]}>
                   <Typography variant="small" weight="bold" style={{ color: primary }}>Change</Typography>
                 </TouchableOpacity>
               }
             />
           )}
-          {showTimePicker && (
+          {showTimePicker && Platform.OS !== 'web' && (
             <DateTimePicker
               value={(() => {
                 const d = new Date();
@@ -378,6 +464,38 @@ const SettingsScreen: React.FC = () => {
                 }
               }}
             />
+          )}
+
+          {/* Web SMS time input */}
+          {showWebSmsInput && Platform.OS === 'web' && (
+            <View style={{ padding: 12 }}>
+              <Typography variant="small" style={{ color: mutedForeground }}>Enter hour (0-23)</Typography>
+              <TextInput
+                value={webSmsHourValue}
+                onChangeText={setWebSmsHourValue}
+                keyboardType="numeric"
+                style={{ borderWidth: 1, borderColor: border, borderRadius: 8, padding: 8, marginTop: 8, color: text }}
+                placeholder="e.g., 22"
+                placeholderTextColor={mutedForeground}
+              />
+              <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                <TouchableOpacity onPress={() => { setShowWebSmsInput(false); }} style={[styles.closeModal, { backgroundColor: '#6b7280', flex: 1, marginRight: 8 }]}>
+                  <Typography variant="bold" style={{ color: '#FFFFFF' }}>Cancel</Typography>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={async () => {
+                  const h = parseInt(webSmsHourValue, 10);
+                  if (!isNaN(h) && h >= 0 && h <= 23) {
+                    setSmsAutoFetchHour(h);
+                    await saveUserPreferences({ smsAutoFetchHour: h });
+                    setShowWebSmsInput(false);
+                  } else {
+                    Alert.alert('Invalid hour', 'Please enter a number between 0 and 23');
+                  }
+                }} style={[styles.closeModal, { backgroundColor: primary, flex: 1 }]}>
+                  <Typography variant="bold" style={{ color: '#FFFFFF' }}>Apply</Typography>
+                </TouchableOpacity>
+              </View>
+            </View>
           )}
         </Card>
 
@@ -404,7 +522,7 @@ const SettingsScreen: React.FC = () => {
             title="Export Data"
             subtitle="Export to CSV or JSON"
             color="#3b82f6"
-            onPress={() => {}}
+            onPress={() => setShowExportModal(true)}
           />
           <SettingRow
             index={6}
@@ -447,6 +565,157 @@ const SettingsScreen: React.FC = () => {
           <Typography variant="small" style={{ color: mutedForeground }}>{appName} • Designed for Financial Freedom</Typography>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showExportModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowExportModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View entering={FadeInUp} style={[styles.modalContent, { backgroundColor: cardColor }]}>
+            <Typography variant="bold" style={styles.modalTitle}>Export Data</Typography>
+
+            <Typography variant="small" style={{ color: mutedForeground, marginBottom: 8 }}>Select format</Typography>
+            <View style={{ marginBottom: 12 }}>
+              {getExportFormats().map(fmt => (
+                <TouchableOpacity
+                  key={fmt.value}
+                  style={[styles.currencyOption, { borderColor: border }, exportFormat === fmt.value && { backgroundColor: `${primary}15`, borderColor: primary }]}
+                  onPress={() => setExportFormat(fmt.value as 'csv' | 'json' | 'pdf')}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Typography variant="bold">{fmt.label}</Typography>
+                    <Typography variant="small" style={{ color: mutedForeground }}>{fmt.description}</Typography>
+                  </View>
+                  {exportFormat === fmt.value && <Typography style={{ color: primary }}>✓</Typography>}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Typography variant="small" style={{ color: mutedForeground, marginBottom: 8 }}>Include</Typography>
+            <View style={{ marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Typography variant="bold">Transactions</Typography>
+                  <Typography variant="small" style={{ color: mutedForeground }}>Include transaction history</Typography>
+                </View>
+                <Switch value={includeTransactionsExport} onValueChange={setIncludeTransactionsExport} trackColor={{ false: '#e2e8f0', true: primary }} thumbColor="#FFFFFF" />
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Typography variant="bold">Budgets</Typography>
+                  <Typography variant="small" style={{ color: mutedForeground }}>Include budgets and progress</Typography>
+                </View>
+                <Switch value={includeBudgetsExport} onValueChange={setIncludeBudgetsExport} trackColor={{ false: '#e2e8f0', true: primary }} thumbColor="#FFFFFF" />
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flex: 1 }}>
+                  <Typography variant="bold">Analytics</Typography>
+                  <Typography variant="small" style={{ color: mutedForeground }}>Include generated analytics/report</Typography>
+                </View>
+                <Switch value={includeAnalyticsExport} onValueChange={setIncludeAnalyticsExport} trackColor={{ false: '#e2e8f0', true: primary }} thumbColor="#FFFFFF" />
+              </View>
+            </View>
+
+            <Typography variant="small" style={{ color: mutedForeground, marginBottom: 8 }}>Date range (optional)</Typography>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+              <TouchableOpacity style={[styles.currencyOption, { flex: 1, borderColor: border }]} onPress={() => handleExportDatePress('from')}>
+                <Typography variant="small">From</Typography>
+                <Typography variant="small" style={{ color: mutedForeground }}>{exportFromDate ? exportFromDate.toLocaleDateString() : 'Any'}</Typography>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.currencyOption, { flex: 1, borderColor: border }]} onPress={() => handleExportDatePress('to')}>
+                <Typography variant="small">To</Typography>
+                <Typography variant="small" style={{ color: mutedForeground }}>{exportToDate ? exportToDate.toLocaleDateString() : 'Any'}</Typography>
+              </TouchableOpacity>
+            </View>
+
+            {showExportFromPicker && Platform.OS !== 'web' && (
+              <DateTimePicker
+                value={exportFromDate ?? new Date()}
+                mode="date"
+                display="default"
+                onChange={(ev, date) => { setShowExportFromPicker(false); if (date) setExportFromDate(date); }}
+              />
+            )}
+
+            {showExportToPicker && Platform.OS !== 'web' && (
+              <DateTimePicker
+                value={exportToDate ?? new Date()}
+                mode="date"
+                display="default"
+                onChange={(ev, date) => { setShowExportToPicker(false); if (date) setExportToDate(date); }}
+              />
+            )}
+
+            {/* Web in-modal date inputs */}
+            {showWebExportInputs && Platform.OS === 'web' && (
+              <View style={{ padding: 8 }}>
+                <Typography variant="small" style={{ color: mutedForeground }}>From (YYYY-MM-DD)</Typography>
+                <TextInput
+                  value={webExportFromValue}
+                  onChangeText={setWebExportFromValue}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={mutedForeground}
+                  style={{ borderWidth: 1, borderColor: border, borderRadius: 8, padding: 8, marginTop: 6, color: text }}
+                />
+
+                <Typography variant="small" style={{ color: mutedForeground, marginTop: 8 }}>To (YYYY-MM-DD)</Typography>
+                <TextInput
+                  value={webExportToValue}
+                  onChangeText={setWebExportToValue}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={mutedForeground}
+                  style={{ borderWidth: 1, borderColor: border, borderRadius: 8, padding: 8, marginTop: 6, color: text }}
+                />
+
+                <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                  <TouchableOpacity onPress={() => { setWebExportFromValue(''); setWebExportToValue(''); setShowWebExportInputs(false); }} style={[styles.closeModal, { backgroundColor: '#6b7280', flex: 1, marginRight: 8 }]}>
+                    <Typography variant="bold" style={{ color: '#FFFFFF' }}>Cancel</Typography>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => {
+                    // apply values
+                    try {
+                      if (webExportFromValue) {
+                        const d1 = new Date(webExportFromValue);
+                        if (!isNaN(d1.getTime())) setExportFromDate(d1);
+                        else { Alert.alert('Invalid date', 'Please enter a valid From date (YYYY-MM-DD)'); return; }
+                      } else {
+                        setExportFromDate(undefined);
+                      }
+
+                      if (webExportToValue) {
+                        const d2 = new Date(webExportToValue);
+                        if (!isNaN(d2.getTime())) setExportToDate(d2);
+                        else { Alert.alert('Invalid date', 'Please enter a valid To date (YYYY-MM-DD)'); return; }
+                      } else {
+                        setExportToDate(undefined);
+                      }
+
+                      setShowWebExportInputs(false);
+                    } catch (e) {
+                      Alert.alert('Error', 'Failed to apply dates');
+                    }
+                  }} style={[styles.closeModal, { backgroundColor: primary, flex: 1 }]}>
+                    <Typography variant="bold" style={{ color: '#FFFFFF' }}>Apply</Typography>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+              <TouchableOpacity style={[styles.closeModal, { backgroundColor: '#6b7280', flex: 1, marginRight: 8 }]} onPress={() => setShowExportModal(false)}>
+                <Typography variant="bold" style={{ color: '#FFFFFF' }}>Cancel</Typography>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.closeModal, { backgroundColor: primary, flex: 1 }]} onPress={handleStartExport}>
+                <Typography variant="bold" style={{ color: '#FFFFFF' }}>Export</Typography>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showCurrencyModal}

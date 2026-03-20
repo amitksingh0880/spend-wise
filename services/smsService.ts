@@ -100,12 +100,68 @@ const TRANSACTION_KEYWORDS = [
   'debited', 'credited', 'paid', 'received', 'transaction', 'purchase', 'spent',
   'withdrawn', 'deposit', 'transfer', 'upi', 'card', 'atm', 'payment',
   'bill', 'recharge', 'refund', 'cashback', 'charged', 'debit', 'credit',
-  'balance', 'account', 'bank', 'wallet', 'money', 'rs.', 'inr', '₹',
+  'balance', 'account', 'bank', 'wallet', 'money',
   'withdrawal', 'deposited', 'transferred', 'sent', 'salary', 'bonus', 'interest',
   'dividend', 'reward', 'reversal', 'charge', 'fee', 'commission',
   'loan', 'emi', 'installment', 'prepaid', 'postpaid', 'subscription',
   'renewal', 'activation', 'deactivation', 'upgrade', 'downgrade'
 ];
+
+const TRANSACTION_ACTION_KEYWORDS = [
+  'debited', 'credited', 'paid', 'received', 'purchase', 'spent', 'withdrawn',
+  'deposit', 'deposited', 'transfer', 'transferred', 'sent', 'charged',
+  'recharge', 'refund', 'cashback', 'salary', 'emi'
+];
+
+const NON_TRANSACTION_KEYWORDS = [
+  'loan offer', 'up to', 'starting at', 'get quote', 'pre-approved', 'instant cash',
+  'festive loan', 'opt out', 'insurance', 'claim your offer', 'paperless', 'disbursal',
+  'mandate has been successfully created', 'mandate has been successfully revoked',
+  'autopay debit', 'scheduled on', 'feedback', 'survey', 'offer waiting',
+  'pickup', 'unsuccessful', 'changed your pin', 'atm txns will be allowed'
+];
+
+const BLOCKED_PROMO_SENDERS = [
+  'STARHT',
+  'NVLOAN',
+  'HDFCSA',
+  'KISHT',
+  'TATANU',
+  'AJIO',
+  'EKARTL',
+];
+
+const BLOCKED_PROMO_PHRASES = [
+  'health insurance starting at',
+  'get quote now',
+  'instant cash',
+  'festive loans',
+  'save ₹',
+  'surprise offer',
+  'zero joining fee',
+  'claim your offer',
+];
+
+const BALANCE_HINT_PATTERNS = [
+  /avl\.?\s*bal/i,
+  /available\s*bal/i,
+  /clear\s*bal/i,
+  /closing\s*bal/i,
+  /ledger\s*bal/i,
+  /current\s*bal/i,
+];
+
+const VENDOR_STOPWORDS = new Set([
+  'on', 'the', 'is', 'your', 'for', 'with', 'by', 'to', 'from', 'at',
+  'a', 'an', 'of', 'and', 'or', 'in', 'as', 'vpa', 'upi', 'ac', 'a/c',
+  'account', 'rs', 'inr', 'bank', 'bal', 'ref', 'no',
+  'user', 'cust', 'mandate', 'aspresented', 'hear', 'pickup', 'mobile', 'instant'
+]);
+
+const VENDOR_CHANNEL_WORDS = new Set([
+  'upi', 'imps', 'neft', 'rtgs', 'wallet', 'card', 'bank', 'payment', 'transfer',
+  'uco-upi', 'upi-ref', 'upi ref'
+]);
 
 const BANK_SENDER_PATTERNS = [
   // condensed list (keep original list in your project if you prefer longer)
@@ -116,6 +172,16 @@ const BANK_SENDER_PATTERNS = [
 ];
 
 const VENDOR_PATTERNS: RegExp[] = [
+  /credited\s+to\s+vpa\s+([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+)/i,
+  /debited\s+towards\s+([A-Za-z][A-Za-z0-9\s&\.\-]{2,}?)(?:\s+for\b|\s+on\b|\s*$)/i,
+  /\(imps\s+ref#\s*[0-9]+\)\s*[-–]\s*([A-Za-z][A-Za-z0-9\s&\.\-]{2,})/i,
+  /upi\/[a-z0-9]+\/[0-9]+\/([A-Za-z][A-Za-z0-9\s&\.\-]{2,})/i,
+  /trf\s+to\s+([A-Za-z][A-Za-z0-9\s&\.\-]{2,}?)(?:\s+ref(?:no)?\b|\s+if\s+not|\s*$)/i,
+  /transfer\s+from\s+([A-Za-z][A-Za-z0-9\s&\.\-]{2,}?)(?:\s+ref(?:\s*no)?\b|\s*\(|\s*$)/i,
+  /towards\s+([A-Za-z][A-Za-z0-9\s&\.\-]{2,}?)(?:\s+(?:for|from|on)\b|\s*[-,.]|\s*$)/i,
+  /-\s*([A-Za-z][A-Za-z0-9\s&\.\-]{2,}?)\s*\(imps\s*ref/i,
+  /under\s+([A-Za-z][A-Za-z0-9\s&\.\-]{2,}?)\s+for\s+(?:rs\.?|inr|₹)/i,
+  /(?:by|via)\s+([A-Za-z][A-Za-z0-9&\.\-]{2,})(?:\s|\.|,|$)/i,
   /(?:at|to|from)\s+([A-Z][A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
   /merchant\s*:?\s*([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
   /(?:paid|payment)\s+(?:to\s+)?([A-Za-z\s&\.\-]+?)(?:\s|₹|\.|,)/i,
@@ -128,13 +194,62 @@ const VENDOR_PATTERNS: RegExp[] = [
 ];
 
 const AMOUNT_PATTERNS: RegExp[] = [
+  /(?:debited|credited)\s+by\s+(?:rs\.?|inr|₹)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
+  /(?:debited|credited)\s+(?:with|for)?\s*(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
+  /(?:paid|received|transferred|sent|withdrawn|purchased?)\s+(?:with|for|of)?\s*(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
+  /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)\s+is\s+(?:debited|credited)/i,
+  /(?:debited|credited).*?(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
   /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{2})?)/i,
   /([0-9,]+(?:\.[0-9]{2})?)\s*(?:rs\.?|inr|₹)/i,
   /\₹\s*([0-9,]+(?:\.[0-9]{2})?)/i,
   /([0-9,]+(?:\.[0-9]{2})?)\s*\₹/i,
   /([0-9,]+(?:\.[0-9]{2})?)\s*(?:usd|eur|gbp|cad|aud|jpy)/i,
-  /([0-9,]+(?:\.[0-9]{2})?)/i,
 ];
+
+const parseAmountValue = (value: string): number | null => {
+  const amount = parseFloat(value.replace(/,/g, ''));
+  if (isNaN(amount) || amount <= 0) return null;
+  if (amount > 100000000) return null;
+  return amount;
+};
+
+const isBalanceContext = (message: string, startIndex: number): boolean => {
+  const windowStart = Math.max(0, startIndex - 24);
+  const windowEnd = Math.min(message.length, startIndex + 36);
+  const contextWindow = message.slice(windowStart, windowEnd);
+  return BALANCE_HINT_PATTERNS.some(pattern => pattern.test(contextWindow));
+};
+
+const normalizeVendor = (candidate: string): string => {
+  return candidate
+    .replace(/[\n\r\t]+/g, ' ')
+    .replace(/^(?:mr|mrs|ms|dr)\.?\s+/i, '')
+    .replace(/^(?:at|to|from|via|by|on)\s+/i, '')
+    .replace(/\s*(?:on|by|for)\s+\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}.*$/i, '')
+    .replace(/(?:\.|\s|\-)*(?:avl|avail|available|clear|bal|balance|ref|utr|txn|report|dispute).*$/i, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
+};
+
+const shouldBlockSMS = (sender: string, body: string): boolean => {
+  const normalizedSender = (sender || '').toUpperCase();
+  const normalizedBody = (body || '').toLowerCase();
+
+  if (!normalizedBody) return true;
+
+  const hasBlockedSender = BLOCKED_PROMO_SENDERS.some(pattern => normalizedSender.includes(pattern));
+  const hasBlockedPhrase = BLOCKED_PROMO_PHRASES.some(phrase => normalizedBody.includes(phrase));
+
+  const isPromotionalRoute = /-P$/i.test(normalizedSender);
+  const hasStrongTxnAction = /\b(debited|credited|paid|received|withdrawn|transferred|sent|purchase)\b/i.test(normalizedBody);
+
+  if (hasBlockedSender && !hasStrongTxnAction) return true;
+  if (hasBlockedPhrase && !hasStrongTxnAction) return true;
+  if (isPromotionalRoute && hasBlockedPhrase) return true;
+
+  return false;
+};
 
 const CATEGORY_MAPPING: { [key: string]: string[] } = {
   'food': ['restaurant','hotel','cafe','pizza','dominos','swiggy','zomato','uber eats','food'],
@@ -295,28 +410,95 @@ export const isTransactionSMS = (message: string): boolean => {
   if (/\botp\b/i.test(message || '') || /one[\s-]*time[\s-]*password/i.test(message || '') || /verification code/i.test(message || '')) {
     return false;
   }
-  return TRANSACTION_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+
+  const hasTransactionKeyword = TRANSACTION_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+  if (!hasTransactionKeyword) return false;
+
+  const isNonTransactionEvent = NON_TRANSACTION_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+  if (isNonTransactionEvent) return false;
+
+  const hasActionKeyword = TRANSACTION_ACTION_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+  const hasAmountMarker =
+    /(?:rs\.?|inr|₹)\s*[0-9]/i.test(message || '') ||
+    /\b(?:debited|credited)\s+by\s+[0-9]/i.test(message || '');
+
+  const isLikelyPromo = NON_TRANSACTION_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+  if (isLikelyPromo && !hasActionKeyword) return false;
+
+  return hasActionKeyword && hasAmountMarker;
 };
 
 export const extractAmount = (message: string): number | null => {
   if (!message) return null;
+
+  const debitedByMatch = message.match(/\bdebited\s+by\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
+  if (debitedByMatch && debitedByMatch[1]) {
+    const amount = parseAmountValue(debitedByMatch[1]);
+    if (amount !== null) return amount;
+  }
+
+  const creditedByMatch = message.match(/\bcredited\s+by\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
+  if (creditedByMatch && creditedByMatch[1]) {
+    const amount = parseAmountValue(creditedByMatch[1]);
+    if (amount !== null) return amount;
+  }
+
   for (const pattern of AMOUNT_PATTERNS) {
     const match = message.match(pattern);
     if (match && match[1]) {
-      const amountStr = match[1].replace(/,/g, '');
-      const amount = parseFloat(amountStr);
-      if (!isNaN(amount) && amount > 0) return amount;
+      const amount = parseAmountValue(match[1]);
+      if (amount !== null) return amount;
     }
   }
+
+  const currencyAmountRegex = /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/gi;
+  let fallbackMatch: RegExpExecArray | null;
+
+  while ((fallbackMatch = currencyAmountRegex.exec(message)) !== null) {
+    if (!fallbackMatch[1]) continue;
+
+    const matchStart = fallbackMatch.index;
+    if (isBalanceContext(message, matchStart)) {
+      continue;
+    }
+
+    const amount = parseAmountValue(fallbackMatch[1]);
+    if (amount !== null) {
+      return amount;
+    }
+  }
+
   return null;
 };
 
 export const extractVendor = (message: string): string | null => {
   if (!message) return null;
+
+  const vpaMatch = message.match(/\bVPA\s+([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+)/i);
+  if (vpaMatch && vpaMatch[1]) {
+    const vpaVendor = vpaMatch[1].trim().toLowerCase();
+    if (vpaVendor.length >= 6 && vpaVendor.includes('@') && !/^\d+@/.test(vpaVendor)) {
+      return vpaVendor;
+    }
+  }
+
   for (const pattern of VENDOR_PATTERNS) {
     const match = message.match(pattern);
     if (match && match[1]) {
-      return match[1].trim();
+      const cleanedVendor = normalizeVendor(match[1]);
+
+      if (!cleanedVendor) continue;
+
+      const normalizedVendor = cleanedVendor.toLowerCase();
+      if (VENDOR_STOPWORDS.has(normalizedVendor)) continue;
+      if (VENDOR_CHANNEL_WORDS.has(normalizedVendor)) continue;
+      if (/^(?:[a-z]+-)?upi$/i.test(cleanedVendor)) continue;
+      if (/\b(?:upi|imps|neft|rtgs)\b/i.test(cleanedVendor) && cleanedVendor.length <= 12) continue;
+      if (/^\d+$/.test(cleanedVendor)) continue;
+      if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(cleanedVendor)) continue;
+      if (cleanedVendor.length < 3) continue;
+
+      return cleanedVendor;
     }
   }
   return null;
@@ -324,7 +506,10 @@ export const extractVendor = (message: string): string | null => {
 
 export const determineTransactionType = (message: string): TransactionType => {
   const lowerMessage = (message || '').toLowerCase();
+  const expenseKeywords = ['debited', 'paid', 'withdrawn', 'spent', 'purchase', 'charged', 'debit'];
   const incomeKeywords = ['credited', 'received', 'deposit', 'refund', 'cashback', 'salary'];
+
+  if (expenseKeywords.some(k => lowerMessage.includes(k))) return 'expense';
   if (incomeKeywords.some(k => lowerMessage.includes(k))) return 'income';
   return 'expense';
 };
@@ -361,6 +546,12 @@ export const calculateConfidence = (expense: Partial<ExtractedExpense>): number 
 };
 
 export const parseTransactionSMS = (message: SMSMessage): ExtractedExpense | null => {
+  if (shouldBlockSMS(message.address || '', message.body || '')) return null;
+
+  const isPromotionalSender = /-P$/i.test(message.address || '');
+  const hasStrongTransactionAction = /\b(debited|credited|paid|received|purchase|withdrawn|transferred|sent)\b/i.test(message.body || '');
+
+  if (isPromotionalSender && !hasStrongTransactionAction) return null;
   if (!isBankSMS(message.address, message.body)) return null;
   if (!isTransactionSMS(message.body)) return null;
 

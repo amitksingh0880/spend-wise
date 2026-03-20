@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 import { generateFinancialReport } from './analyticsService';
 import { getAllBudgets } from './budgetService';
 import { getAllTransactions } from './transactionService';
@@ -331,24 +332,63 @@ export const exportTransactions = async (options: ExportOptions): Promise<Export
         throw new Error('Unsupported export format');
     }
     
-    // Write file to device
-    const filePath = `${FileSystem.documentDirectory}${fileName}`;
-    await FileSystem.writeAsStringAsync(filePath, content, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
-    
-    // Share the file
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(filePath, {
-        mimeType,
-        dialogTitle: 'Export SpendWise Data',
-      });
-    }
-    
-    return {
-      success: true,
-      filePath,
+    // Save and share (with web fallback)
+    const saveAndShare = async (fileName: string, content: string, mimeType: string): Promise<ExportResult> => {
+      try {
+        if (Platform.OS === 'web') {
+          // Create a blob and trigger download
+          const blob = new Blob([content], { type: mimeType });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          return { success: true, filePath: url };
+        }
+
+        const filePath = `${FileSystem.documentDirectory}${fileName}`;
+        await FileSystem.writeAsStringAsync(filePath, content, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+
+        // Verify file exists after write
+        try {
+          const info = await FileSystem.getInfoAsync(filePath);
+          if (!info.exists) {
+            console.error('Export error: file does not exist after write', filePath, info);
+            return { success: false, error: 'Failed to write export file' };
+          }
+        } catch (infoErr) {
+          console.error('Export error checking file info:', infoErr);
+        }
+
+        // Try to share; if sharing not available, still return file path so user can access it.
+        try {
+          const sharingAvailable = await Sharing.isAvailableAsync();
+          if (sharingAvailable) {
+            await Sharing.shareAsync(filePath, {
+              mimeType,
+              dialogTitle: 'Export SpendWise Data',
+            });
+          } else {
+            console.warn('Sharing not available on this device/context; file saved to', filePath);
+          }
+        } catch (shareErr) {
+          console.error('Error while sharing exported file:', shareErr);
+          // still return success if file exists
+        }
+
+        return { success: true, filePath };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : String(e) };
+      }
     };
+
+    const saved = await saveAndShare(fileName, content, mimeType);
+    return saved;
     
   } catch (error) {
     console.error('Export error:', error);
@@ -378,18 +418,47 @@ export const exportBudgets = async (format: 'csv' | 'json' = 'csv'): Promise<Exp
       mimeType = 'application/json';
     }
     
+    // Web fallback and native write/share
+    if (Platform.OS === 'web') {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      return { success: true, filePath: url };
+    }
     const filePath = `${FileSystem.documentDirectory}${fileName}`;
     await FileSystem.writeAsStringAsync(filePath, content, {
       encoding: FileSystem.EncodingType.UTF8,
     });
-    
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(filePath, {
-        mimeType,
-        dialogTitle: 'Export SpendWise Budgets',
-      });
+
+    try {
+      const info = await FileSystem.getInfoAsync(filePath);
+      if (!info.exists) {
+        console.error('Budget export error: file not found after write', filePath, info);
+        return { success: false, error: 'Failed to write budget export file' };
+      }
+    } catch (infoErr) {
+      console.error('Budget export error checking file info:', infoErr);
     }
-    
+
+    try {
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(filePath, {
+          mimeType,
+          dialogTitle: 'Export SpendWise Budgets',
+        });
+      } else {
+        console.warn('Sharing not available; budgets exported to', filePath);
+      }
+    } catch (shareErr) {
+      console.error('Error sharing budgets export:', shareErr);
+    }
+
     return {
       success: true,
       filePath,
@@ -412,18 +481,46 @@ export const generateFinancialReportFile = async (period: 'monthly' | 'quarterly
     const content = JSON.stringify(report, null, 2);
     const fileName = `spendwise-report-${period}-${dateStr}.json`;
     
+    if (Platform.OS === 'web') {
+      const blob = new Blob([content], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      return { success: true, filePath: url };
+    }
     const filePath = `${FileSystem.documentDirectory}${fileName}`;
     await FileSystem.writeAsStringAsync(filePath, content, {
       encoding: FileSystem.EncodingType.UTF8,
     });
-    
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(filePath, {
-        mimeType: 'application/json',
-        dialogTitle: 'Export Financial Report',
-      });
+
+    try {
+      const info = await FileSystem.getInfoAsync(filePath);
+      if (!info.exists) {
+        console.error('Report export error: file not found after write', filePath, info);
+        return { success: false, error: 'Failed to write report file' };
+      }
+    } catch (infoErr) {
+      console.error('Report export error checking file info:', infoErr);
     }
-    
+
+    try {
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(filePath, {
+          mimeType: 'application/json',
+          dialogTitle: 'Export Financial Report',
+        });
+      } else {
+        console.warn('Sharing not available; report exported to', filePath);
+      }
+    } catch (shareErr) {
+      console.error('Error sharing report export:', shareErr);
+    }
+
     return {
       success: true,
       filePath,
