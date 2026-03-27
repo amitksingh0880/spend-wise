@@ -76,6 +76,14 @@ export interface NotificationSettings {
     weeklyReports: boolean;
     monthlyReports: boolean;
     pushNotifications: boolean;
+    billReminders?: boolean;
+}
+
+export interface PrivacySettings {
+    transactionLockEnabled: boolean;
+    useBiometric: boolean;
+    exportMaskingEnabled: boolean;
+    pinHash?: string;
 }
 
 export type Currency = 'USD' | 'INR';
@@ -94,5 +102,6 @@ export interface UserPreferences {
     fontFamily?: FontFamily;
     smsAutoFetch?: boolean;
     smsAutoFetchHour?: number; // 0-23
+    privacy?: PrivacySettings;
     // authentication preferences removed
 }

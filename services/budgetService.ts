@@ -246,6 +246,36 @@ export const checkBudgetAlerts = async (): Promise<BudgetAlert[]> => {
         isActive: true,
         createdAt: new Date().toISOString()
       });
+    } else {
+      const start = new Date(budget.startDate);
+      const end = new Date(budget.endDate);
+      const now = new Date();
+
+      const totalMs = end.getTime() - start.getTime();
+      const elapsedMs = now.getTime() - start.getTime();
+
+      if (totalMs > 0 && elapsedMs > 0) {
+        const elapsedRatio = Math.min(1, Math.max(0, elapsedMs / totalMs));
+        const expectedPercentByNow = elapsedRatio * 100;
+        const overshootPercent = progress.percentage - expectedPercentByNow;
+
+        if (
+          overshootPercent >= 20 &&
+          progress.percentage >= 40 &&
+          !existingAlerts.some(a => a.budgetId === budget.id && a.type === 'approaching')
+        ) {
+          const dayOfMonth = now.getDate();
+          newAlerts.push({
+            id: uuidv4(),
+            budgetId: budget.id,
+            type: 'approaching',
+            threshold: Math.round(expectedPercentByNow),
+            message: `You're at ${progress.percentage.toFixed(0)}% of ${budget.category} budget by day ${dayOfMonth}`,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
     }
   }
   
