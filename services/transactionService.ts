@@ -45,9 +45,108 @@ export interface TransactionSummary {
 
 const STORAGE_KEY = 'transactions';
 
+const getTransactionTimestamp = (tx: Pick<Transaction, 'createdAt' | 'smsData'>): number => {
+  if (tx.smsData?.timestamp) return tx.smsData.timestamp;
+  return new Date(tx.createdAt).getTime();
+};
+
+const sortTransactionsNewestFirst = (transactions: Transaction[]): Transaction[] => {
+  return [...transactions].sort((a, b) => getTransactionTimestamp(b) - getTransactionTimestamp(a));
+};
+
+const normalizeCategory = (value?: string): string => {
+  const normalized = (value || '').trim();
+  return normalized || 'other';
+};
+
+const normalizeVendor = (value?: string): string => {
+  const normalized = (value || '').trim();
+  return normalized || 'Unknown';
+};
+
+const getConfidenceFromTags = (tags?: string[]): number => {
+  if (!tags?.length) return 0;
+  for (const tag of tags) {
+    const match = tag.match(/^confidence:(\d+)%$/i);
+    if (match) return Number(match[1]);
+  }
+  return 0;
+};
+
+const qualityScore = (tx: Transaction): number => {
+  const vendorScore = tx.vendor.toLowerCase() !== 'unknown' ? 100 : 0;
+  const confidenceScore = getConfidenceFromTags(tx.tags);
+  const hasSmsScore = tx.smsData ? 10 : 0;
+  const descScore = Math.min(10, (tx.description || '').length / 50);
+  return vendorScore + confidenceScore + hasSmsScore + descScore;
+};
+
+const sanitizeTransaction = (tx: Transaction): Transaction => {
+  const createdAt = tx.smsData?.timestamp
+    ? new Date(tx.smsData.timestamp).toISOString()
+    : tx.createdAt;
+
+  return {
+    ...tx,
+    vendor: normalizeVendor(tx.vendor),
+    category: normalizeCategory(tx.category),
+    createdAt,
+  };
+};
+
+const dedupeAndNormalizeTransactions = (transactions: Transaction[]): Transaction[] => {
+  const ordered = [...transactions].sort((a, b) => {
+    const aTime = getTransactionTimestamp(a);
+    const bTime = getTransactionTimestamp(b);
+    return aTime - bTime;
+  });
+
+  const deduped: Transaction[] = [];
+
+  for (const tx of ordered) {
+    const sanitized = sanitizeTransaction(tx);
+    const duplicateCheck = isPotentialDuplicate(
+      {
+        amount: sanitized.amount,
+        type: sanitized.type,
+        vendor: sanitized.vendor,
+        category: sanitized.category,
+        description: sanitized.description,
+        tags: sanitized.tags,
+        smsData: sanitized.smsData,
+      },
+      deduped
+    );
+
+    if (!duplicateCheck.isDuplicate) {
+      deduped.push(sanitized);
+      continue;
+    }
+
+    const existingIndex = deduped.findIndex(existing => existing.id === duplicateCheck.matchedId);
+    if (existingIndex < 0) continue;
+
+    if (qualityScore(sanitized) > qualityScore(deduped[existingIndex])) {
+      deduped[existingIndex] = {
+        ...sanitized,
+        id: deduped[existingIndex].id,
+      };
+    }
+  }
+
+  return sortTransactionsNewestFirst(deduped);
+};
+
 // Basic CRUD Operations
 export const getAllTransactions = async (): Promise<Transaction[]> => {
-  return (await readJson<Transaction[]>(STORAGE_KEY)) || [];
+  const all = (await readJson<Transaction[]>(STORAGE_KEY)) || [];
+  const cleaned = dedupeAndNormalizeTransactions(all);
+
+  if (JSON.stringify(cleaned) !== JSON.stringify(all)) {
+    await writeJson(STORAGE_KEY, cleaned);
+  }
+
+  return cleaned;
 };
 
 export const getTransactionById = async (id: string): Promise<Transaction | null> => {
@@ -122,7 +221,7 @@ export const clearAllTransactions = async (): Promise<void> => {
 export const getFilteredTransactions = async (filters: TransactionFilters): Promise<Transaction[]> => {
   const all = await getAllTransactions();
   
-  return all.filter(tx => {
+  const filtered = all.filter(tx => {
     if (filters.type && tx.type !== filters.type) return false;
     if (filters.category && tx.category !== filters.category) return false;
     if (filters.vendor && !tx.vendor.toLowerCase().includes(filters.vendor.toLowerCase())) return false;
@@ -136,6 +235,8 @@ export const getFilteredTransactions = async (filters: TransactionFilters): Prom
     }
     return true;
   });
+
+  return sortTransactionsNewestFirst(filtered);
 };
 
 export const searchTransactions = async (query: string): Promise<Transaction[]> => {
@@ -241,9 +342,7 @@ export const getTopCategories = async (limit: number = 5, type: TransactionType 
 
 export const getRecentTransactions = async (limit: number = 10): Promise<Transaction[]> => {
   const all = await getAllTransactions();
-  return all
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, limit);
+  return sortTransactionsNewestFirst(all).slice(0, limit);
 };
 
 // Bulk Operations

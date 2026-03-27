@@ -136,6 +136,14 @@ const TransactionsScreen: React.FC = () => {
   const primaryForeground = useThemeColor({}, 'primaryForeground');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
 
+  const sortNewestFirst = (items: Transaction[]): Transaction[] => {
+    return [...items].sort((a, b) => {
+      const aTime = a.smsData?.timestamp ?? new Date(a.createdAt).getTime();
+      const bTime = b.smsData?.timestamp ?? new Date(b.createdAt).getTime();
+      return bTime - aTime;
+    });
+  };
+
   useEffect(() => {
     loadTransactions();
   }, []);
@@ -154,7 +162,7 @@ const TransactionsScreen: React.FC = () => {
     try {
       setLoading(true);
       const allTransactions = await getAllTransactions();
-      setTransactions(allTransactions);
+      setTransactions(sortNewestFirst(allTransactions));
     } catch (error) {
       console.error('Error loading transactions:', error);
     } finally {
@@ -165,7 +173,7 @@ const TransactionsScreen: React.FC = () => {
   const filterTransactions = async () => {
     try {
       if (searchTerm.trim() === '' && !showTodayOnly) {
-        setFilteredTransactions(transactions);
+        setFilteredTransactions(sortNewestFirst(transactions));
       } else {
         const filters: any = {};
         if (searchTerm.trim() !== '') filters.vendor = searchTerm;
@@ -177,7 +185,7 @@ const TransactionsScreen: React.FC = () => {
           filters.dateTo = endOfDay.toISOString();
         }
         const filtered = await getFilteredTransactions(filters);
-        setFilteredTransactions(filtered);
+        setFilteredTransactions(sortNewestFirst(filtered));
       }
     } catch (error) {
       let filtered = transactions;
@@ -196,7 +204,7 @@ const TransactionsScreen: React.FC = () => {
           return date.toDateString() === todayString;
         });
       }
-      setFilteredTransactions(filtered);
+      setFilteredTransactions(sortNewestFirst(filtered));
     }
   };
 

@@ -1,6 +1,8 @@
 import { Budget, getAllBudgets } from './budgetService';
 import { getAllTransactions, Transaction } from './transactionService';
 
+const normalizeCategory = (value?: string): string => (value || '').trim().toLowerCase();
+
 export interface FinancialInsight {
   id: string;
   type: 'spending_pattern' | 'budget_recommendation' | 'saving_opportunity' | 'trend_analysis';
@@ -107,7 +109,8 @@ const analyzeSpendingPatterns = async (transactions: Transaction[]): Promise<Fin
   // Find top spending categories
   const categoryTotals: { [key: string]: number } = {};
   expenses.forEach(tx => {
-    categoryTotals[tx.category] = (categoryTotals[tx.category] || 0) + tx.amount;
+    const category = normalizeCategory(tx.category) || 'other';
+    categoryTotals[category] = (categoryTotals[category] || 0) + tx.amount;
   });
   
   const topCategory = Object.entries(categoryTotals)
@@ -140,8 +143,9 @@ const analyzeBudgetPerformance = async (transactions: Transaction[], budgets: Bu
   const insights: FinancialInsight[] = [];
   
   for (const budget of budgets) {
+    const budgetCategory = normalizeCategory(budget.category);
     const categoryExpenses = transactions
-      .filter(tx => tx.type === 'expense' && tx.category === budget.category)
+      .filter(tx => tx.type === 'expense' && normalizeCategory(tx.category) === budgetCategory)
       .reduce((sum, tx) => sum + tx.amount, 0);
     
     const utilizationRate = (categoryExpenses / budget.amount) * 100;
@@ -256,7 +260,7 @@ export const analyzeSpendingPatternsByCategory = async (): Promise<SpendingPatte
   const patterns: SpendingPattern[] = [];
   
   for (const category of categories) {
-    const categoryExpenses = expenses.filter(tx => tx.category === category);
+    const categoryExpenses = expenses.filter(tx => normalizeCategory(tx.category) === normalizeCategory(category));
     
     // Calculate monthly averages
     const monthlyTotals: { [month: string]: number } = {};
@@ -345,8 +349,9 @@ export const calculateFinancialHealthScore = async (): Promise<FinancialHealth> 
   let budgetAdherence = 100;
   if (budgets.length > 0) {
     const adherenceRates = budgets.map(budget => {
+      const budgetCategory = normalizeCategory(budget.category);
       const categoryExpenses = expenses
-        .filter(tx => tx.category === budget.category)
+        .filter(tx => normalizeCategory(tx.category) === budgetCategory)
         .reduce((sum, tx) => sum + tx.amount, 0);
       return Math.min(100, (budget.amount / Math.max(categoryExpenses, 1)) * 100);
     });
