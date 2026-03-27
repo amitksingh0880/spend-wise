@@ -28,11 +28,13 @@ export const enableTransactionLock = async (pin: string, useBiometric: boolean):
 
 export const disableTransactionLock = async (): Promise<void> => {
   const prefs = await getUserPreferences();
+  const exportMaskingEnabled = prefs.privacy?.exportMaskingEnabled ?? true;
   await saveUserPreferences({
     privacy: {
       ...(prefs.privacy || {}),
       transactionLockEnabled: false,
       useBiometric: false,
+      exportMaskingEnabled,
       pinHash: undefined,
     },
   });

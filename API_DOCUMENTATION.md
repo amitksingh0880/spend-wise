@@ -258,6 +258,79 @@ initializeApp(): Promise<void>
 // Page Data Aggregation
 getDashboardData(): Promise<DashboardData>
 getTransactionPageData(searchQuery?: string): Promise<TransactionPageData>
+
+### 8. Smart Rules Engine (`rulesEngineService.ts`)
+
+Automated transaction classification with configurable rule conditions, including amount-based mapping.
+
+#### Key Features:
+- **Text Rules**: Match vendor/description/sender with `contains`, `equals`, `startsWith`, `endsWith`
+- **Amount Rules**: Numeric operators `gt`, `gte`, `lt`, `lte`, `between`
+- **Category Mapping**: Auto-assign category and tags on matched transactions
+- **Priority Execution**: Higher-priority rules run first
+- **Recurrence Conditions**: Match repeating transactions over last N days
+- **Built-in Starter Rule**: Daily transport amount mapper (storage-seeded once)
+
+#### Main Functions:
+
+```typescript
+getSmartRules(): Promise<SmartRule[]>
+createSmartRule(input: Omit<SmartRule, 'id' | 'createdAt' | 'updatedAt'>): Promise<SmartRule>
+updateSmartRule(id: string, updates: Partial<Omit<SmartRule, 'id' | 'createdAt'>>): Promise<void>
+deleteSmartRule(id: string): Promise<void>
+createAmountCategoryRule(input: {
+  name: string;
+  minAmount: number;
+  maxAmount: number;
+  category: string;
+  type?: 'income' | 'expense' | 'both';
+  tags?: string[];
+  priority?: number;
+  keywordAny?: string[];
+  daysOfWeek?: number[];
+  occurrence?: RuleOccurrenceCondition;
+  isActive?: boolean;
+}): Promise<SmartRule>
+applySmartRules(transaction: Transaction, existingTransactions?: Transaction[]): Promise<Transaction>
+```
+
+#### Example: Daily Transport Rule
+
+```typescript
+await createAmountCategoryRule({
+  name: 'Daily Transport 20-120',
+  minAmount: 20,
+  maxAmount: 120,
+  category: 'Transportation',
+  type: 'expense',
+  tags: ['auto-rule', 'daily-transport'],
+  occurrence: { count: 3, days: 10, amountTolerance: 5 },
+  priority: 90,
+});
+```
+
+### 9. Modern Intelligence Service (`modernIntelligenceService.ts`)
+
+Offline-first intelligence primitives to accelerate advanced product features without cloud dependency.
+
+#### Key Features:
+- **Offline Copilot Intents**: local natural-language intent handling for unusual spends, top categories, budget status
+- **What-if Simulator**: scenario parsing like `rent +10%, fuel +15%` with projected impact
+- **Calendar/Timeline Dataset**: spend heatmap points and recurring outflow summary
+- **Explainable Anomaly Scoring**: score + human-readable reason set per flagged transaction
+- **Contextual Nudges**: actionable prompts for overspending and budget risk
+- **Capability Matrix**: feature readiness map for roadmap tracking
+
+#### Main Functions:
+
+```typescript
+queryOfflineCopilot(question: string, transactions: Transaction[], budgets?: Budget[]): Promise<OfflineCopilotResponse>
+simulateWhatIfScenario(scenario: string, transactions: Transaction[]): Promise<WhatIfSimulationResult>
+buildCalendarTimelineView(transactions: Transaction[], month?: string): Promise<TimelineViewResult>
+scoreExplainableAnomalies(transactions: Transaction[]): Promise<ExplainableAnomaly[]>
+generateContextualNudges(transactions: Transaction[], budgets: Budget[]): Promise<ContextualNudge[]>
+getModernFeatureCapabilityMatrix(): FeatureCapability[]
+```
 getBudgetPageData(): Promise<BudgetPageData>
 
 // Maintenance

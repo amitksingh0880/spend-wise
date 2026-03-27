@@ -164,7 +164,7 @@ export const saveTransaction = async (tx: Omit<Transaction, 'id' | 'createdAt'>)
     ...tx,
   };
 
-  const ruled = await applySmartRules(draft);
+  const ruled = await applySmartRules(draft, all);
   const duplicateCheck = isPotentialDuplicate(
     {
       amount: ruled.amount,
@@ -361,7 +361,7 @@ export const importTransactions = async (transactions: Omit<Transaction, 'id' | 
       ...tx,
     };
 
-    const ruled = await applySmartRules(draft);
+    const ruled = await applySmartRules(draft, [...existing, ...newTransactions]);
     const duplicateCheck = isPotentialDuplicate(
       {
         amount: ruled.amount,

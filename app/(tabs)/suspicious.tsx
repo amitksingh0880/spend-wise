@@ -4,6 +4,7 @@ import { emitter } from '@/libs/emitter';
 import { readJson, writeJson } from '@/libs/storage';
 import { ExtractedExpense, parseTransactionSMS } from '@/services/smsService';
 import { deleteTransaction, getFilteredTransactions, saveTransaction, Transaction, updateTransaction } from '@/services/transactionService';
+import { scoreExplainableAnomalies, ExplainableAnomaly } from '@/services/modernIntelligenceService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -18,6 +19,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 const SuspiciousScreen: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [heldSuspicious, setHeldSuspicious] = useState<ExtractedExpense[]>([]);
+  const [anomalyByTxId, setAnomalyByTxId] = useState<Record<string, ExplainableAnomaly>>({});
   const { formatAmount } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Transaction | null>(null);
@@ -36,6 +38,13 @@ const SuspiciousScreen: React.FC = () => {
       setLoading(true);
       const suspicious = await getFilteredTransactions({ tags: ['suspicious'] });
       setTransactions(suspicious);
+
+      const anomalies = await scoreExplainableAnomalies(suspicious);
+      const byId = anomalies.reduce<Record<string, ExplainableAnomaly>>((acc, item) => {
+        acc[item.transactionId] = item;
+        return acc;
+      }, {});
+      setAnomalyByTxId(byId);
     } catch (error) {
       console.error('Error loading suspicious transactions', error);
     } finally {
@@ -113,6 +122,7 @@ const SuspiciousScreen: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+    const anomaly = !isHeld ? anomalyByTxId[item.id] : undefined;
 
     return (
       <Animated.View 
@@ -137,6 +147,24 @@ const SuspiciousScreen: React.FC = () => {
             </View>
             <Typography variant="large" weight="bold" style={styles.amountText}>{formatAmount(item.amount)}</Typography>
           </View>
+
+          {!isHeld && anomaly && (
+            <View style={styles.anomalyBox}>
+              <Typography variant="small" weight="bold" style={styles.anomalyTitle}>
+                Why flagged (score {Math.round(anomaly.score)})
+              </Typography>
+              <View style={styles.reasonRow}>
+                {anomaly.reasons.slice(0, 3).map(reason => (
+                  <View key={`${item.id}-${reason.code}`} style={styles.reasonChip}>
+                    <Typography variant="small" style={styles.reasonChipText}>{reason.code}</Typography>
+                  </View>
+                ))}
+              </View>
+              <Typography variant="small" style={{ color: mutedForeground, marginTop: 6 }}>
+                {anomaly.summary}
+              </Typography>
+            </View>
+          )}
 
           <View style={[styles.cardFooter, { borderTopColor: '#f1f5f9' }]}>
             <View style={styles.actionRow}>
@@ -291,6 +319,32 @@ const styles = StyleSheet.create({
   cardFooter: {
     padding: 12,
     borderTopWidth: 1,
+  },
+  anomalyBox: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: '#fff7ed',
+  },
+  anomalyTitle: {
+    color: '#9a3412',
+  },
+  reasonRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  reasonChip: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#ffedd5',
+  },
+  reasonChipText: {
+    color: '#9a3412',
+    fontSize: 10,
   },
   actionRow: {
     flexDirection: 'row',
