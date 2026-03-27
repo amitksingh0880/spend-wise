@@ -30,7 +30,142 @@ export interface SmartRule {
   updatedAt: string;
 }
 
+export interface SmartRuleValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+export interface SmartRulePreviewResult {
+  count: number;
+  matched: Transaction[];
+}
+
+export type SmartRuleInput = Omit<SmartRule, 'id' | 'createdAt' | 'updatedAt'>;
+
 const SMART_RULES_KEY = 'smart_rules';
+
+const TEXT_FIELDS: Array<SmartRule['field']> = ['vendor', 'description', 'sender'];
+const TEXT_OPERATORS: RuleOperator[] = ['contains', 'equals', 'startsWith', 'endsWith'];
+const AMOUNT_OPERATORS: RuleOperator[] = ['gt', 'gte', 'lt', 'lte', 'equals', 'between'];
+
+const normalizeText = (value?: string): string => (value || '').trim();
+
+const normalizeKeywords = (keywords?: string[]): string[] | undefined => {
+  const normalized = (keywords || [])
+    .map(item => item.trim())
+    .filter(Boolean);
+
+  if (!normalized.length) return undefined;
+  return [...new Set(normalized.map(item => item.toLowerCase()))];
+};
+
+const normalizeDaysOfWeek = (days?: number[]): number[] | undefined => {
+  const normalized = (days || [])
+    .map(day => Number(day))
+    .filter(day => Number.isInteger(day) && day >= 0 && day <= 6);
+
+  if (!normalized.length) return undefined;
+  return [...new Set(normalized)].sort((a, b) => a - b);
+};
+
+const normalizeSmartRuleInput = (input: SmartRuleInput): SmartRuleInput => {
+  return {
+    ...input,
+    name: normalizeText(input.name),
+    value: normalizeText(input.value),
+    setCategory: normalizeText(input.setCategory),
+    setTags: (input.setTags || []).map(tag => tag.trim()).filter(Boolean),
+    keywordAny: normalizeKeywords(input.keywordAny),
+    daysOfWeek: normalizeDaysOfWeek(input.daysOfWeek),
+    priority: Number.isFinite(input.priority) ? Number(input.priority) : 0,
+    typeFilter: input.typeFilter || 'both',
+    isActive: input.isActive ?? true,
+  };
+};
+
+const getRuleSignature = (rule: Pick<SmartRule, 'field' | 'operator' | 'value' | 'typeFilter' | 'setCategory' | 'keywordAny' | 'daysOfWeek'>): string => {
+  const keywords = (rule.keywordAny || []).map(item => item.toLowerCase()).sort().join(',');
+  const days = (rule.daysOfWeek || []).sort((a, b) => a - b).join(',');
+
+  return [
+    rule.field,
+    rule.operator,
+    (rule.value || '').trim().toLowerCase(),
+    rule.typeFilter || 'both',
+    (rule.setCategory || '').trim().toLowerCase(),
+    keywords,
+    days,
+  ].join('|');
+};
+
+export const validateSmartRuleInput = (input: SmartRuleInput): SmartRuleValidationResult => {
+  const errors: string[] = [];
+  const normalized = normalizeSmartRuleInput(input);
+
+  if (!normalized.value) {
+    errors.push('Rule value is required.');
+  }
+
+  if (!normalized.setCategory && !normalized.setType && !(normalized.setTags || []).length) {
+    errors.push('At least one action is required (category, type, or tags).');
+  }
+
+  if (normalized.field === 'amount') {
+    if (!AMOUNT_OPERATORS.includes(normalized.operator)) {
+      errors.push('Invalid operator for amount rule.');
+    }
+
+    if (normalized.operator === 'between') {
+      if (!parseBetweenRange(normalized.value)) {
+        errors.push('Amount range must be in "min-max" format.');
+      }
+    } else {
+      const amountValue = Number(normalized.value);
+      if (!Number.isFinite(amountValue)) {
+        errors.push('Amount rule value must be numeric.');
+      }
+    }
+  } else {
+    if (!TEXT_FIELDS.includes(normalized.field)) {
+      errors.push('Invalid text rule field.');
+    }
+
+    if (!TEXT_OPERATORS.includes(normalized.operator)) {
+      errors.push('Invalid operator for text rule.');
+    }
+  }
+
+  if (normalized.occurrence) {
+    if (!Number.isFinite(normalized.occurrence.count) || normalized.occurrence.count < 0) {
+      errors.push('Occurrence count must be 0 or greater.');
+    }
+
+    if (!Number.isFinite(normalized.occurrence.days) || normalized.occurrence.days < 1) {
+      errors.push('Occurrence days must be at least 1.');
+    }
+
+    if (
+      normalized.occurrence.amountTolerance !== undefined &&
+      (!Number.isFinite(normalized.occurrence.amountTolerance) || normalized.occurrence.amountTolerance < 0)
+    ) {
+      errors.push('Amount tolerance must be 0 or greater.');
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+};
+
+const findDuplicateRule = (existing: SmartRule[], input: SmartRuleInput): SmartRule | undefined => {
+  const targetSignature = getRuleSignature(input);
+
+  return existing.find(rule => {
+    const sourceSignature = getRuleSignature(rule);
+    return sourceSignature === targetSignature;
+  });
+};
 
 const getTransactionDate = (tx: Pick<Transaction, 'createdAt' | 'smsData'>): Date => {
   if (tx.smsData?.timestamp) return new Date(tx.smsData.timestamp);
@@ -206,12 +341,24 @@ export const getSmartRules = async (): Promise<SmartRule[]> => {
 
 export const createSmartRule = async (input: Omit<SmartRule, 'id' | 'createdAt' | 'updatedAt'>): Promise<SmartRule> => {
   const all = await getSmartRules();
+  const normalizedInput = normalizeSmartRuleInput(input);
+  const validation = validateSmartRuleInput(normalizedInput);
+
+  if (!validation.valid) {
+    throw new Error(validation.errors.join(' '));
+  }
+
+  const duplicate = findDuplicateRule(all, normalizedInput);
+  if (duplicate) {
+    throw new Error('A similar rule already exists.');
+  }
+
   const created: SmartRule = {
     id: uuidv4(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     priority: 0,
-    ...input,
+    ...normalizedInput,
   };
 
   await writeJson(SMART_RULES_KEY, [created, ...all]);
@@ -243,6 +390,10 @@ export const createAmountCategoryRule = async (input: {
   occurrence?: RuleOccurrenceCondition;
   isActive?: boolean;
 }): Promise<SmartRule> => {
+  if (!Number.isFinite(input.minAmount) || !Number.isFinite(input.maxAmount) || input.minAmount < 0 || input.maxAmount < input.minAmount) {
+    throw new Error('Invalid amount range.');
+  }
+
   return createSmartRule({
     name: input.name,
     field: 'amount',
@@ -257,6 +408,33 @@ export const createAmountCategoryRule = async (input: {
     priority: input.priority ?? 50,
     isActive: input.isActive ?? true,
   });
+};
+
+export const previewSmartRuleMatches = (
+  input: SmartRuleInput,
+  transactions: Transaction[],
+  options?: { limit?: number }
+): SmartRulePreviewResult => {
+  const normalizedInput = normalizeSmartRuleInput(input);
+  const validation = validateSmartRuleInput(normalizedInput);
+  if (!validation.valid) {
+    throw new Error(validation.errors.join(' '));
+  }
+
+  const limit = Math.max(1, options?.limit ?? 5);
+  const ordered = [...transactions].sort((a, b) => getTransactionDate(b).getTime() - getTransactionDate(a).getTime());
+
+  const matched = ordered.filter(tx => matchesRule({
+    id: 'preview-rule',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...normalizedInput,
+  }, tx, transactions));
+
+  return {
+    count: matched.length,
+    matched: matched.slice(0, limit),
+  };
 };
 
 const matchesRule = (rule: SmartRule, tx: Transaction, existing: Transaction[]): boolean => {

@@ -73,11 +73,17 @@ export default function RootLayout() {
           }
           
           if (finalStatus === 'granted') {
-            await registerSmsAutoFetch();
+            const registration = await registerSmsAutoFetch();
+            if (!registration?.ok) {
+              console.warn('SMS auto-fetch registration skipped:', registration?.reason);
+            }
           } else {
              console.warn('Notification permission not granted, but SMS auto-fetch is enabled.');
              // We still register the task, but notify user that notifications won't work
-             await registerSmsAutoFetch();
+             const registration = await registerSmsAutoFetch();
+             if (!registration?.ok) {
+               console.warn('SMS auto-fetch registration skipped:', registration?.reason);
+             }
           }
         }
       } catch (error) {
