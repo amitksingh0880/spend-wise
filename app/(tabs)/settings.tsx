@@ -4,6 +4,7 @@ import { emitter } from '@/libs/emitter';
 import { deleteKey } from '@/libs/storage';
 import { getCurrency, getUserPreferences, saveUserPreferences, updateCurrency } from '@/services/preferencesService';
 import { seedMockData } from '@/services/seedService';
+import { requestSMSPermission } from '@/services/smsService';
 import { CURRENCIES, Currency } from '@/utils/currency';
 import { 
   registerSmsAutoFetch, 
@@ -53,11 +54,16 @@ import {
 import { ExportOptions, exportTransactions, getExportFormats, validateExportOptions } from '@/services/exportService';
 import {
   createAmountCategoryRule,
+  createSmartRule,
   deleteSmartRule,
   getSmartRules,
+  previewSmartRuleMatches,
+  RuleOperator,
   SmartRule,
+  SmartRuleInput,
   updateSmartRule,
 } from '@/services/rulesEngineService';
+import { getAllTransactions, Transaction } from '@/services/transactionService';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
 
@@ -116,6 +122,44 @@ const QUICK_RULE_TEMPLATES: QuickRuleTemplate[] = [
   },
 ];
 
+const TEXT_RULE_FIELDS: Array<{ label: string; value: 'vendor' | 'description' | 'sender' }> = [
+  { label: 'Vendor', value: 'vendor' },
+  { label: 'Description', value: 'description' },
+  { label: 'Sender', value: 'sender' },
+];
+
+const TEXT_RULE_OPERATORS: Array<{ label: string; value: RuleOperator }> = [
+  { label: 'Contains', value: 'contains' },
+  { label: 'Equals', value: 'equals' },
+  { label: 'Starts', value: 'startsWith' },
+  { label: 'Ends', value: 'endsWith' },
+];
+
+const AMOUNT_RULE_OPERATORS: Array<{ label: string; value: RuleOperator }> = [
+  { label: 'Between', value: 'between' },
+  { label: '≥', value: 'gte' },
+  { label: '>', value: 'gt' },
+  { label: '≤', value: 'lte' },
+  { label: '<', value: 'lt' },
+  { label: '=', value: 'equals' },
+];
+
+const RULE_TYPES: Array<{ label: string; value: 'expense' | 'income' | 'both' }> = [
+  { label: 'Expense', value: 'expense' },
+  { label: 'Income', value: 'income' },
+  { label: 'Both', value: 'both' },
+];
+
+const WEEKDAY_OPTIONS: Array<{ label: string; value: number }> = [
+  { label: 'S', value: 0 },
+  { label: 'M', value: 1 },
+  { label: 'T', value: 2 },
+  { label: 'W', value: 3 },
+  { label: 'T', value: 4 },
+  { label: 'F', value: 5 },
+  { label: 'S', value: 6 },
+];
+
 const SettingsScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState(true);
@@ -141,6 +185,17 @@ const SettingsScreen: React.FC = () => {
   const [newRuleRepeatCount, setNewRuleRepeatCount] = useState('3');
   const [newRuleRepeatDays, setNewRuleRepeatDays] = useState('14');
   const [newRuleTolerance, setNewRuleTolerance] = useState('10');
+  const [newRuleMode, setNewRuleMode] = useState<'amount' | 'text'>('amount');
+  const [newRuleField, setNewRuleField] = useState<'vendor' | 'description' | 'sender'>('vendor');
+  const [newRuleOperator, setNewRuleOperator] = useState<RuleOperator>('between');
+  const [newRuleAmountValue, setNewRuleAmountValue] = useState('100');
+  const [newRuleTextValue, setNewRuleTextValue] = useState('');
+  const [newRuleTypeFilter, setNewRuleTypeFilter] = useState<'expense' | 'income' | 'both'>('expense');
+  const [newRuleDaysOfWeek, setNewRuleDaysOfWeek] = useState<number[]>([]);
+  const [newRulePriority, setNewRulePriority] = useState('80');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewCount, setPreviewCount] = useState<number | null>(null);
+  const [previewMatches, setPreviewMatches] = useState<Transaction[]>([]);
   const { refreshCurrency } = useCurrency();
 
   const isTemplateRuleExisting = (template: QuickRuleTemplate): boolean => {
@@ -150,6 +205,62 @@ const SettingsScreen: React.FC = () => {
       const sameName = (rule.name || '').trim().toLowerCase() === template.name.trim().toLowerCase();
       return hasTemplateTag || sameName;
     });
+  };
+
+  const resetPreview = () => {
+    setPreviewCount(null);
+    setPreviewMatches([]);
+  };
+
+  const toggleRuleDay = (day: number) => {
+    setNewRuleDaysOfWeek(prev => {
+      if (prev.includes(day)) return prev.filter(item => item !== day);
+      return [...prev, day].sort((a, b) => a - b);
+    });
+    resetPreview();
+  };
+
+  const buildDraftRuleInput = (): SmartRuleInput => {
+    const minAmount = Number(newRuleMinAmount);
+    const maxAmount = Number(newRuleMaxAmount);
+    const repeatCount = Number(newRuleRepeatCount);
+    const repeatDays = Number(newRuleRepeatDays);
+    const tolerance = Number(newRuleTolerance);
+    const priority = Number(newRulePriority);
+
+    const keywords = newRuleKeywords
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean);
+
+    const base: SmartRuleInput = {
+      name: newRuleName.trim(),
+      field: newRuleMode === 'amount' ? 'amount' : newRuleField,
+      operator: newRuleOperator,
+      value:
+        newRuleMode === 'amount'
+          ? newRuleOperator === 'between'
+            ? `${minAmount}-${maxAmount}`
+            : newRuleAmountValue.trim()
+          : newRuleTextValue.trim(),
+      typeFilter: newRuleTypeFilter,
+      daysOfWeek: newRuleDaysOfWeek.length ? newRuleDaysOfWeek : undefined,
+      keywordAny: keywords.length ? keywords : undefined,
+      setCategory: newRuleCategory.trim(),
+      setTags: ['auto-rule', 'amount-mapper'],
+      priority: Number.isFinite(priority) ? priority : 0,
+      isActive: true,
+      occurrence:
+        Number.isFinite(repeatCount) && repeatCount > 0
+          ? {
+              count: repeatCount,
+              days: repeatDays,
+              amountTolerance: Number.isFinite(tolerance) ? Math.max(0, tolerance) : 0,
+            }
+          : undefined,
+    };
+
+    return base;
   };
 
   const { theme, fontFamily, setFontFamily } = useAppTheme();
@@ -228,77 +339,130 @@ const SettingsScreen: React.FC = () => {
     );
   };
 
-  const handleCreateAmountRule = async () => {
+  const handleCreateRule = async () => {
     const minAmount = Number(newRuleMinAmount);
     const maxAmount = Number(newRuleMaxAmount);
     const repeatCount = Number(newRuleRepeatCount);
     const repeatDays = Number(newRuleRepeatDays);
     const tolerance = Number(newRuleTolerance);
+    const numericAmountValue = Number(newRuleAmountValue);
 
     if (!newRuleName.trim() || !newRuleCategory.trim()) {
       Alert.alert('Missing fields', 'Please add rule name and category.');
       return;
     }
 
-    if (!Number.isFinite(minAmount) || !Number.isFinite(maxAmount) || minAmount < 0 || maxAmount < minAmount) {
-      Alert.alert('Invalid amount range', 'Please enter a valid minimum and maximum amount.');
+    if (newRuleMode === 'amount') {
+      if (newRuleOperator === 'between') {
+        if (!Number.isFinite(minAmount) || !Number.isFinite(maxAmount) || minAmount < 0 || maxAmount < minAmount) {
+          Alert.alert('Invalid amount range', 'Please enter a valid minimum and maximum amount.');
+          return;
+        }
+      } else if (!Number.isFinite(numericAmountValue)) {
+        Alert.alert('Invalid amount', 'Please enter a valid numeric amount.');
+        return;
+      }
+    } else if (!newRuleTextValue.trim()) {
+      Alert.alert('Missing value', 'Please enter text value for this rule.');
       return;
     }
 
-    if (!Number.isFinite(repeatCount) || !Number.isFinite(repeatDays) || repeatCount < 0 || repeatDays < 1) {
+    if (!Number.isFinite(repeatCount) || repeatCount < 0) {
       Alert.alert('Invalid repeat condition', 'Please enter valid repeat count and day window.');
+      return;
+    }
+
+    if (repeatCount > 0 && (!Number.isFinite(repeatDays) || repeatDays < 1)) {
+      Alert.alert('Invalid repeat condition', 'Please enter a valid day window when repeat count is set.');
+      return;
+    }
+
+    if (!Number.isFinite(tolerance) || tolerance < 0) {
+      Alert.alert('Invalid tolerance', 'Tolerance must be 0 or greater.');
       return;
     }
 
     try {
       setRulesLoading(true);
-      const keywords = newRuleKeywords
-        .split(',')
-        .map(item => item.trim())
-        .filter(Boolean);
-
-      await createAmountCategoryRule({
-        name: newRuleName.trim(),
-        minAmount,
-        maxAmount,
-        category: newRuleCategory.trim(),
-        type: 'expense',
-        tags: ['auto-rule', 'amount-mapper'],
-        keywordAny: keywords.length ? keywords : undefined,
-        occurrence: {
-          count: repeatCount,
-          days: repeatDays,
-          amountTolerance: Number.isFinite(tolerance) ? Math.max(0, tolerance) : 0,
-        },
-        priority: 80,
-      });
+      const draft = buildDraftRuleInput();
+      await createSmartRule(draft);
 
       setNewRuleName('Daily Transport Rule');
       setNewRuleCategory('Transportation');
       setNewRuleMinAmount('20');
       setNewRuleMaxAmount('200');
+      setNewRuleAmountValue('100');
+      setNewRuleTextValue('');
+      setNewRuleMode('amount');
+      setNewRuleField('vendor');
+      setNewRuleOperator('between');
+      setNewRuleTypeFilter('expense');
+      setNewRuleDaysOfWeek([]);
+      setNewRulePriority('80');
       setNewRuleKeywords('auto,cab,metro,bus,rickshaw');
       setNewRuleRepeatCount('3');
       setNewRuleRepeatDays('14');
       setNewRuleTolerance('10');
+      resetPreview();
       await loadRules();
-      Alert.alert('Success', 'Smart amount rule created.');
+      Alert.alert('Success', 'Smart rule created.');
     } catch (error) {
-      Alert.alert('Create Failed', 'Unable to create the smart rule.');
+      Alert.alert('Create Failed', error instanceof Error ? error.message : 'Unable to create the smart rule.');
     } finally {
       setRulesLoading(false);
     }
   };
 
+  const handlePreviewRule = async () => {
+    const repeatCount = Number(newRuleRepeatCount);
+    const repeatDays = Number(newRuleRepeatDays);
+
+    if (!newRuleName.trim() || !newRuleCategory.trim()) {
+      Alert.alert('Missing fields', 'Please add rule name and category before preview.');
+      return;
+    }
+
+    if (!Number.isFinite(repeatCount) || repeatCount < 0) {
+      Alert.alert('Invalid repeat condition', 'Please enter a valid repeat count.');
+      return;
+    }
+
+    if (repeatCount > 0 && (!Number.isFinite(repeatDays) || repeatDays < 1)) {
+      Alert.alert('Invalid repeat condition', 'Please enter a valid day window when repeat count is set.');
+      return;
+    }
+
+    try {
+      setPreviewLoading(true);
+      const draft = buildDraftRuleInput();
+      const allTransactions = await getAllTransactions();
+      const result = previewSmartRuleMatches(draft, allTransactions, { limit: 5 });
+      setPreviewCount(result.count);
+      setPreviewMatches(result.matched);
+    } catch (error) {
+      Alert.alert('Preview Failed', error instanceof Error ? error.message : 'Unable to preview this rule.');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const applyTemplateToForm = (template: QuickRuleTemplate) => {
+    setNewRuleMode('amount');
+    setNewRuleOperator('between');
+    setNewRuleTypeFilter('expense');
+    setNewRuleDaysOfWeek([]);
+    setNewRulePriority('80');
     setNewRuleName(template.name);
     setNewRuleCategory(template.category);
     setNewRuleMinAmount(String(template.minAmount));
     setNewRuleMaxAmount(String(template.maxAmount));
+    setNewRuleAmountValue(String(template.minAmount));
+    setNewRuleTextValue('');
     setNewRuleKeywords(template.keywords.join(','));
     setNewRuleRepeatCount(String(template.repeatCount));
     setNewRuleRepeatDays(String(template.repeatDays));
     setNewRuleTolerance(String(template.tolerance));
+    resetPreview();
   };
 
   const handleCreateFromTemplate = async (template: QuickRuleTemplate) => {
@@ -635,13 +799,44 @@ const SettingsScreen: React.FC = () => {
               <Switch
                 value={smsAutoFetch}
                 onValueChange={async (v) => { 
-                  setSmsAutoFetch(v); 
-                  await saveUserPreferences({ smsAutoFetch: v });
-                  if (v && Platform.OS === 'android') {
-                    await registerSmsAutoFetch();
-                  } else if (Platform.OS === 'android') {
-                    await unregisterSmsAutoFetch();
+                  if (Platform.OS !== 'android') {
+                    Alert.alert('Android Only', 'Daily SMS Auto-Fetch works only on Android devices.');
+                    setSmsAutoFetch(false);
+                    await saveUserPreferences({ smsAutoFetch: false });
+                    return;
                   }
+
+                  if (v) {
+                    const hasSmsPermission = await requestSMSPermission();
+                    if (!hasSmsPermission) {
+                      Alert.alert(
+                        'Permission Required',
+                        'SMS permission is required for auto-fetch. Please allow it and try again.'
+                      );
+                      setSmsAutoFetch(false);
+                      await saveUserPreferences({ smsAutoFetch: false });
+                      return;
+                    }
+
+                    const registration = await registerSmsAutoFetch();
+                    if (!registration?.ok) {
+                      Alert.alert(
+                        'Auto-Fetch Setup Failed',
+                        registration?.reason || 'Could not register background task on this device.'
+                      );
+                      setSmsAutoFetch(false);
+                      await saveUserPreferences({ smsAutoFetch: false });
+                      return;
+                    }
+
+                    setSmsAutoFetch(true);
+                    await saveUserPreferences({ smsAutoFetch: true });
+                    return;
+                  }
+
+                  await unregisterSmsAutoFetch();
+                  setSmsAutoFetch(false);
+                  await saveUserPreferences({ smsAutoFetch: false });
                 }}
                 trackColor={{ false: '#e2e8f0', true: primary }}
                 thumbColor="#FFFFFF"
@@ -1003,11 +1198,37 @@ const SettingsScreen: React.FC = () => {
               </View>
 
               <View style={[styles.ruleBuilderCard, { borderColor: border }]}>
-                <Typography variant="bold" style={{ marginBottom: 8 }}>Create Amount Rule</Typography>
+                <Typography variant="bold" style={{ marginBottom: 8 }}>Create Smart Rule</Typography>
+
+                <View style={styles.optionRow}>
+                  <TouchableOpacity
+                    style={[styles.optionChip, { borderColor: border }, newRuleMode === 'amount' && [styles.optionChipActive, { backgroundColor: `${primary}18`, borderColor: primary }]]}
+                    onPress={() => {
+                      setNewRuleMode('amount');
+                      setNewRuleOperator('between');
+                      resetPreview();
+                    }}
+                  >
+                    <Typography variant="small" weight="bold" style={{ color: newRuleMode === 'amount' ? primary : mutedForeground }}>Amount</Typography>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.optionChip, { borderColor: border }, newRuleMode === 'text' && [styles.optionChipActive, { backgroundColor: `${primary}18`, borderColor: primary }]]}
+                    onPress={() => {
+                      setNewRuleMode('text');
+                      setNewRuleOperator('contains');
+                      resetPreview();
+                    }}
+                  >
+                    <Typography variant="small" weight="bold" style={{ color: newRuleMode === 'text' ? primary : mutedForeground }}>Text</Typography>
+                  </TouchableOpacity>
+                </View>
 
                 <TextInput
                   value={newRuleName}
-                  onChangeText={setNewRuleName}
+                  onChangeText={(value) => {
+                    setNewRuleName(value);
+                    resetPreview();
+                  }}
                   placeholder="Rule name"
                   placeholderTextColor={mutedForeground}
                   style={[styles.ruleInput, { borderColor: border, color: text }]}
@@ -1015,43 +1236,180 @@ const SettingsScreen: React.FC = () => {
 
                 <TextInput
                   value={newRuleCategory}
-                  onChangeText={setNewRuleCategory}
+                  onChangeText={(value) => {
+                    setNewRuleCategory(value);
+                    resetPreview();
+                  }}
                   placeholder="Target category"
                   placeholderTextColor={mutedForeground}
                   style={[styles.ruleInput, { borderColor: border, color: text }]}
                 />
 
-                <View style={styles.ruleRow}>
-                  <TextInput
-                    value={newRuleMinAmount}
-                    onChangeText={setNewRuleMinAmount}
-                    placeholder="Min"
-                    keyboardType="numeric"
-                    placeholderTextColor={mutedForeground}
-                    style={[styles.ruleInput, styles.ruleInputHalf, { borderColor: border, color: text }]}
-                  />
-                  <TextInput
-                    value={newRuleMaxAmount}
-                    onChangeText={setNewRuleMaxAmount}
-                    placeholder="Max"
-                    keyboardType="numeric"
-                    placeholderTextColor={mutedForeground}
-                    style={[styles.ruleInput, styles.ruleInputHalf, { borderColor: border, color: text }]}
-                  />
+                <Typography variant="small" style={{ color: mutedForeground, marginBottom: 6 }}>Type Filter</Typography>
+                <View style={styles.optionRow}>
+                  {RULE_TYPES.map(type => (
+                    <TouchableOpacity
+                      key={type.value}
+                      style={[styles.optionChip, { borderColor: border }, newRuleTypeFilter === type.value && [styles.optionChipActive, { backgroundColor: `${primary}18`, borderColor: primary }]]}
+                      onPress={() => {
+                        setNewRuleTypeFilter(type.value);
+                        resetPreview();
+                      }}
+                    >
+                      <Typography variant="small" weight="bold" style={{ color: newRuleTypeFilter === type.value ? primary : mutedForeground }}>
+                        {type.label}
+                      </Typography>
+                    </TouchableOpacity>
+                  ))}
                 </View>
+
+                {newRuleMode === 'amount' ? (
+                  <>
+                    <Typography variant="small" style={{ color: mutedForeground, marginBottom: 6 }}>Amount Operator</Typography>
+                    <View style={styles.optionRow}>
+                      {AMOUNT_RULE_OPERATORS.map(operator => (
+                        <TouchableOpacity
+                          key={operator.value}
+                          style={[styles.optionChip, { borderColor: border }, newRuleOperator === operator.value && [styles.optionChipActive, { backgroundColor: `${primary}18`, borderColor: primary }]]}
+                          onPress={() => {
+                            setNewRuleOperator(operator.value);
+                            resetPreview();
+                          }}
+                        >
+                          <Typography variant="small" weight="bold" style={{ color: newRuleOperator === operator.value ? primary : mutedForeground }}>
+                            {operator.label}
+                          </Typography>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {newRuleOperator === 'between' ? (
+                      <View style={styles.ruleRow}>
+                        <TextInput
+                          value={newRuleMinAmount}
+                          onChangeText={(value) => {
+                            setNewRuleMinAmount(value);
+                            resetPreview();
+                          }}
+                          placeholder="Min"
+                          keyboardType="numeric"
+                          placeholderTextColor={mutedForeground}
+                          style={[styles.ruleInput, styles.ruleInputHalf, { borderColor: border, color: text }]}
+                        />
+                        <TextInput
+                          value={newRuleMaxAmount}
+                          onChangeText={(value) => {
+                            setNewRuleMaxAmount(value);
+                            resetPreview();
+                          }}
+                          placeholder="Max"
+                          keyboardType="numeric"
+                          placeholderTextColor={mutedForeground}
+                          style={[styles.ruleInput, styles.ruleInputHalf, { borderColor: border, color: text }]}
+                        />
+                      </View>
+                    ) : (
+                      <TextInput
+                        value={newRuleAmountValue}
+                        onChangeText={(value) => {
+                          setNewRuleAmountValue(value);
+                          resetPreview();
+                        }}
+                        placeholder="Amount"
+                        keyboardType="numeric"
+                        placeholderTextColor={mutedForeground}
+                        style={[styles.ruleInput, { borderColor: border, color: text }]}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Typography variant="small" style={{ color: mutedForeground, marginBottom: 6 }}>Text Field</Typography>
+                    <View style={styles.optionRow}>
+                      {TEXT_RULE_FIELDS.map(field => (
+                        <TouchableOpacity
+                          key={field.value}
+                          style={[styles.optionChip, { borderColor: border }, newRuleField === field.value && [styles.optionChipActive, { backgroundColor: `${primary}18`, borderColor: primary }]]}
+                          onPress={() => {
+                            setNewRuleField(field.value);
+                            resetPreview();
+                          }}
+                        >
+                          <Typography variant="small" weight="bold" style={{ color: newRuleField === field.value ? primary : mutedForeground }}>
+                            {field.label}
+                          </Typography>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <Typography variant="small" style={{ color: mutedForeground, marginBottom: 6 }}>Text Operator</Typography>
+                    <View style={styles.optionRow}>
+                      {TEXT_RULE_OPERATORS.map(operator => (
+                        <TouchableOpacity
+                          key={operator.value}
+                          style={[styles.optionChip, { borderColor: border }, newRuleOperator === operator.value && [styles.optionChipActive, { backgroundColor: `${primary}18`, borderColor: primary }]]}
+                          onPress={() => {
+                            setNewRuleOperator(operator.value);
+                            resetPreview();
+                          }}
+                        >
+                          <Typography variant="small" weight="bold" style={{ color: newRuleOperator === operator.value ? primary : mutedForeground }}>
+                            {operator.label}
+                          </Typography>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <TextInput
+                      value={newRuleTextValue}
+                      onChangeText={(value) => {
+                        setNewRuleTextValue(value);
+                        resetPreview();
+                      }}
+                      placeholder="Text value"
+                      placeholderTextColor={mutedForeground}
+                      style={[styles.ruleInput, { borderColor: border, color: text }]}
+                    />
+                  </>
+                )}
 
                 <TextInput
                   value={newRuleKeywords}
-                  onChangeText={setNewRuleKeywords}
+                  onChangeText={(value) => {
+                    setNewRuleKeywords(value);
+                    resetPreview();
+                  }}
                   placeholder="Keywords (comma separated)"
                   placeholderTextColor={mutedForeground}
                   style={[styles.ruleInput, { borderColor: border, color: text }]}
                 />
 
+                <Typography variant="small" style={{ color: mutedForeground, marginBottom: 6 }}>Days of Week (optional)</Typography>
+                <View style={styles.optionRow}>
+                  {WEEKDAY_OPTIONS.map(day => (
+                    <TouchableOpacity
+                      key={`${day.label}-${day.value}`}
+                      style={[
+                        styles.dayChip,
+                        { borderColor: border },
+                        newRuleDaysOfWeek.includes(day.value) && [styles.optionChipActive, { backgroundColor: `${primary}18`, borderColor: primary }],
+                      ]}
+                      onPress={() => toggleRuleDay(day.value)}
+                    >
+                      <Typography variant="small" weight="bold" style={{ color: newRuleDaysOfWeek.includes(day.value) ? primary : mutedForeground }}>
+                        {day.label}
+                      </Typography>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
                 <View style={styles.ruleRow}>
                   <TextInput
                     value={newRuleRepeatCount}
-                    onChangeText={setNewRuleRepeatCount}
+                    onChangeText={(value) => {
+                      setNewRuleRepeatCount(value);
+                      resetPreview();
+                    }}
                     placeholder="Repeat count"
                     keyboardType="numeric"
                     placeholderTextColor={mutedForeground}
@@ -1059,7 +1417,10 @@ const SettingsScreen: React.FC = () => {
                   />
                   <TextInput
                     value={newRuleRepeatDays}
-                    onChangeText={setNewRuleRepeatDays}
+                    onChangeText={(value) => {
+                      setNewRuleRepeatDays(value);
+                      resetPreview();
+                    }}
                     placeholder="In days"
                     keyboardType="numeric"
                     placeholderTextColor={mutedForeground}
@@ -1067,7 +1428,10 @@ const SettingsScreen: React.FC = () => {
                   />
                   <TextInput
                     value={newRuleTolerance}
-                    onChangeText={setNewRuleTolerance}
+                    onChangeText={(value) => {
+                      setNewRuleTolerance(value);
+                      resetPreview();
+                    }}
                     placeholder="Tolerance"
                     keyboardType="numeric"
                     placeholderTextColor={mutedForeground}
@@ -1075,15 +1439,55 @@ const SettingsScreen: React.FC = () => {
                   />
                 </View>
 
-                <TouchableOpacity
-                  style={[styles.closeModal, { backgroundColor: primary, marginTop: 4 }]}
-                  onPress={handleCreateAmountRule}
-                  disabled={rulesLoading}
-                >
-                  <Typography variant="bold" style={{ color: '#FFFFFF' }}>
-                    {rulesLoading ? 'Saving...' : 'Create Rule'}
-                  </Typography>
-                </TouchableOpacity>
+                <TextInput
+                  value={newRulePriority}
+                  onChangeText={(value) => {
+                    setNewRulePriority(value);
+                    resetPreview();
+                  }}
+                  placeholder="Priority (higher runs first)"
+                  keyboardType="numeric"
+                  placeholderTextColor={mutedForeground}
+                  style={[styles.ruleInput, { borderColor: border, color: text }]}
+                />
+
+                <View style={styles.builderActionRow}>
+                  <TouchableOpacity
+                    style={[styles.builderActionBtn, { backgroundColor: `${primary}18`, borderColor: primary }]}
+                    onPress={handlePreviewRule}
+                    disabled={previewLoading || rulesLoading}
+                  >
+                    <Typography variant="bold" style={{ color: primary }}>
+                      {previewLoading ? 'Previewing...' : 'Preview'}
+                    </Typography>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.builderActionBtn, { backgroundColor: primary, borderColor: primary }]}
+                    onPress={handleCreateRule}
+                    disabled={rulesLoading || previewLoading}
+                  >
+                    <Typography variant="bold" style={{ color: '#FFFFFF' }}>
+                      {rulesLoading ? 'Saving...' : 'Create Rule'}
+                    </Typography>
+                  </TouchableOpacity>
+                </View>
+
+                {previewCount !== null && (
+                  <View style={[styles.previewCard, { borderColor: border }]}>
+                    <Typography variant="bold">Preview Result</Typography>
+                    <Typography variant="small" style={{ color: mutedForeground, marginTop: 4 }}>
+                      {previewCount} matching transaction{previewCount === 1 ? '' : 's'} in your current data.
+                    </Typography>
+                    {previewMatches.map(item => (
+                      <View key={item.id} style={[styles.previewItem, { borderColor: border }]}>
+                        <Typography variant="small" weight="bold">₹{item.amount.toFixed(2)} • {item.vendor || 'Unknown'}</Typography>
+                        <Typography variant="small" style={{ color: mutedForeground }}>
+                          {item.category} • {new Date(item.smsData?.timestamp || item.createdAt).toLocaleDateString()}
+                        </Typography>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
 
               <Typography variant="small" style={{ color: mutedForeground, marginTop: 12, marginBottom: 6 }}>
@@ -1369,6 +1773,29 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
+  optionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  optionChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  dayChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  optionChipActive: {
+    borderWidth: 1.5,
+  },
   ruleRow: {
     flexDirection: 'row',
     gap: 8,
@@ -1385,6 +1812,31 @@ const styles = StyleSheet.create({
   },
   ruleInputThird: {
     flex: 1,
+  },
+  builderActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  builderActionBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  previewCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 10,
+  },
+  previewItem: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 8,
+    marginTop: 8,
   },
   ruleCard: {
     borderWidth: 1,
