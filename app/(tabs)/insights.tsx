@@ -11,11 +11,11 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Activity, BarChart3, DollarSign, PieChart as PieChartIcon, TrendingUp, Calendar, Info } from 'lucide-react-native';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View, StatusBar, Platform, TextInput } from 'react-native';
 import { BarChart, LineChart, PieChart, StackedBarChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
+import Animated, { FadeInRight } from 'react-native-reanimated';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useAppTheme } from '@/contexts/ThemeContext';
 
@@ -80,11 +80,7 @@ const InsightsScreen: React.FC = () => {
   const mutedForeground = useThemeColor({}, 'mutedForeground');
   const text = useThemeColor({}, 'text');
 
-  useEffect(() => {
-    loadInsightsData();
-  }, [selectedPeriod]);
-
-  const loadInsightsData = async () => {
+  const loadInsightsData = useCallback(async () => {
     try {
       setLoading(true);
       const [summaryData, insightsData, txData, budgetsData] = await Promise.all([
@@ -133,7 +129,11 @@ const InsightsScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [mutedForeground]);
+
+  useEffect(() => {
+    loadInsightsData();
+  }, [loadInsightsData, selectedPeriod]);
 
   const handleRunWhatIf = async () => {
     if (!whatIfInput.trim() || allTransactions.length === 0) return;

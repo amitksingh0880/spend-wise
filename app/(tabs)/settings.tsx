@@ -143,6 +143,15 @@ const SettingsScreen: React.FC = () => {
   const [newRuleTolerance, setNewRuleTolerance] = useState('10');
   const { refreshCurrency } = useCurrency();
 
+  const isTemplateRuleExisting = (template: QuickRuleTemplate): boolean => {
+    return smartRules.some(rule => {
+      const tags = rule.setTags || [];
+      const hasTemplateTag = tags.includes(`template:${template.id}`);
+      const sameName = (rule.name || '').trim().toLowerCase() === template.name.trim().toLowerCase();
+      return hasTemplateTag || sameName;
+    });
+  };
+
   const { theme, fontFamily, setFontFamily } = useAppTheme();
   const isDark = theme === 'dark';
 
@@ -965,6 +974,9 @@ const SettingsScreen: React.FC = () => {
                       <Typography variant="small" style={{ color: mutedForeground }}>
                         ₹{template.minAmount} - ₹{template.maxAmount} → {template.category}
                       </Typography>
+                      {isTemplateRuleExisting(template) && (
+                        <Typography variant="small" style={styles.templateExistsText}>Already added</Typography>
+                      )}
                     </View>
                     <View style={styles.templateActions}>
                       <TouchableOpacity
@@ -974,11 +986,16 @@ const SettingsScreen: React.FC = () => {
                         <Typography variant="small" weight="bold" style={{ color: primary }}>Use</Typography>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[styles.templateBtn, { backgroundColor: primary }]}
-                        disabled={rulesLoading}
+                        style={[
+                          styles.templateBtn,
+                          { backgroundColor: isTemplateRuleExisting(template) ? '#94a3b8' : primary },
+                        ]}
+                        disabled={rulesLoading || isTemplateRuleExisting(template)}
                         onPress={() => handleCreateFromTemplate(template)}
                       >
-                        <Typography variant="small" weight="bold" style={{ color: '#FFFFFF' }}>Add</Typography>
+                        <Typography variant="small" weight="bold" style={{ color: '#FFFFFF' }}>
+                          {isTemplateRuleExisting(template) ? 'Added' : 'Add'}
+                        </Typography>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1341,6 +1358,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
+  },
+  templateExistsText: {
+    color: '#16a34a',
+    marginTop: 4,
   },
   ruleBuilderCard: {
     borderWidth: 1,
