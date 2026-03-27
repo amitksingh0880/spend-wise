@@ -43,6 +43,12 @@ export interface TransactionSummary {
   monthlyTrend: { month: string; income: number; expenses: number }[];
 }
 
+export interface SplitTransactionInput {
+  category: string;
+  amount: number;
+  description?: string;
+}
+
 const STORAGE_KEY = 'transactions';
 
 const getTransactionTimestamp = (tx: Pick<Transaction, 'createdAt' | 'smsData'>): number => {
@@ -194,6 +200,64 @@ export const saveTransaction = async (tx: Omit<Transaction, 'id' | 'createdAt'>)
   // Notify listeners
   try { emitter.emit('transactions:changed', newTx); } catch (err) { /* ignore */ }
   return newTx;
+};
+
+export const saveSplitTransactions = async (
+  baseTx: Omit<Transaction, 'id' | 'createdAt' | 'amount' | 'category'> & { amount: number },
+  splits: SplitTransactionInput[]
+): Promise<Transaction[]> => {
+  const normalizedSplits = splits
+    .map(split => ({
+      category: normalizeCategory(split.category),
+      amount: Number(split.amount),
+      description: split.description?.trim(),
+    }))
+    .filter(split => split.amount > 0);
+
+  if (!normalizedSplits.length) {
+    throw new Error('At least one split entry is required.');
+  }
+
+  const invalidSplit = normalizedSplits.find(split => !split.category || Number.isNaN(split.amount));
+  if (invalidSplit) {
+    throw new Error('Each split entry must include a valid category and amount.');
+  }
+
+  const splitTotal = normalizedSplits.reduce((sum, split) => sum + split.amount, 0);
+  const expectedTotal = Number(baseTx.amount);
+  if (Number.isNaN(expectedTotal) || expectedTotal <= 0) {
+    throw new Error('Base transaction amount must be a valid positive number.');
+  }
+
+  if (Math.abs(splitTotal - expectedTotal) > 0.01) {
+    throw new Error(`Split total (${splitTotal.toFixed(2)}) must match transaction amount (${expectedTotal.toFixed(2)}).`);
+  }
+
+  const splitGroupId = uuidv4();
+  const totalParts = normalizedSplits.length;
+  const persisted: Transaction[] = [];
+
+  for (let index = 0; index < totalParts; index += 1) {
+    const split = normalizedSplits[index];
+    const splitDescription = split.description || baseTx.description;
+    const tags = [
+      ...(baseTx.tags || []),
+      `split-group:${splitGroupId}`,
+      `split-part:${index + 1}/${totalParts}`,
+    ];
+
+    const saved = await saveTransaction({
+      ...baseTx,
+      amount: split.amount,
+      category: split.category,
+      description: splitDescription,
+      tags,
+    });
+
+    persisted.push(saved);
+  }
+
+  return persisted;
 };
 
 export const updateTransaction = async (id: string, updates: Partial<Omit<Transaction, 'id' | 'createdAt'>>): Promise<void> => {

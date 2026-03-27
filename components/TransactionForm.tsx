@@ -1,6 +1,6 @@
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { getAllCategories } from '@/services/categoryService';
-import { saveTransaction, Transaction, updateTransaction } from '@/services/transactionService';
+import { saveSplitTransactions, saveTransaction, Transaction, updateTransaction } from '@/services/transactionService';
 import { getCurrencySymbol } from '@/utils/currency';
 import { FileText, Tag, X } from 'lucide-react-native';
 import React, { useEffect, useState, useContext } from 'react';
@@ -40,6 +40,11 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [splitEnabled, setSplitEnabled] = useState(false);
+  const [splits, setSplits] = useState<{ id: string; amount: string; category: string; description: string }[]>([
+    { id: '1', amount: '', category: '', description: '' },
+    { id: '2', amount: '', category: '', description: '' },
+  ]);
 
   // Theme Hooks
   const background = useThemeColor({}, 'background');
@@ -91,10 +96,31 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     setCategory('');
     setDescription('');
     setType('expense');
+    setSplitEnabled(false);
+    setSplits([
+      { id: '1', amount: '', category: '', description: '' },
+      { id: '2', amount: '', category: '', description: '' },
+    ]);
+  };
+
+  const updateSplit = (id: string, key: 'amount' | 'category' | 'description', value: string) => {
+    setSplits(prev => prev.map(split => (split.id === id ? { ...split, [key]: value } : split)));
+  };
+
+  const addSplit = () => {
+    setSplits(prev => [
+      ...prev,
+      { id: `${Date.now()}-${prev.length + 1}`, amount: '', category: '', description: '' },
+    ]);
+  };
+
+  const removeSplit = (id: string) => {
+    setSplits(prev => (prev.length > 2 ? prev.filter(split => split.id !== id) : prev));
   };
 
   const handleSubmit = async () => {
-    if (!amount || !vendor || !category) {
+    const requiresPrimaryCategory = !(splitEnabled && !transaction && type === 'expense');
+    if (!amount || !vendor || (requiresPrimaryCategory && !category)) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -107,6 +133,48 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
 
     try {
       setLoading(true);
+
+      if (!transaction && type === 'expense' && splitEnabled) {
+        const normalizedSplits = splits
+          .map(split => ({
+            amount: parseFloat(split.amount),
+            category: split.category.trim(),
+            description: split.description.trim(),
+          }))
+          .filter(split => split.amount > 0 || split.category.length > 0 || split.description.length > 0);
+
+        if (normalizedSplits.length < 2) {
+          Alert.alert('Error', 'Add at least 2 valid split rows.');
+          return;
+        }
+
+        const hasInvalid = normalizedSplits.some(split => Number.isNaN(split.amount) || split.amount <= 0 || !split.category);
+        if (hasInvalid) {
+          Alert.alert('Error', 'Each split must have a valid amount and category.');
+          return;
+        }
+
+        const splitTotal = normalizedSplits.reduce((sum, split) => sum + split.amount, 0);
+        if (Math.abs(splitTotal - numAmount) > 0.01) {
+          Alert.alert('Error', `Split total ${splitTotal.toFixed(2)} must match amount ${numAmount.toFixed(2)}.`);
+          return;
+        }
+
+        await saveSplitTransactions(
+          {
+            vendor,
+            type,
+            amount: numAmount,
+            description: description || undefined,
+          },
+          normalizedSplits
+        );
+
+        resetForm();
+        onSuccess();
+        onClose();
+        return;
+      }
       
       if (transaction) {
         await updateTransaction((transaction as Transaction).id, {
@@ -169,7 +237,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                 styles.typeButton,
                 type === 'expense' && { backgroundColor: primary },
               ]}
-              onPress={() => setType('expense')}
+              onPress={() => {
+                setType('expense');
+              }}
             >
               <Typography
                 weight="bold"
@@ -183,7 +253,10 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                 styles.typeButton,
                 type === 'income' && { backgroundColor: primary },
               ]}
-              onPress={() => setType('income')}
+              onPress={() => {
+                setType('income');
+                setSplitEnabled(false);
+              }}
             >
               <Typography
                 weight="bold"
@@ -252,6 +325,80 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
               </View>
             </ScrollView>
           </View>
+
+          {!transaction && type === 'expense' && (
+            <View style={styles.inputGroup}>
+              <View style={styles.splitHeaderRow}>
+                <Typography weight="bold" style={[styles.label, { color: text, marginBottom: 0 }]}>Split Transaction</Typography>
+                <TouchableOpacity
+                  style={[
+                    styles.splitToggle,
+                    {
+                      backgroundColor: splitEnabled ? primary : card,
+                      borderColor: splitEnabled ? primary : border,
+                    },
+                  ]}
+                  onPress={() => setSplitEnabled(prev => !prev)}
+                >
+                  <Typography weight="bold" style={{ color: splitEnabled ? '#ffffff' : mutedForeground }}>
+                    {splitEnabled ? 'Enabled' : 'Enable'}
+                  </Typography>
+                </TouchableOpacity>
+              </View>
+
+              {splitEnabled && (
+                <View style={[styles.splitCard, { backgroundColor: card, borderColor: border }]}> 
+                  {splits.map((split, index) => (
+                    <View key={split.id} style={[styles.splitRow, { borderBottomColor: border, borderBottomWidth: index === splits.length - 1 ? 0 : 1 }]}> 
+                      <View style={styles.splitTopRow}>
+                        <Typography weight="bold" style={{ color: text }}>Part {index + 1}</Typography>
+                        <TouchableOpacity onPress={() => removeSplit(split.id)} disabled={splits.length <= 2}>
+                          <Typography style={{ color: splits.length <= 2 ? mutedForeground : '#ef4444' }}>Remove</Typography>
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={styles.splitInputsRow}>
+                        <View style={[styles.splitInputBox, { borderColor: border, backgroundColor: background }]}> 
+                          <Typography style={{ color: mutedForeground }}>{getCurrencySymbol(currency)}</Typography>
+                          <TextInput
+                            value={split.amount}
+                            onChangeText={(value) => updateSplit(split.id, 'amount', value)}
+                            placeholder="Amount"
+                            placeholderTextColor={mutedForeground}
+                            keyboardType="decimal-pad"
+                            style={[styles.splitInput, { color: text }]}
+                          />
+                        </View>
+                        <TextInput
+                          value={split.category}
+                          onChangeText={(value) => updateSplit(split.id, 'category', value)}
+                          placeholder="Category"
+                          placeholderTextColor={mutedForeground}
+                          style={[styles.splitCategoryInput, { color: text, borderColor: border, backgroundColor: background }]}
+                        />
+                      </View>
+
+                      <TextInput
+                        value={split.description}
+                        onChangeText={(value) => updateSplit(split.id, 'description', value)}
+                        placeholder="Optional note for this split"
+                        placeholderTextColor={mutedForeground}
+                        style={[styles.splitNoteInput, { color: text, borderColor: border, backgroundColor: background }]}
+                      />
+                    </View>
+                  ))}
+
+                  <TouchableOpacity style={[styles.addSplitButton, { borderColor: border }]} onPress={addSplit}>
+                    <Typography weight="bold" style={{ color: mutedForeground }}>+ Add Another Split</Typography>
+                  </TouchableOpacity>
+
+                  <Typography variant="small" style={{ color: mutedForeground, marginTop: 10 }}>
+                    Tip: Split total must match the main amount exactly.
+                  </Typography>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Description */}
           <View style={styles.inputGroup}>
@@ -428,6 +575,75 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 5,
+  },
+  splitHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  splitToggle: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  splitCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+  },
+  splitRow: {
+    paddingBottom: 12,
+    marginBottom: 12,
+  },
+  splitTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  splitInputsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  splitInputBox: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    height: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  splitInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 0,
+  },
+  splitCategoryInput: {
+    flex: 1.2,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    height: 46,
+    fontSize: 15,
+  },
+  splitNoteInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    height: 44,
+    fontSize: 14,
+  },
+  addSplitButton: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
   },
 });
 

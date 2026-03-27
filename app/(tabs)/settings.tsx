@@ -624,7 +624,10 @@ const SettingsScreen: React.FC = () => {
 
       const result = await exportTransactions(options);
       if (result.success) {
-        Alert.alert('Export complete', `File saved to ${result.filePath}`);
+        const locationMessage = Platform.OS === 'web'
+          ? 'Saved via browser download (usually in your Downloads folder).'
+          : `Saved to: ${result.filePath || 'App documents directory'}`;
+        Alert.alert('Export complete', `${locationMessage}\n\nYou can now share or open this file from your device file manager.`);
         setShowExportModal(false);
       } else {
         Alert.alert('Export failed', result.error || 'Unknown error');
