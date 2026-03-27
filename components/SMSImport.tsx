@@ -46,9 +46,18 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   const border = useThemeColor({}, 'border');
   const text = useThemeColor({}, 'text');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
+  const primaryForeground = useThemeColor({}, 'primaryForeground');
   
   const ctx = useContext(ThemeContext);
   const isDark = (ctx?.theme ?? 'dark') === 'dark';
+  const rangePillBorderColor = isDark ? 'rgba(148,163,184,0.35)' : '#64748b55';
+  const rangePillBg = isDark ? 'rgba(148,163,184,0.08)' : 'transparent';
+  const rangePillTextColor = isDark ? '#cbd5e1' : '#64748b';
+  const inputBackground = isDark ? 'rgba(15,23,42,0.45)' : '#ffffff';
+  const suspiciousBackground = isDark ? 'rgba(127,29,29,0.2)' : '#fff8f7';
+  const suspiciousBorder = isDark ? 'rgba(239,68,68,0.35)' : '#fee2e2';
+  const suspiciousDivider = isDark ? 'rgba(239,68,68,0.2)' : '#fdeceb';
+  const criticalText = isDark ? '#fca5a5' : '#b91c1c';
   
   const [customDays, setCustomDays] = useState<number>(7);
   const [customStart, setCustomStart] = useState<string>(''); 
@@ -303,6 +312,17 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   };
 
   const renderExpenseItem = (expense: ExtractedExpense, index: number) => {
+    const confidenceBg = expense.confidence > 0.7
+      ? (isDark ? 'rgba(16,185,129,0.16)' : '#f0fdf4')
+      : expense.confidence > 0.5
+        ? (isDark ? 'rgba(245,158,11,0.18)' : '#fffbeb')
+        : (isDark ? 'rgba(239,68,68,0.16)' : '#fef2f2');
+    const confidenceText = expense.confidence > 0.7
+      ? (isDark ? '#86efac' : '#166534')
+      : expense.confidence > 0.5
+        ? (isDark ? '#fcd34d' : '#92400e')
+        : (isDark ? '#fca5a5' : '#991b1b');
+
     const itemStyle = StyleSheet.flatten([
       styles.expenseItem,
       {
@@ -328,12 +348,12 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
           </Typography>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 }}>
-          <View style={StyleSheet.flatten([styles.confidenceBadge, { backgroundColor: expense.confidence > 0.7 ? '#f0fdf4' : expense.confidence > 0.5 ? '#fffbeb' : '#fef2f2' }]) as ViewStyle}>
-            <Typography style={{ color: expense.confidence > 0.7 ? '#166534' : expense.confidence > 0.5 ? '#92400e' : '#991b1b', fontSize: 10, fontWeight: '700' }}>
+          <View style={StyleSheet.flatten([styles.confidenceBadge, { backgroundColor: confidenceBg }]) as ViewStyle}>
+            <Typography style={{ color: confidenceText, fontSize: 10, fontWeight: '700' }}>
               {Math.round(expense.confidence * 100)}% Match
             </Typography>
           </View>
-          <Typography style={{ flex: 1, fontSize: 12, color: '#9ca3af' }} numberOfLines={1}>{expense.description}</Typography>
+          <Typography style={{ flex: 1, fontSize: 12, color: mutedForeground }} numberOfLines={1}>{expense.description}</Typography>
         </View>
       </Container>
     );
@@ -342,10 +362,14 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   const renderRangeOptionButton = (value: typeof rangeOption, label: string) => (
     <TouchableOpacity
       key={value}
-      style={[styles.rangePill, rangeOption === value ? styles.rangePillActive : {}]}
+      style={[
+        styles.rangePill,
+        { borderColor: rangePillBorderColor, backgroundColor: rangePillBg },
+        rangeOption === value ? styles.rangePillActive : {},
+      ]}
       onPress={() => setRangeOption(value)}
     >
-      <Typography style={[styles.rangePillText, rangeOption === value ? styles.rangePillTextActive : {}]}>{label}</Typography>
+      <Typography style={[styles.rangePillText, { color: rangePillTextColor }, rangeOption === value ? styles.rangePillTextActive : {}]}>{label}</Typography>
     </TouchableOpacity>
   );
 
@@ -354,8 +378,8 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
       <Card style={{ margin: 16 }}>
         <View style={styles.notAvailable}>
           <Info size={48} color={mutedForeground} />
-          <Typography style={styles.notAvailableTitle}>SMS Import Not Available</Typography>
-          <Typography style={styles.notAvailableText}>Supported only on Android devices.</Typography>
+          <Typography style={[styles.notAvailableTitle, { color: text }]}>SMS Import Not Available</Typography>
+          <Typography style={[styles.notAvailableText, { color: mutedForeground }]}>Supported only on Android devices.</Typography>
         </View>
       </Card>
     );
@@ -393,26 +417,32 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
           </Modal>
 
           <View style={{ marginBottom: 20 }}>
-            <Typography style={styles.sectionTitle}>Filter & Range</Typography>
+            <Typography style={[styles.sectionTitle, { color: mutedForeground }]}>Filter & Range</Typography>
             <View style={styles.rangeSelector}>
               {['today', '7', '30', 'customDays', 'customRange'].map((o: any) => renderRangeOptionButton(o, o==='today'?'Today':o==='7'?'7 Days':o==='30'?'30 Days':o==='customDays'?'Days':'Range'))}
             </View>
 
             {rangeOption === 'customDays' && (
               <View style={styles.inputRow}>
-                <Typography>Days:</Typography>
-                <TextInput value={String(customDays)} onChangeText={v => setCustomDays(parseInt(v)||1)} style={styles.numericInput} keyboardType="numeric" />
+                <Typography style={{ color: text }}>Days:</Typography>
+                <TextInput
+                  value={String(customDays)}
+                  onChangeText={v => setCustomDays(parseInt(v)||1)}
+                  style={[styles.numericInput, { color: text, borderColor: border, backgroundColor: inputBackground }]}
+                  keyboardType="numeric"
+                  placeholderTextColor={mutedForeground}
+                />
               </View>
             )}
 
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-              <TouchableOpacity onPress={() => openCalendarFor('start')} style={[styles.rangePill, { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-                <CalendarIcon size={14} color="#94a3b8" />
-                <Typography style={{ fontSize: 12, color: '#64748b' }}>{filterStart || 'From'}</Typography>
+              <TouchableOpacity onPress={() => openCalendarFor('start')} style={[styles.rangePill, { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, borderColor: rangePillBorderColor, backgroundColor: rangePillBg }]}>
+                <CalendarIcon size={14} color={mutedForeground} />
+                <Typography style={{ fontSize: 12, color: mutedForeground }}>{filterStart || 'From'}</Typography>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => openCalendarFor('end')} style={[styles.rangePill, { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-                <CalendarIcon size={14} color="#94a3b8" />
-                <Typography style={{ fontSize: 12, color: '#64748b' }}>{filterEnd || 'To'}</Typography>
+              <TouchableOpacity onPress={() => openCalendarFor('end')} style={[styles.rangePill, { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, borderColor: rangePillBorderColor, backgroundColor: rangePillBg }]}>
+                <CalendarIcon size={14} color={mutedForeground} />
+                <Typography style={{ fontSize: 12, color: mutedForeground }}>{filterEnd || 'To'}</Typography>
               </TouchableOpacity>
             </View>
           </View>
@@ -427,40 +457,40 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
             </View>
             {!hasPermission && (
               <Button style={{ paddingVertical: 6, paddingHorizontal: 16, height: 'auto', minWidth: 80 }} onPress={handleRequestPermission}>
-                <Typography style={{ color: '#fff', fontWeight: 'bold' }}>Allow</Typography>
+                <Typography style={{ color: primaryForeground, fontWeight: 'bold' }}>Allow</Typography>
               </Button>
             )}
           </View>
 
           <Button onPress={handleImportSMS} disabled={!hasPermission || isLoading} style={{ height: 50, borderRadius: 12 }}>
-            {isLoading ? <ActivityIndicator color="#fff" /> : <Typography style={{ color: '#fff', fontWeight: 'bold' }}>Scan for Transactions</Typography>}
+            {isLoading ? <ActivityIndicator color={primaryForeground} /> : <Typography style={{ color: primaryForeground, fontWeight: 'bold' }}>Scan for Transactions</Typography>}
           </Button>
 
           {lastResult && (
             <View style={[styles.resultsContainer, { borderTopColor: border }]}>
               <View style={styles.statGrid}>
-                <View style={[styles.statCard, { backgroundColor: cardColor, borderColor: border }]}><Typography style={[styles.statNum, {color:primary}]}>{lastResult.expenses.length}</Typography><Typography style={styles.statLab}>Found</Typography></View>
-                <View style={[styles.statCard, { backgroundColor: cardColor, borderColor: border }]}><Typography style={[styles.statNum, { color: text }]}>{lastResult.totalProcessed}</Typography><Typography style={styles.statLab}>Total</Typography></View>
+                <View style={[styles.statCard, { backgroundColor: cardColor, borderColor: border }]}><Typography style={[styles.statNum, {color:primary}]}>{lastResult.expenses.length}</Typography><Typography style={[styles.statLab, { color: mutedForeground }]}>Found</Typography></View>
+                <View style={[styles.statCard, { backgroundColor: cardColor, borderColor: border }]}><Typography style={[styles.statNum, { color: text }]}>{lastResult.totalProcessed}</Typography><Typography style={[styles.statLab, { color: mutedForeground }]}>Total</Typography></View>
                 {lastResult.suspicious && lastResult.suspicious.length > 0 && (
-                  <View style={[styles.statCard, { borderColor:'#fee2e2', backgroundColor: cardColor }]}><Typography style={[styles.statNum, {color:'#ef4444'}]}>{lastResult.suspicious.length}</Typography><Typography style={styles.statLab}>Flagged</Typography></View>
+                  <View style={[styles.statCard, { borderColor: suspiciousBorder, backgroundColor: cardColor }]}><Typography style={[styles.statNum, {color:'#ef4444'}]}>{lastResult.suspicious.length}</Typography><Typography style={[styles.statLab, { color: mutedForeground }]}>Flagged</Typography></View>
                 )}
               </View>
 
               {lastResult.expenses.length > 0 && (
                 <View style={{ marginTop: 20 }}>
-                  <Typography style={styles.sectionTitle}>Imported Lately</Typography>
+                  <Typography style={[styles.sectionTitle, { color: mutedForeground }]}>Imported Lately</Typography>
                   {lastResult.expenses.slice(0, 3).map((e, i) => renderExpenseItem(e, i))}
                 </View>
               )}
 
               {lastResult.suspicious && lastResult.suspicious.length > 0 && (
-                <View style={styles.suspiciousBlock}>
-                  <Typography style={[styles.sectionTitle, {color:'#b91c1c'}]}>Needs Review</Typography>
+                <View style={[styles.suspiciousBlock, { backgroundColor: suspiciousBackground, borderColor: suspiciousBorder }]}>
+                  <Typography style={[styles.sectionTitle, {color: criticalText}]}>Needs Review</Typography>
                   {lastResult.suspicious.slice(0, 2).map((e, i) => {
                     const SuspItemView: any = View;
                     return (
-                      <SuspItemView key={i} style={styles.suspItem}>
-                        <View style={{ flex: 1 }}><Typography style={{ fontWeight: '600' }}>{e.vendor || 'Unknown'}</Typography><Typography style={{ color: '#ef4444', fontWeight: 'bold' }}>{formatAmount(e.amount)}</Typography></View>
+                      <SuspItemView key={i} style={[styles.suspItem, { borderBottomColor: suspiciousDivider }]}>
+                        <View style={{ flex: 1 }}><Typography style={{ fontWeight: '600', color: text }}>{e.vendor || 'Unknown'}</Typography><Typography style={{ color: '#ef4444', fontWeight: 'bold' }}>{formatAmount(e.amount)}</Typography></View>
                         <View style={{ flexDirection: 'row', gap: 6 }}><Button style={{ height: 32, paddingVertical: 0 }} onPress={() => handleSaveSuspicious(e)}>Save</Button><Button variant="ghost" style={{ height: 32 }} onPress={() => handleIgnoreSuspicious(e)}>Ignore</Button></View>
                       </SuspItemView>
                     );

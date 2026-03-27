@@ -40,6 +40,7 @@ import {
 
 import {
   Alert,
+  Dimensions,
   Modal,
   ScrollView,
   StyleSheet,
@@ -65,9 +66,12 @@ import {
 } from '@/services/rulesEngineService';
 import { getAllTransactions, Transaction } from '@/services/transactionService';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
+import Reanimated, { FadeInUp, Layout } from 'react-native-reanimated';
 
 import React, { useEffect, useState } from 'react';
+
+const WINDOW_HEIGHT = Dimensions.get('window').height;
+let hasAnimatedSettingsEntryInSession = false;
 
 if (Platform.OS !== 'web') {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -196,6 +200,7 @@ const SettingsScreen: React.FC = () => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [previewMatches, setPreviewMatches] = useState<Transaction[]>([]);
+  const [shouldAnimateOnFirstVisit] = useState(() => !hasAnimatedSettingsEntryInSession);
   const { refreshCurrency } = useCurrency();
 
   const isTemplateRuleExisting = (template: QuickRuleTemplate): boolean => {
@@ -275,6 +280,12 @@ const SettingsScreen: React.FC = () => {
 
   useEffect(() => {
     loadSettings();
+  }, []);
+
+  useEffect(() => {
+    if (!hasAnimatedSettingsEntryInSession) {
+      hasAnimatedSettingsEntryInSession = true;
+    }
   }, []);
 
   useEffect(() => {
@@ -665,11 +676,8 @@ const SettingsScreen: React.FC = () => {
     rightElement?: React.ReactNode;
     color: string;
     index: number;
-  }) => (
-    <Animated.View 
-      entering={FadeInUp.delay(400 + index * 50).duration(500)}
-      layout={Layout.springify()}
-    >
+  }) => {
+    const rowContent = (
       <TouchableOpacity 
         style={[styles.settingRow, { borderBottomColor: border }]} 
         onPress={onPress}
@@ -686,8 +694,30 @@ const SettingsScreen: React.FC = () => {
         </View>
         {rightElement || (onPress && <ChevronRight size={18} color={mutedForeground} />)}
       </TouchableOpacity>
-    </Animated.View>
-  );
+    );
+
+    if (shouldAnimateOnFirstVisit) {
+      return (
+        <Reanimated.View entering={FadeInUp.delay(400 + index * 50).duration(500)} layout={Layout.springify()}>
+          {rowContent}
+        </Reanimated.View>
+      );
+    }
+
+    return <View>{rowContent}</View>;
+  };
+
+  const ModalContentContainer = ({ children }: { children: React.ReactNode }) => {
+    if (shouldAnimateOnFirstVisit) {
+      return (
+        <Reanimated.View entering={FadeInUp} style={[styles.modalContent, { backgroundColor: cardColor }]}> 
+          {children}
+        </Reanimated.View>
+      );
+    }
+
+    return <View style={[styles.modalContent, { backgroundColor: cardColor }]}>{children}</View>;
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
@@ -999,8 +1029,24 @@ const SettingsScreen: React.FC = () => {
         onRequestClose={() => setShowExportModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <Animated.View entering={FadeInUp} style={[styles.modalContent, { backgroundColor: cardColor }]}>
-            <Typography variant="bold" style={styles.modalTitle}>Export Data</Typography>
+          <ModalContentContainer>
+            <View style={[styles.modalHeader, { borderBottomColor: border }]}> 
+              <View style={styles.modalHeaderSpacer} />
+              <View style={styles.modalHeaderCenter}>
+                <View style={styles.modalHandle} />
+                <Typography variant="bold" style={styles.modalTitle}>Export Data</Typography>
+              </View>
+              <TouchableOpacity style={styles.modalHeaderClose} onPress={() => setShowExportModal(false)}>
+                <Typography variant="small" weight="bold" style={{ color: mutedForeground }}>Close</Typography>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalBodyScroll}
+              contentContainerStyle={styles.modalBodyContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
 
             <Typography variant="small" style={{ color: mutedForeground, marginBottom: 8 }}>Select format</Typography>
             <View style={{ marginBottom: 12 }}>
@@ -1131,6 +1177,8 @@ const SettingsScreen: React.FC = () => {
               </View>
             )}
 
+            </ScrollView>
+
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
               <TouchableOpacity style={[styles.closeModal, { backgroundColor: '#6b7280', flex: 1, marginRight: 8 }]} onPress={() => setShowExportModal(false)}>
                 <Typography variant="bold" style={{ color: '#FFFFFF' }}>Cancel</Typography>
@@ -1139,7 +1187,7 @@ const SettingsScreen: React.FC = () => {
                 <Typography variant="bold" style={{ color: '#FFFFFF' }}>Export</Typography>
               </TouchableOpacity>
             </View>
-          </Animated.View>
+          </ModalContentContainer>
         </View>
       </Modal>
 
@@ -1150,8 +1198,17 @@ const SettingsScreen: React.FC = () => {
         onRequestClose={() => setShowRulesModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <Animated.View entering={FadeInUp} style={[styles.modalContent, { backgroundColor: cardColor }]}>
-            <Typography variant="bold" style={styles.modalTitle}>Smart Rules</Typography>
+          <ModalContentContainer>
+            <View style={[styles.modalHeader, { borderBottomColor: border }]}> 
+              <View style={styles.modalHeaderSpacer} />
+              <View style={styles.modalHeaderCenter}>
+                <View style={styles.modalHandle} />
+                <Typography variant="bold" style={styles.modalTitle}>Smart Rules</Typography>
+              </View>
+              <TouchableOpacity style={styles.modalHeaderClose} onPress={() => setShowRulesModal(false)}>
+                <Typography variant="small" weight="bold" style={{ color: mutedForeground }}>Close</Typography>
+              </TouchableOpacity>
+            </View>
 
             <ScrollView showsVerticalScrollIndicator={false} style={styles.rulesScroll}>
               <Typography variant="small" style={{ color: mutedForeground, marginBottom: 8 }}>
@@ -1524,7 +1581,7 @@ const SettingsScreen: React.FC = () => {
             <TouchableOpacity style={[styles.closeModal, { backgroundColor: isDark ? '#334155' : '#1e293b' }]} onPress={() => setShowRulesModal(false)}>
               <Typography variant="bold" style={{ color: '#FFFFFF' }}>Close</Typography>
             </TouchableOpacity>
-          </Animated.View>
+          </ModalContentContainer>
         </View>
       </Modal>
 
@@ -1535,8 +1592,17 @@ const SettingsScreen: React.FC = () => {
         onRequestClose={() => setShowCurrencyModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <Animated.View entering={FadeInUp} style={[styles.modalContent, { backgroundColor: cardColor }]}>
-            <Typography variant="bold" style={styles.modalTitle}>Select Currency</Typography>
+          <ModalContentContainer>
+            <View style={[styles.modalHeader, { borderBottomColor: border }]}> 
+              <View style={styles.modalHeaderSpacer} />
+              <View style={styles.modalHeaderCenter}>
+                <View style={styles.modalHandle} />
+                <Typography variant="bold" style={styles.modalTitle}>Select Currency</Typography>
+              </View>
+              <TouchableOpacity style={styles.modalHeaderClose} onPress={() => setShowCurrencyModal(false)}>
+                <Typography variant="small" weight="bold" style={{ color: mutedForeground }}>Close</Typography>
+              </TouchableOpacity>
+            </View>
             {Object.values(CURRENCIES).map((curr) => (
               <TouchableOpacity
                 key={curr.code}
@@ -1558,7 +1624,7 @@ const SettingsScreen: React.FC = () => {
             <TouchableOpacity style={[styles.closeModal, { backgroundColor: isDark ? '#334155' : '#1e293b' }]} onPress={() => setShowCurrencyModal(false)}>
               <Typography variant="bold" style={{ color: '#FFFFFF' }}>Cancel</Typography>
             </TouchableOpacity>
-          </Animated.View>
+          </ModalContentContainer>
         </View>
       </Modal>
 
@@ -1569,11 +1635,20 @@ const SettingsScreen: React.FC = () => {
         onRequestClose={() => setShowFontModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <Animated.View entering={FadeInUp} style={[styles.modalContent, { backgroundColor: cardColor }]}>
+          <ModalContentContainer>
+            <View style={[styles.modalHeader, { borderBottomColor: border }]}> 
+              <View style={styles.modalHeaderSpacer} />
+              <View style={styles.modalHeaderCenter}>
+                <View style={styles.modalHandle} />
+                <Typography variant="bold" style={styles.modalTitle}>Select Font Style</Typography>
+              </View>
+              <TouchableOpacity style={styles.modalHeaderClose} onPress={() => setShowFontModal(false)}>
+                <Typography variant="small" weight="bold" style={{ color: mutedForeground }}>Close</Typography>
+              </TouchableOpacity>
+            </View>
             <View style={[styles.iconBox, { backgroundColor: `#f59e0b15`, alignSelf: 'center', marginBottom: 16 }]}>
               <Type size={24} color="#f59e0b" />
             </View>
-            <Typography variant="bold" style={styles.modalTitle}>Select Font Style</Typography>
             {[
               { id: 'inter', name: 'Inter', desc: 'Clean & Modern' },
               { id: 'outfit', name: 'Outfit', desc: 'Sleek & Rounded' },
@@ -1603,7 +1678,7 @@ const SettingsScreen: React.FC = () => {
             <TouchableOpacity style={[styles.closeModal, { backgroundColor: isDark ? '#334155' : '#1e293b' }]} onPress={() => setShowFontModal(false)}>
               <Typography variant="bold" style={{ color: '#FFFFFF' }}>Cancel</Typography>
             </TouchableOpacity>
-          </Animated.View>
+          </ModalContentContainer>
         </View>
       </Modal>
 
@@ -1614,11 +1689,20 @@ const SettingsScreen: React.FC = () => {
         onRequestClose={() => setShowSupportModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <Animated.View entering={FadeInUp} style={[styles.modalContent, { backgroundColor: cardColor }]}>
+          <ModalContentContainer>
+            <View style={[styles.modalHeader, { borderBottomColor: border }]}> 
+              <View style={styles.modalHeaderSpacer} />
+              <View style={styles.modalHeaderCenter}>
+                <View style={styles.modalHandle} />
+                <Typography variant="bold" style={styles.modalTitle}>Help & Support</Typography>
+              </View>
+              <TouchableOpacity style={styles.modalHeaderClose} onPress={() => setShowSupportModal(false)}>
+                <Typography variant="small" weight="bold" style={{ color: mutedForeground }}>Close</Typography>
+              </TouchableOpacity>
+            </View>
             <View style={[styles.iconBox, { backgroundColor: `#06b6d415`, alignSelf: 'center', marginBottom: 16 }]}>
               <HelpCircle size={24} color="#06b6d4" />
             </View>
-            <Typography variant="bold" style={styles.modalTitle}>Help & Support</Typography>
             <Typography style={{ textAlign: 'center', color: mutedForeground, marginBottom: 24 }}>
               Need help or have any feedback? Reach out to us via email:
             </Typography>
@@ -1636,7 +1720,7 @@ const SettingsScreen: React.FC = () => {
             <TouchableOpacity style={[styles.closeModal, { backgroundColor: isDark ? '#334155' : '#1e293b' }]} onPress={() => setShowSupportModal(false)}>
               <Typography variant="bold" style={{ color: '#FFFFFF' }}>Close</Typography>
             </TouchableOpacity>
-          </Animated.View>
+          </ModalContentContainer>
         </View>
       </Modal>
     </View>
@@ -1723,22 +1807,65 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    padding: 24,
+    backgroundColor: 'rgba(2,6,23,0.62)',
+    justifyContent: Platform.OS === 'web' ? 'center' : 'flex-end',
+    paddingHorizontal: Platform.OS === 'web' ? 24 : 10,
+    paddingTop: Platform.OS === 'web' ? 24 : 56,
+    paddingBottom: Platform.OS === 'web' ? 24 : 10,
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 28,
-    padding: 24,
+    borderRadius: Platform.OS === 'web' ? 28 : 24,
+    paddingHorizontal: Platform.OS === 'web' ? 24 : 16,
+    paddingVertical: Platform.OS === 'web' ? 24 : 14,
+    width: '100%',
+    maxHeight: WINDOW_HEIGHT * (Platform.OS === 'web' ? 0.9 : 0.88),
+    alignSelf: 'center',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    paddingBottom: 10,
+    marginBottom: 12,
+  },
+  modalHeaderSpacer: {
+    width: 56,
+  },
+  modalHeaderCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalHeaderClose: {
+    minWidth: 56,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  modalHandle: {
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    alignSelf: 'center',
+    marginTop: 2,
+    marginBottom: 12,
+    backgroundColor: '#cbd5e1',
   },
   modalTitle: {
-    fontSize: 20,
-    marginBottom: 20,
+    fontSize: Platform.OS === 'web' ? 20 : 18,
+    marginBottom: 0,
     textAlign: 'center',
   },
+  modalBodyScroll: {
+    maxHeight: WINDOW_HEIGHT * (Platform.OS === 'web' ? 0.66 : 0.6),
+  },
+  modalBodyContent: {
+    paddingBottom: 4,
+  },
   rulesScroll: {
-    maxHeight: 520,
+    maxHeight: WINDOW_HEIGHT * 0.62,
   },
   templateList: {
     marginBottom: 8,
@@ -1878,7 +2005,8 @@ const styles = StyleSheet.create({
   closeModal: {
     marginTop: 16,
     backgroundColor: '#1e293b',
-    padding: 16,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
     borderRadius: 16,
     alignItems: 'center',
   },
