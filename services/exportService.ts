@@ -3,8 +3,10 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { generateFinancialReport } from './analyticsService';
 import { getAllBudgets } from './budgetService';
+import { getCurrency } from './preferencesService';
 import { getAllTransactions } from './transactionService';
 import { maskTransactionForExport, shouldMaskExports } from './privacyService';
+import { formatCurrency } from '../utils/currency';
 
 export interface ExportOptions {
   format: 'csv' | 'json' | 'pdf';
@@ -144,6 +146,15 @@ const generateFullDataJSON = async (options: ExportOptions): Promise<string> => 
 // PDF Export Functions (Basic HTML to PDF simulation)
 const generatePDFContent = async (options: ExportOptions): Promise<string> => {
   const report = await generateFinancialReport();
+  const currency = await getCurrency();
+  const formatAmount = (value: number) => formatCurrency(value, currency);
+  
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return '#10b981';
+    if (score >= 60) return '#3b82f6';
+    if (score >= 40) return '#f59e0b';
+    return '#ef4444';
+  };
   
   let html = `
     <!DOCTYPE html>
@@ -152,55 +163,264 @@ const generatePDFContent = async (options: ExportOptions): Promise<string> => {
       <meta charset="utf-8">
       <title>SpendWise Financial Report</title>
       <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .section { margin-bottom: 25px; }
-        .section h2 { color: #4f46e5; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
-        th { background-color: #f3f4f6; }
-        .metric { display: inline-block; margin: 10px; padding: 15px; background: #f9fafb; border-radius: 8px; }
-        .positive { color: #22c55e; }
-        .negative { color: #ef4444; }
-        .warning { color: #f59e0b; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+          padding: 40px 20px;
+          color: #1f2937;
+          line-height: 1.6;
+        }
+        .container { 
+          max-width: 960px; 
+          margin: 0 auto;
+          background: white;
+          border-radius: 16px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+          overflow: hidden;
+        }
+        .header { 
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 50px 40px;
+          text-align: center;
+          position: relative;
+          overflow: hidden;
+        }
+        .header::before {
+          content: '';
+          position: absolute;
+          top: -50%;
+          right: -50%;
+          width: 500px;
+          height: 500px;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 50%;
+        }
+        .header h1 { 
+          font-size: 42px; 
+          font-weight: 700;
+          margin-bottom: 10px;
+          position: relative;
+          z-index: 1;
+          letter-spacing: -0.5px;
+        }
+        .header p { 
+          font-size: 14px; 
+          opacity: 0.95;
+          position: relative;
+          z-index: 1;
+        }
+        .content { padding: 40px; }
+        .section { 
+          margin-bottom: 40px;
+          page-break-inside: avoid;
+        }
+        .section h2 { 
+          color: #667eea;
+          font-size: 24px;
+          font-weight: 600;
+          margin-bottom: 20px;
+          padding-bottom: 12px;
+          border-bottom: 3px solid #f0f4ff;
+          position: relative;
+        }
+        .section h2::before {
+          content: '';
+          position: absolute;
+          bottom: -3px;
+          left: 0;
+          height: 3px;
+          width: 50px;
+          background: linear-gradient(90deg, #667eea, #764ba2);
+          border-radius: 2px;
+        }
+        .metrics-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 16px;
+          margin-bottom: 20px;
+        }
+        .metric-card { 
+          padding: 24px;
+          background: linear-gradient(135deg, #f5f7fa 0%, #f0f4ff 100%);
+          border-radius: 12px;
+          border: 1px solid #e0e7ff;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.08);
+          transition: transform 0.2s;
+        }
+        .metric-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(102, 126, 234, 0.12);
+        }
+        .metric-label { 
+          font-size: 12px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 8px;
+        }
+        .metric-value { 
+          font-size: 28px;
+          font-weight: 700;
+          color: #1f2937;
+          word-break: break-word;
+        }
+        .score-display {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 24px;
+          background: linear-gradient(135deg, #f5f7fa 0%, #f0f4ff 100%);
+          border-radius: 12px;
+          border: 1px solid #e0e7ff;
+        }
+        .score-circle {
+          width: 100px;
+          height: 100px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .score-circle.excellent { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .score-circle.good { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+        .score-circle.fair { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .score-circle.poor { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+        .score-circle-value {
+          font-size: 32px;
+          font-weight: 700;
+          color: white;
+        }
+        .score-info h3 {
+          font-size: 18px;
+          color: #1f2937;
+          margin-bottom: 4px;
+        }
+        .score-info p {
+          font-size: 14px;
+          color: #6b7280;
+        }
+        .positive { color: #10b981; font-weight: 600; }
+        .negative { color: #ef4444; font-weight: 600; }
+        .warning { color: #f59e0b; font-weight: 600; }
+        .neutral { color: #6b7280; font-weight: 600; }
+        table { 
+          width: 100%; 
+          border-collapse: collapse;
+          margin-top: 16px;
+        }
+        th { 
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 14px;
+          text-align: left;
+          font-weight: 600;
+          font-size: 13px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        td { 
+          padding: 12px 14px;
+          border-bottom: 1px solid #e5e7eb;
+          font-size: 13px;
+        }
+        tbody tr:hover {
+          background-color: #f9fafb;
+        }
+        tbody tr:last-child td {
+          border-bottom: none;
+        }
+        .insight-item {
+          padding: 16px;
+          background: linear-gradient(135deg, #f0f4ff 0%, #f5f7fa 100%);
+          border-left: 4px solid #667eea;
+          border-radius: 8px;
+          margin-bottom: 12px;
+        }
+        .insight-item strong {
+          color: #667eea;
+          display: block;
+          margin-bottom: 4px;
+        }
+        .insight-item p {
+          color: #4b5563;
+          font-size: 13px;
+        }
+        .footer {
+          background: #f9fafb;
+          padding: 20px 40px;
+          border-top: 1px solid #e5e7eb;
+          text-align: center;
+          font-size: 12px;
+          color: #9ca3af;
+        }
+        .period-badge {
+          display: inline-block;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 600;
+          margin-top: 8px;
+        }
       </style>
     </head>
     <body>
-      <div class="header">
-        <h1>SpendWise Financial Report</h1>
-        <p>Generated on ${new Date().toLocaleDateString()}</p>
-        ${options.dateRange ? `<p>Period: ${new Date(options.dateRange.from).toLocaleDateString()} - ${new Date(options.dateRange.to).toLocaleDateString()}</p>` : ''}
-      </div>
+      <div class="container">
+        <div class="header">
+          <h1>💼 SpendWise Financial Report</h1>
+          <p>Your Financial Health Summary</p>
+          ${options.dateRange ? `<div class="period-badge">📅 ${new Date(options.dateRange.from).toLocaleDateString()} - ${new Date(options.dateRange.to).toLocaleDateString()}</div>` : ''}
+          <p style="margin-top: 12px; font-size: 12px;">Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+        </div>
+        <div class="content">
   `;
   
   // Summary Section
   html += `
     <div class="section">
-      <h2>Financial Summary</h2>
-      <div class="metric">
-        <strong>Total Income:</strong> <span class="positive">$${report.summary.totalIncome.toFixed(2)}</span>
-      </div>
-      <div class="metric">
-        <strong>Total Expenses:</strong> <span class="negative">$${report.summary.totalExpenses.toFixed(2)}</span>
-      </div>
-      <div class="metric">
-        <strong>Net Amount:</strong> <span class="${report.summary.netAmount >= 0 ? 'positive' : 'negative'}">$${report.summary.netAmount.toFixed(2)}</span>
-      </div>
-      <div class="metric">
-        <strong>Transactions:</strong> ${report.summary.transactionCount}
+      <h2>📊 Financial Overview</h2>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Total Income</div>
+          <div class="metric-value positive">${formatAmount(report.summary.totalIncome)}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Total Expenses</div>
+          <div class="metric-value negative">${formatAmount(report.summary.totalExpenses)}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Net Balance</div>
+          <div class="metric-value ${report.summary.netAmount >= 0 ? 'positive' : 'negative'}">${formatAmount(report.summary.netAmount)}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Transactions</div>
+          <div class="metric-value neutral">${report.summary.transactionCount}</div>
+        </div>
       </div>
     </div>
   `;
   
   // Health Score Section
+  const scoreClass = report.healthScore.score >= 80 ? 'excellent' : report.healthScore.score >= 60 ? 'good' : report.healthScore.score >= 40 ? 'fair' : 'poor';
+  const riskColor = report.healthScore.riskLevel === 'low' ? 'positive' : report.healthScore.riskLevel === 'medium' ? 'warning' : 'negative';
+  
   html += `
     <div class="section">
-      <h2>Financial Health Score</h2>
-      <div class="metric">
-        <strong>Overall Score:</strong> ${report.healthScore.score}/100
-      </div>
-      <div class="metric">
-        <strong>Risk Level:</strong> <span class="${report.healthScore.riskLevel === 'low' ? 'positive' : report.healthScore.riskLevel === 'medium' ? 'warning' : 'negative'}">${report.healthScore.riskLevel.toUpperCase()}</span>
+      <h2>💪 Financial Health</h2>
+      <div class="score-display">
+        <div class="score-circle ${scoreClass}">
+          <div class="score-circle-value">${report.healthScore.score}</div>
+        </div>
+        <div class="score-info">
+          <h3>Overall Health Score</h3>
+          <p>Risk Level: <span class="${riskColor}">${report.healthScore.riskLevel.toUpperCase()}</span></p>
+          <p style="margin-top: 8px; font-size: 12px; color: #9ca3af;">Based on your spending patterns, income stability, and financial goals.</p>
+        </div>
       </div>
     </div>
   `;
@@ -209,16 +429,19 @@ const generatePDFContent = async (options: ExportOptions): Promise<string> => {
   if (report.insights.length > 0) {
     html += `
       <div class="section">
-        <h2>Key Insights</h2>
-        <ul>
+        <h2>✨ Key Insights</h2>
     `;
     
     report.insights.slice(0, 5).forEach(insight => {
-      html += `<li><strong>${insight.title}:</strong> ${insight.description}</li>`;
+      html += `
+        <div class="insight-item">
+          <strong>${insight.title}</strong>
+          <p>${insight.description}</p>
+        </div>
+      `;
     });
     
     html += `
-        </ul>
       </div>
     `;
   }
@@ -227,7 +450,7 @@ const generatePDFContent = async (options: ExportOptions): Promise<string> => {
   if (report.spendingPatterns.length > 0) {
     html += `
       <div class="section">
-        <h2>Top Spending Categories</h2>
+        <h2>🎯 Top Spending Categories</h2>
         <table>
           <thead>
             <tr>
@@ -240,11 +463,13 @@ const generatePDFContent = async (options: ExportOptions): Promise<string> => {
     `;
     
     report.spendingPatterns.slice(0, 10).forEach(pattern => {
+      const trendIcon = pattern.trend === 'increasing' ? '📈' : pattern.trend === 'decreasing' ? '📉' : '➡️';
+      const trendClass = pattern.trend === 'increasing' ? 'negative' : pattern.trend === 'decreasing' ? 'positive' : 'neutral';
       html += `
         <tr>
           <td>${pattern.category}</td>
-          <td>$${pattern.averageMonthly.toFixed(2)}</td>
-          <td class="${pattern.trend === 'increasing' ? 'negative' : pattern.trend === 'decreasing' ? 'positive' : ''}">${pattern.trend}</td>
+          <td>${formatAmount(pattern.averageMonthly)}</td>
+          <td><span class="${trendClass}">${trendIcon} ${pattern.trend}</span></td>
         </tr>
       `;
     });
@@ -275,7 +500,7 @@ const generatePDFContent = async (options: ExportOptions): Promise<string> => {
     
     html += `
       <div class="section">
-        <h2>Recent Transactions</h2>
+        <h2>📝 Recent Transactions</h2>
         <table>
           <thead>
             <tr>
@@ -295,8 +520,8 @@ const generatePDFContent = async (options: ExportOptions): Promise<string> => {
           <td>${new Date(tx.createdAt).toLocaleDateString()}</td>
           <td>${tx.vendor}</td>
           <td>${tx.category}</td>
-          <td>${tx.type}</td>
-          <td class="${tx.type === 'income' ? 'positive' : 'negative'}">$${tx.amount.toFixed(2)}</td>
+          <td>${tx.type === 'income' ? '💰 Income' : '💳 Expense'}</td>
+          <td class="${tx.type === 'income' ? 'positive' : 'negative'}">${formatAmount(tx.amount)}</td>
         </tr>
       `;
     });
@@ -309,6 +534,12 @@ const generatePDFContent = async (options: ExportOptions): Promise<string> => {
   }
   
   html += `
+        </div>
+        <div class="footer">
+          <p>© 2024 SpendWise - Your Personal Finance Manager</p>
+          <p>This report contains your confidential financial information. Keep it secure.</p>
+        </div>
+      </div>
     </body>
     </html>
   `;
@@ -362,7 +593,7 @@ export const exportTransactions = async (options: ExportOptions): Promise<Export
           a.click();
           a.remove();
           URL.revokeObjectURL(url);
-          return { success: true, filePath: url };
+          return { success: true, filePath: `Downloads/${fileName}` };
         }
 
         const filePath = `${FileSystem.documentDirectory}${fileName}`;
@@ -445,7 +676,7 @@ export const exportBudgets = async (format: 'csv' | 'json' = 'csv'): Promise<Exp
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      return { success: true, filePath: url };
+      return { success: true, filePath: `Downloads/${fileName}` };
     }
     const filePath = `${FileSystem.documentDirectory}${fileName}`;
     await FileSystem.writeAsStringAsync(filePath, content, {
@@ -507,7 +738,7 @@ export const generateFinancialReportFile = async (period: 'monthly' | 'quarterly
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      return { success: true, filePath: url };
+      return { success: true, filePath: `Downloads/${fileName}` };
     }
     const filePath = `${FileSystem.documentDirectory}${fileName}`;
     await FileSystem.writeAsStringAsync(filePath, content, {

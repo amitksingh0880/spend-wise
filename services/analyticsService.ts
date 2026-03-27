@@ -1,5 +1,7 @@
 import { Budget, getAllBudgets } from './budgetService';
+import { getCurrency } from './preferencesService';
 import { getAllTransactions, Transaction } from './transactionService';
+import { formatCurrency } from '../utils/currency';
 
 const normalizeCategory = (value?: string): string => (value || '').trim().toLowerCase();
 
@@ -183,6 +185,7 @@ const analyzeBudgetPerformance = async (transactions: Transaction[], budgets: Bu
 const identifySavingOpportunities = async (transactions: Transaction[]): Promise<FinancialInsight[]> => {
   const insights: FinancialInsight[] = [];
   const expenses = transactions.filter(t => t.type === 'expense');
+  const currency = await getCurrency();
   
   // Identify recurring subscriptions
   const vendorFrequency: { [vendor: string]: number } = {};
@@ -203,7 +206,7 @@ const identifySavingOpportunities = async (transactions: Transaction[]): Promise
       id: `recurring-subscriptions-${Date.now()}`,
       type: 'saving_opportunity',
       title: 'Review Recurring Subscriptions',
-      description: `You have ${recurringVendors.length} recurring vendors totaling $${totalRecurring.toFixed(2)}`,
+      description: `You have ${recurringVendors.length} recurring vendors totaling ${formatCurrency(totalRecurring, currency)}`,
       impact: 'medium',
       actionable: true,
       suggestion: 'Review and cancel unused subscriptions to save money',
