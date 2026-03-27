@@ -16,6 +16,13 @@ const DEFAULT_PREFERENCES: UserPreferences = {
     weeklyReports: true,
     monthlyReports: true,
     pushNotifications: true,
+    billReminders: true,
+  },
+  privacy: {
+    transactionLockEnabled: false,
+    useBiometric: true,
+    exportMaskingEnabled: false,
+    pinHash: undefined,
   },
   defaultCategories: [],
   smsAutoFetch: false,

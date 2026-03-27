@@ -12,7 +12,7 @@ import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { ThemeProvider as AppThemeProvider, useAppTheme } from '@/contexts/ThemeContext';
 import { emitter } from '@/libs/emitter';
 // Auth code removed
-import { runBudgetWarningAutomation } from '@/services/budgetService';
+import { runAllFinanceAutomations } from '@/services/automationService';
 import { getUserPreferences } from '@/services/preferencesService';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { registerSmsAutoFetch } from '@/services/backgroundTaskService';
@@ -98,9 +98,9 @@ export default function RootLayout() {
   useEffect(() => {
     const runChecks = async () => {
       try {
-        await runBudgetWarningAutomation();
+        await runAllFinanceAutomations();
       } catch (error) {
-        console.warn('Budget warning automation failed', error);
+        console.warn('Finance automation failed', error);
       }
     };
 

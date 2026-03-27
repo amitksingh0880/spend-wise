@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { generateFinancialReport } from './analyticsService';
 import { getAllBudgets } from './budgetService';
 import { getAllTransactions } from './transactionService';
+import { maskTransactionForExport, shouldMaskExports } from './privacyService';
 
 export interface ExportOptions {
   format: 'csv' | 'json' | 'pdf';
@@ -25,6 +26,7 @@ export interface ExportResult {
 // CSV Export Functions
 const generateTransactionsCSV = async (dateRange?: { from: string; to: string }): Promise<string> => {
   const transactions = await getAllTransactions();
+  const maskingEnabled = await shouldMaskExports();
   
   let filteredTransactions = transactions;
   if (dateRange) {
@@ -32,6 +34,10 @@ const generateTransactionsCSV = async (dateRange?: { from: string; to: string })
       const txDate = new Date(tx.createdAt);
       return txDate >= new Date(dateRange.from) && txDate <= new Date(dateRange.to);
     });
+  }
+
+  if (maskingEnabled) {
+    filteredTransactions = filteredTransactions.map(maskTransactionForExport);
   }
   
   const headers = [
@@ -108,12 +114,17 @@ const generateFullDataJSON = async (options: ExportOptions): Promise<string> => 
   
   if (options.includeTransactions) {
     let transactions = await getAllTransactions();
+    const maskingEnabled = await shouldMaskExports();
     
     if (options.dateRange) {
       transactions = transactions.filter(tx => {
         const txDate = new Date(tx.createdAt);
         return txDate >= new Date(options.dateRange!.from) && txDate <= new Date(options.dateRange!.to);
       });
+    }
+
+    if (maskingEnabled) {
+      transactions = transactions.map(maskTransactionForExport);
     }
     
     data.transactions = transactions;
@@ -248,6 +259,7 @@ const generatePDFContent = async (options: ExportOptions): Promise<string> => {
   // Include transactions if requested
   if (options.includeTransactions) {
     const transactions = await getAllTransactions();
+    const maskingEnabled = await shouldMaskExports();
     let filteredTransactions = transactions;
     
     if (options.dateRange) {
@@ -255,6 +267,10 @@ const generatePDFContent = async (options: ExportOptions): Promise<string> => {
         const txDate = new Date(tx.createdAt);
         return txDate >= new Date(options.dateRange!.from) && txDate <= new Date(options.dateRange!.to);
       });
+    }
+
+    if (maskingEnabled) {
+      filteredTransactions = filteredTransactions.map(maskTransactionForExport);
     }
     
     html += `

@@ -1,6 +1,8 @@
 import { emitter } from '../libs/emitter';
 import { readJson, writeJson } from '../libs/storage';
 import { uuidv4 } from '../utils/uuid';
+import { isPotentialDuplicate } from './duplicateDetectionService';
+import { applySmartRules } from './rulesEngineService';
 
 export type TransactionType = 'income' | 'expense';
 
@@ -55,13 +57,39 @@ export const getTransactionById = async (id: string): Promise<Transaction | null
 
 export const saveTransaction = async (tx: Omit<Transaction, 'id' | 'createdAt'>): Promise<Transaction> => {
   const all = await getAllTransactions();
+  const draft: Transaction = {
+    id: uuidv4(),
+    createdAt: tx.smsData?.timestamp
+      ? new Date(tx.smsData.timestamp).toISOString()
+      : new Date().toISOString(),
+    ...tx,
+  };
+
+  const ruled = await applySmartRules(draft);
+  const duplicateCheck = isPotentialDuplicate(
+    {
+      amount: ruled.amount,
+      type: ruled.type,
+      vendor: ruled.vendor,
+      category: ruled.category,
+      description: ruled.description,
+      tags: ruled.tags,
+      smsData: ruled.smsData,
+    },
+    all
+  );
+
+  if (duplicateCheck.isDuplicate) {
+    throw new Error(`Duplicate transaction detected (matched: ${duplicateCheck.matchedId})`);
+  }
+
   const createdAt = tx.smsData?.timestamp
 		? new Date(tx.smsData.timestamp).toISOString()
 		: new Date().toISOString();
   const newTx: Transaction = {
-    id: uuidv4(),
-    createdAt,
-    ...tx,
+    ...ruled,
+    id: ruled.id || uuidv4(),
+    createdAt: ruled.createdAt || createdAt,
   };
   await writeJson(STORAGE_KEY, [newTx, ...all]);
   // Notify listeners
@@ -221,13 +249,37 @@ export const getRecentTransactions = async (limit: number = 10): Promise<Transac
 // Bulk Operations
 export const importTransactions = async (transactions: Omit<Transaction, 'id' | 'createdAt'>[]): Promise<void> => {
   const existing = await getAllTransactions();
-  const newTransactions = transactions.map(tx => ({
-    id: uuidv4(),
-    createdAt: tx.smsData?.timestamp
-			? new Date(tx.smsData.timestamp).toISOString()
-			: new Date().toISOString(),
-    ...tx
-  }));
+  const newTransactions: Transaction[] = [];
+
+  for (const tx of transactions) {
+    const createdAt = tx.smsData?.timestamp
+      ? new Date(tx.smsData.timestamp).toISOString()
+      : new Date().toISOString();
+
+    const draft: Transaction = {
+      id: uuidv4(),
+      createdAt,
+      ...tx,
+    };
+
+    const ruled = await applySmartRules(draft);
+    const duplicateCheck = isPotentialDuplicate(
+      {
+        amount: ruled.amount,
+        type: ruled.type,
+        vendor: ruled.vendor,
+        category: ruled.category,
+        description: ruled.description,
+        tags: ruled.tags,
+        smsData: ruled.smsData,
+      },
+      [...existing, ...newTransactions]
+    );
+
+    if (!duplicateCheck.isDuplicate) {
+      newTransactions.push(ruled);
+    }
+  }
   
   await writeJson(STORAGE_KEY, [...newTransactions, ...existing]);
   try { emitter.emit('transactions:changed', newTransactions); } catch (err) { /* ignore */ }
