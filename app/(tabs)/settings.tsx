@@ -51,6 +51,13 @@ import {
   Linking,
 } from 'react-native';
 import { ExportOptions, exportTransactions, getExportFormats, validateExportOptions } from '@/services/exportService';
+import {
+  createAmountCategoryRule,
+  deleteSmartRule,
+  getSmartRules,
+  SmartRule,
+  updateSmartRule,
+} from '@/services/rulesEngineService';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
 
@@ -60,6 +67,54 @@ if (Platform.OS !== 'web') {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   DateTimePicker = require('@react-native-community/datetimepicker').default;
 }
+
+interface QuickRuleTemplate {
+  id: string;
+  name: string;
+  category: string;
+  minAmount: number;
+  maxAmount: number;
+  keywords: string[];
+  repeatCount: number;
+  repeatDays: number;
+  tolerance: number;
+}
+
+const QUICK_RULE_TEMPLATES: QuickRuleTemplate[] = [
+  {
+    id: 'daily-transport',
+    name: 'Daily Transport',
+    category: 'Transportation',
+    minAmount: 20,
+    maxAmount: 250,
+    keywords: ['auto', 'cab', 'metro', 'bus', 'rickshaw'],
+    repeatCount: 3,
+    repeatDays: 14,
+    tolerance: 10,
+  },
+  {
+    id: 'office-commute',
+    name: 'Office Commute',
+    category: 'Transportation',
+    minAmount: 40,
+    maxAmount: 400,
+    keywords: ['office', 'uber', 'ola', 'rapido', 'commute'],
+    repeatCount: 4,
+    repeatDays: 14,
+    tolerance: 20,
+  },
+  {
+    id: 'tea-coffee',
+    name: 'Tea/Coffee',
+    category: 'Food & Dining',
+    minAmount: 10,
+    maxAmount: 120,
+    keywords: ['tea', 'coffee', 'cafe', 'chai'],
+    repeatCount: 4,
+    repeatDays: 10,
+    tolerance: 5,
+  },
+];
 
 const SettingsScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -72,9 +127,20 @@ const SettingsScreen: React.FC = () => {
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showFontModal, setShowFontModal] = useState(false);
+  const [showRulesModal, setShowRulesModal] = useState(false);
   const [smsAutoFetch, setSmsAutoFetch] = useState(false);
   const [smsAutoFetchHour, setSmsAutoFetchHour] = useState(22);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [smartRules, setSmartRules] = useState<SmartRule[]>([]);
+  const [rulesLoading, setRulesLoading] = useState(false);
+  const [newRuleName, setNewRuleName] = useState('Daily Transport Rule');
+  const [newRuleCategory, setNewRuleCategory] = useState('Transportation');
+  const [newRuleMinAmount, setNewRuleMinAmount] = useState('20');
+  const [newRuleMaxAmount, setNewRuleMaxAmount] = useState('200');
+  const [newRuleKeywords, setNewRuleKeywords] = useState('auto,cab,metro,bus,rickshaw');
+  const [newRuleRepeatCount, setNewRuleRepeatCount] = useState('3');
+  const [newRuleRepeatDays, setNewRuleRepeatDays] = useState('14');
+  const [newRuleTolerance, setNewRuleTolerance] = useState('10');
   const { refreshCurrency } = useCurrency();
 
   const { theme, fontFamily, setFontFamily } = useAppTheme();
@@ -104,8 +170,153 @@ const SettingsScreen: React.FC = () => {
       setNotifications(prefs.notifications.budgetAlerts);
       setSmsAutoFetch(!!prefs.smsAutoFetch);
       setSmsAutoFetchHour(prefs.smsAutoFetchHour ?? 22);
+      await loadRules();
     } catch (error) {
       console.error('Error loading settings:', error);
+    }
+  };
+
+  const loadRules = async () => {
+    try {
+      setRulesLoading(true);
+      const rules = await getSmartRules();
+      setSmartRules(rules.sort((a, b) => (b.priority || 0) - (a.priority || 0)));
+    } catch (error) {
+      console.error('Error loading rules:', error);
+    } finally {
+      setRulesLoading(false);
+    }
+  };
+
+  const handleToggleRule = async (rule: SmartRule, isActive: boolean) => {
+    try {
+      await updateSmartRule(rule.id, { isActive });
+      await loadRules();
+    } catch (error) {
+      Alert.alert('Update Failed', 'Unable to update rule status.');
+    }
+  };
+
+  const handleDeleteRule = async (rule: SmartRule) => {
+    Alert.alert(
+      'Delete Rule',
+      `Delete "${rule.name || 'Unnamed Rule'}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteSmartRule(rule.id);
+              await loadRules();
+            } catch (error) {
+              Alert.alert('Delete Failed', 'Unable to delete rule.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleCreateAmountRule = async () => {
+    const minAmount = Number(newRuleMinAmount);
+    const maxAmount = Number(newRuleMaxAmount);
+    const repeatCount = Number(newRuleRepeatCount);
+    const repeatDays = Number(newRuleRepeatDays);
+    const tolerance = Number(newRuleTolerance);
+
+    if (!newRuleName.trim() || !newRuleCategory.trim()) {
+      Alert.alert('Missing fields', 'Please add rule name and category.');
+      return;
+    }
+
+    if (!Number.isFinite(minAmount) || !Number.isFinite(maxAmount) || minAmount < 0 || maxAmount < minAmount) {
+      Alert.alert('Invalid amount range', 'Please enter a valid minimum and maximum amount.');
+      return;
+    }
+
+    if (!Number.isFinite(repeatCount) || !Number.isFinite(repeatDays) || repeatCount < 0 || repeatDays < 1) {
+      Alert.alert('Invalid repeat condition', 'Please enter valid repeat count and day window.');
+      return;
+    }
+
+    try {
+      setRulesLoading(true);
+      const keywords = newRuleKeywords
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean);
+
+      await createAmountCategoryRule({
+        name: newRuleName.trim(),
+        minAmount,
+        maxAmount,
+        category: newRuleCategory.trim(),
+        type: 'expense',
+        tags: ['auto-rule', 'amount-mapper'],
+        keywordAny: keywords.length ? keywords : undefined,
+        occurrence: {
+          count: repeatCount,
+          days: repeatDays,
+          amountTolerance: Number.isFinite(tolerance) ? Math.max(0, tolerance) : 0,
+        },
+        priority: 80,
+      });
+
+      setNewRuleName('Daily Transport Rule');
+      setNewRuleCategory('Transportation');
+      setNewRuleMinAmount('20');
+      setNewRuleMaxAmount('200');
+      setNewRuleKeywords('auto,cab,metro,bus,rickshaw');
+      setNewRuleRepeatCount('3');
+      setNewRuleRepeatDays('14');
+      setNewRuleTolerance('10');
+      await loadRules();
+      Alert.alert('Success', 'Smart amount rule created.');
+    } catch (error) {
+      Alert.alert('Create Failed', 'Unable to create the smart rule.');
+    } finally {
+      setRulesLoading(false);
+    }
+  };
+
+  const applyTemplateToForm = (template: QuickRuleTemplate) => {
+    setNewRuleName(template.name);
+    setNewRuleCategory(template.category);
+    setNewRuleMinAmount(String(template.minAmount));
+    setNewRuleMaxAmount(String(template.maxAmount));
+    setNewRuleKeywords(template.keywords.join(','));
+    setNewRuleRepeatCount(String(template.repeatCount));
+    setNewRuleRepeatDays(String(template.repeatDays));
+    setNewRuleTolerance(String(template.tolerance));
+  };
+
+  const handleCreateFromTemplate = async (template: QuickRuleTemplate) => {
+    try {
+      setRulesLoading(true);
+      await createAmountCategoryRule({
+        name: template.name,
+        minAmount: template.minAmount,
+        maxAmount: template.maxAmount,
+        category: template.category,
+        type: 'expense',
+        tags: ['auto-rule', 'amount-mapper', `template:${template.id}`],
+        keywordAny: template.keywords,
+        occurrence: {
+          count: template.repeatCount,
+          days: template.repeatDays,
+          amountTolerance: template.tolerance,
+        },
+        priority: 80,
+      });
+
+      await loadRules();
+      Alert.alert('Success', `${template.name} template rule added.`);
+    } catch (error) {
+      Alert.alert('Create Failed', 'Unable to create template rule.');
+    } finally {
+      setRulesLoading(false);
     }
   };
 
@@ -503,6 +714,17 @@ const SettingsScreen: React.FC = () => {
         <Card style={styles.sectionCard} delay={0}>
           <SettingRow
             index={4}
+            icon={Settings}
+            title="Smart Rules"
+            subtitle={`${smartRules.filter(rule => rule.isActive).length} active • amount/category mapping`}
+            color="#7c3aed"
+            onPress={async () => {
+              setShowRulesModal(true);
+              await loadRules();
+            }}
+          />
+          <SettingRow
+            index={5}
             icon={ShieldAlert}
             title="Review Suspicious"
             subtitle="Verify flagged transactions"
@@ -517,7 +739,7 @@ const SettingsScreen: React.FC = () => {
             }
           />
           <SettingRow
-            index={5}
+            index={6}
             icon={Download}
             title="Export Data"
             subtitle="Export to CSV or JSON"
@@ -525,7 +747,7 @@ const SettingsScreen: React.FC = () => {
             onPress={() => setShowExportModal(true)}
           />
           <SettingRow
-            index={6}
+            index={7}
             icon={Database}
             title="Load Mock Data"
             subtitle="Populate app with sample data"
@@ -533,7 +755,7 @@ const SettingsScreen: React.FC = () => {
             onPress={handleLoadMockData}
           />
           <SettingRow
-            index={7}
+            index={8}
             icon={Trash2}
             title="Clear All Data"
             subtitle="Delete all app data"
@@ -545,14 +767,14 @@ const SettingsScreen: React.FC = () => {
         <Typography variant="subtitle" weight="bold" style={styles.sectionHeading}>About</Typography>
         <Card style={styles.sectionCard} delay={0}>
           <SettingRow
-            index={8}
+            index={9}
             icon={Info}
             title="Version"
             subtitle="1.0.0 (Build 42)"
             color="#64748b"
           />
           <SettingRow
-            index={9}
+            index={10}
             icon={HelpCircle}
             title="Help & Support"
             subtitle="Contact us for assistance"
@@ -713,6 +935,174 @@ const SettingsScreen: React.FC = () => {
                 <Typography variant="bold" style={{ color: '#FFFFFF' }}>Export</Typography>
               </TouchableOpacity>
             </View>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showRulesModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRulesModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View entering={FadeInUp} style={[styles.modalContent, { backgroundColor: cardColor }]}>
+            <Typography variant="bold" style={styles.modalTitle}>Smart Rules</Typography>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.rulesScroll}>
+              <Typography variant="small" style={{ color: mutedForeground, marginBottom: 8 }}>
+                Auto-map transactions to categories using amount range and repeat patterns.
+              </Typography>
+
+              <Typography variant="small" style={{ color: mutedForeground, marginBottom: 6 }}>
+                Quick Templates
+              </Typography>
+              <View style={styles.templateList}>
+                {QUICK_RULE_TEMPLATES.map(template => (
+                  <View key={template.id} style={[styles.templateCard, { borderColor: border }]}>
+                    <View style={{ flex: 1 }}>
+                      <Typography variant="bold">{template.name}</Typography>
+                      <Typography variant="small" style={{ color: mutedForeground }}>
+                        ₹{template.minAmount} - ₹{template.maxAmount} → {template.category}
+                      </Typography>
+                    </View>
+                    <View style={styles.templateActions}>
+                      <TouchableOpacity
+                        style={[styles.templateBtn, { backgroundColor: `${primary}15` }]}
+                        onPress={() => applyTemplateToForm(template)}
+                      >
+                        <Typography variant="small" weight="bold" style={{ color: primary }}>Use</Typography>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.templateBtn, { backgroundColor: primary }]}
+                        disabled={rulesLoading}
+                        onPress={() => handleCreateFromTemplate(template)}
+                      >
+                        <Typography variant="small" weight="bold" style={{ color: '#FFFFFF' }}>Add</Typography>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              <View style={[styles.ruleBuilderCard, { borderColor: border }]}>
+                <Typography variant="bold" style={{ marginBottom: 8 }}>Create Amount Rule</Typography>
+
+                <TextInput
+                  value={newRuleName}
+                  onChangeText={setNewRuleName}
+                  placeholder="Rule name"
+                  placeholderTextColor={mutedForeground}
+                  style={[styles.ruleInput, { borderColor: border, color: text }]}
+                />
+
+                <TextInput
+                  value={newRuleCategory}
+                  onChangeText={setNewRuleCategory}
+                  placeholder="Target category"
+                  placeholderTextColor={mutedForeground}
+                  style={[styles.ruleInput, { borderColor: border, color: text }]}
+                />
+
+                <View style={styles.ruleRow}>
+                  <TextInput
+                    value={newRuleMinAmount}
+                    onChangeText={setNewRuleMinAmount}
+                    placeholder="Min"
+                    keyboardType="numeric"
+                    placeholderTextColor={mutedForeground}
+                    style={[styles.ruleInput, styles.ruleInputHalf, { borderColor: border, color: text }]}
+                  />
+                  <TextInput
+                    value={newRuleMaxAmount}
+                    onChangeText={setNewRuleMaxAmount}
+                    placeholder="Max"
+                    keyboardType="numeric"
+                    placeholderTextColor={mutedForeground}
+                    style={[styles.ruleInput, styles.ruleInputHalf, { borderColor: border, color: text }]}
+                  />
+                </View>
+
+                <TextInput
+                  value={newRuleKeywords}
+                  onChangeText={setNewRuleKeywords}
+                  placeholder="Keywords (comma separated)"
+                  placeholderTextColor={mutedForeground}
+                  style={[styles.ruleInput, { borderColor: border, color: text }]}
+                />
+
+                <View style={styles.ruleRow}>
+                  <TextInput
+                    value={newRuleRepeatCount}
+                    onChangeText={setNewRuleRepeatCount}
+                    placeholder="Repeat count"
+                    keyboardType="numeric"
+                    placeholderTextColor={mutedForeground}
+                    style={[styles.ruleInput, styles.ruleInputThird, { borderColor: border, color: text }]}
+                  />
+                  <TextInput
+                    value={newRuleRepeatDays}
+                    onChangeText={setNewRuleRepeatDays}
+                    placeholder="In days"
+                    keyboardType="numeric"
+                    placeholderTextColor={mutedForeground}
+                    style={[styles.ruleInput, styles.ruleInputThird, { borderColor: border, color: text }]}
+                  />
+                  <TextInput
+                    value={newRuleTolerance}
+                    onChangeText={setNewRuleTolerance}
+                    placeholder="Tolerance"
+                    keyboardType="numeric"
+                    placeholderTextColor={mutedForeground}
+                    style={[styles.ruleInput, styles.ruleInputThird, { borderColor: border, color: text }]}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.closeModal, { backgroundColor: primary, marginTop: 4 }]}
+                  onPress={handleCreateAmountRule}
+                  disabled={rulesLoading}
+                >
+                  <Typography variant="bold" style={{ color: '#FFFFFF' }}>
+                    {rulesLoading ? 'Saving...' : 'Create Rule'}
+                  </Typography>
+                </TouchableOpacity>
+              </View>
+
+              <Typography variant="small" style={{ color: mutedForeground, marginTop: 12, marginBottom: 6 }}>
+                Existing Rules
+              </Typography>
+
+              {smartRules.map(rule => (
+                <View key={rule.id} style={[styles.ruleCard, { borderColor: border }]}>
+                  <View style={{ flex: 1 }}>
+                    <Typography variant="bold">{rule.name || 'Unnamed Rule'}</Typography>
+                    <Typography variant="small" style={{ color: mutedForeground }}>
+                      {rule.field === 'amount' ? `Amount ${rule.value}` : `${rule.field} ${rule.operator} ${rule.value}`} → {rule.setCategory || 'No category'}
+                    </Typography>
+                    <Typography variant="small" style={{ color: mutedForeground }}>
+                      Priority {rule.priority || 0} • {rule.typeFilter || 'both'}
+                    </Typography>
+                  </View>
+
+                  <View style={styles.ruleActions}>
+                    <Switch
+                      value={rule.isActive}
+                      onValueChange={(value) => handleToggleRule(rule, value)}
+                      trackColor={{ false: '#e2e8f0', true: primary }}
+                      thumbColor="#FFFFFF"
+                    />
+                    <TouchableOpacity style={styles.ruleDeleteBtn} onPress={() => handleDeleteRule(rule)}>
+                      <Trash2 size={16} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity style={[styles.closeModal, { backgroundColor: isDark ? '#334155' : '#1e293b' }]} onPress={() => setShowRulesModal(false)}>
+              <Typography variant="bold" style={{ color: '#FFFFFF' }}>Close</Typography>
+            </TouchableOpacity>
           </Animated.View>
         </View>
       </Modal>
@@ -925,6 +1315,78 @@ const styles = StyleSheet.create({
     fontSize: 20,
     marginBottom: 20,
     textAlign: 'center',
+  },
+  rulesScroll: {
+    maxHeight: 520,
+  },
+  templateList: {
+    marginBottom: 8,
+  },
+  templateCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 10,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  templateActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 10,
+  },
+  templateBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  ruleBuilderCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 8,
+  },
+  ruleRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  ruleInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+    marginBottom: 8,
+  },
+  ruleInputHalf: {
+    flex: 1,
+  },
+  ruleInputThird: {
+    flex: 1,
+  },
+  ruleCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  ruleActions: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+    gap: 8,
+  },
+  ruleDeleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fee2e2',
   },
   currencyOption: {
     flexDirection: 'row',

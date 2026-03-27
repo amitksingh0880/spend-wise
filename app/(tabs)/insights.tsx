@@ -1,11 +1,18 @@
 import { generateFinancialInsights } from '@/services/analyticsService';
-import { getTransactionSummary } from '@/services/transactionService';
+import { getAllTransactions, getTransactionSummary } from '@/services/transactionService';
+import { getAllBudgets, Budget } from '@/services/budgetService';
+import {
+  queryOfflineCopilot,
+  simulateWhatIfScenario,
+  OfflineCopilotResponse,
+  WhatIfSimulationResult,
+} from '@/services/modernIntelligenceService';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Activity, BarChart3, DollarSign, PieChart as PieChartIcon, TrendingUp, Calendar, Info } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View, StatusBar, Platform } from 'react-native';
+import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View, StatusBar, Platform, TextInput } from 'react-native';
 import { BarChart, LineChart, PieChart, StackedBarChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
@@ -53,6 +60,14 @@ const InsightsScreen: React.FC = () => {
   const [spendingTrend, setSpendingTrend] = useState<SpendingTrend[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year'>('month');
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [allBudgets, setAllBudgets] = useState<Budget[]>([]);
+  const [whatIfInput, setWhatIfInput] = useState('rent +10%, fuel +15%');
+  const [whatIfResult, setWhatIfResult] = useState<WhatIfSimulationResult | null>(null);
+  const [whatIfLoading, setWhatIfLoading] = useState(false);
+  const [copilotQuestion, setCopilotQuestion] = useState('show unusual food spends this week');
+  const [copilotResponse, setCopilotResponse] = useState<OfflineCopilotResponse | null>(null);
+  const [copilotLoading, setCopilotLoading] = useState(false);
 
   const { theme } = useAppTheme();
   const isDark = theme === 'dark';
@@ -72,13 +87,17 @@ const InsightsScreen: React.FC = () => {
   const loadInsightsData = async () => {
     try {
       setLoading(true);
-      const [summaryData, insightsData] = await Promise.all([
+      const [summaryData, insightsData, txData, budgetsData] = await Promise.all([
         getTransactionSummary(),
         generateFinancialInsights(),
+        getAllTransactions(),
+        getAllBudgets(),
       ]);
 
       setSummary(summaryData || null);
       setInsights(insightsData || []);
+      setAllTransactions(txData || []);
+      setAllBudgets(budgetsData || []);
 
       if (summaryData?.categoryBreakdown) {
         const colors = ['#f87171', '#60a5fa', '#34d399', '#facc15', '#a78bfa', '#fb923c', '#2dd4bf', '#f472b6'];
@@ -113,6 +132,35 @@ const InsightsScreen: React.FC = () => {
       console.error('Error loading insights data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRunWhatIf = async () => {
+    if (!whatIfInput.trim() || allTransactions.length === 0) return;
+    try {
+      setWhatIfLoading(true);
+      const result = await simulateWhatIfScenario(whatIfInput, allTransactions as any);
+      setWhatIfResult(result);
+    } catch (error) {
+      console.error('What-if simulation error:', error);
+    } finally {
+      setWhatIfLoading(false);
+    }
+  };
+
+  const handleAskCopilot = async (question?: string) => {
+    const textQuestion = (question ?? copilotQuestion).trim();
+    if (!textQuestion || allTransactions.length === 0) return;
+
+    try {
+      setCopilotLoading(true);
+      if (question) setCopilotQuestion(question);
+      const response = await queryOfflineCopilot(textQuestion, allTransactions as any, allBudgets);
+      setCopilotResponse(response);
+    } catch (error) {
+      console.error('Offline copilot error:', error);
+    } finally {
+      setCopilotLoading(false);
     }
   };
 
@@ -382,6 +430,111 @@ const InsightsScreen: React.FC = () => {
           </View>
         )}
 
+        <Card style={styles.chartCard} delay={470}>
+          <CardHeader style={styles.chartHeader}>
+            <View>
+              <Typography variant="bold">What-if Simulator</Typography>
+              <Typography variant="small" style={{ color: mutedForeground }}>Test forecast impact before month-end</Typography>
+            </View>
+            <Calendar size={20} color={mutedForeground} />
+          </CardHeader>
+          <CardContent>
+            <TextInput
+              value={whatIfInput}
+              onChangeText={setWhatIfInput}
+              placeholder="e.g. rent +10%, fuel +15%"
+              placeholderTextColor={mutedForeground}
+              style={[styles.smartInput, { borderColor: border, color: text, backgroundColor: cardColor }]}
+            />
+            <TouchableOpacity
+              style={[styles.smartActionBtn, { backgroundColor: primary }]}
+              onPress={handleRunWhatIf}
+              disabled={whatIfLoading}
+            >
+              <Typography variant="small" weight="bold" style={{ color: primaryForeground }}>
+                {whatIfLoading ? 'Simulating...' : 'Run Scenario'}
+              </Typography>
+            </TouchableOpacity>
+
+            {whatIfResult && (
+              <View style={styles.smartResultBox}>
+                <Typography variant="small" style={{ color: mutedForeground }}>
+                  Baseline: {formatAmount(whatIfResult.baselineTotal)}
+                </Typography>
+                <Typography variant="small" style={{ color: mutedForeground }}>
+                  Projected: {formatAmount(whatIfResult.projectedTotal)}
+                </Typography>
+                <Typography variant="small" weight="bold" style={{ color: whatIfResult.delta >= 0 ? '#ef4444' : '#10b981' }}>
+                  Impact: {whatIfResult.delta >= 0 ? '+' : ''}{formatAmount(whatIfResult.delta)}
+                </Typography>
+
+                {whatIfResult.impacts.slice(0, 4).map((impact) => (
+                  <View key={impact.category} style={styles.smartLineItem}>
+                    <Typography variant="small">{impact.category}</Typography>
+                    <Typography variant="small" style={{ color: mutedForeground }}>
+                      {impact.percentChange > 0 ? '+' : ''}{impact.percentChange}%
+                    </Typography>
+                  </View>
+                ))}
+              </View>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card style={styles.chartCard} delay={500}>
+          <CardHeader style={styles.chartHeader}>
+            <View>
+              <Typography variant="bold">Offline Copilot</Typography>
+              <Typography variant="small" style={{ color: mutedForeground }}>Ask natural-language questions locally</Typography>
+            </View>
+            <Info size={20} color={mutedForeground} />
+          </CardHeader>
+          <CardContent>
+            <TextInput
+              value={copilotQuestion}
+              onChangeText={setCopilotQuestion}
+              placeholder="Ask about unusual spends, top categories, or budget status"
+              placeholderTextColor={mutedForeground}
+              style={[styles.smartInput, { borderColor: border, color: text, backgroundColor: cardColor }]}
+            />
+
+            <View style={styles.promptRow}>
+              {[
+                'show unusual food spends this week',
+                'what are my top categories',
+                'budget status',
+              ].map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.promptChip, { borderColor: border, backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}
+                  onPress={() => handleAskCopilot(item)}
+                >
+                  <Typography variant="small" style={{ color: mutedForeground }}>{item}</Typography>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.smartActionBtn, { backgroundColor: primary }]}
+              onPress={() => handleAskCopilot()}
+              disabled={copilotLoading}
+            >
+              <Typography variant="small" weight="bold" style={{ color: primaryForeground }}>
+                {copilotLoading ? 'Thinking...' : 'Ask Copilot'}
+              </Typography>
+            </TouchableOpacity>
+
+            {copilotResponse && (
+              <View style={styles.smartResultBox}>
+                <Typography variant="small" style={{ color: mutedForeground, marginBottom: 6 }}>
+                  Intent: {copilotResponse.intent}
+                </Typography>
+                <Typography variant="small">{copilotResponse.answer}</Typography>
+              </View>
+            )}
+          </CardContent>
+        </Card>
+
         <Typography variant="subtitle" weight="bold" style={styles.sectionTitle}>Smart Insights</Typography>
         
         {insights.map((insight, index) => (
@@ -590,6 +743,43 @@ const styles = StyleSheet.create({
     color: '#6366f1',
     marginLeft: 8,
     flex: 1,
+  },
+  smartInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+    marginBottom: 10,
+  },
+  smartActionBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    paddingVertical: 10,
+  },
+  smartResultBox: {
+    marginTop: 10,
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: '#f8fafc',
+  },
+  smartLineItem: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  promptRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  promptChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
 });
 
