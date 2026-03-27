@@ -50,6 +50,8 @@ export interface BudgetSummary {
 const BUDGETS_STORAGE_KEY = 'budgets';
 const BUDGET_ALERTS_STORAGE_KEY = 'budget_alerts';
 
+const normalizeCategory = (value?: string): string => (value || '').trim().toLowerCase();
+
 // Basic CRUD Operations
 export const getAllBudgets = async (): Promise<Budget[]> => {
   return (await readJson<Budget[]>(BUDGETS_STORAGE_KEY)) || [];
@@ -114,11 +116,12 @@ export const updateBudgetSpending = async (): Promise<void> => {
 const calculateSpentAmount = (budget: Budget, transactions: any[]): number => {
   const budgetStart = new Date(budget.startDate);
   const budgetEnd = new Date(budget.endDate);
+  const budgetCategory = normalizeCategory(budget.category);
   
   return transactions
     .filter(tx => 
       tx.type === 'expense' &&
-      tx.category === budget.category &&
+      normalizeCategory(tx.category) === budgetCategory &&
       new Date(tx.createdAt) >= budgetStart &&
       new Date(tx.createdAt) <= budgetEnd
     )
@@ -172,7 +175,8 @@ export const getBudgetProgress = async (budgetId: string): Promise<{
 // Budget Categories and Templates
 export const getBudgetsByCategory = async (category: string): Promise<Budget[]> => {
   const budgets = await getAllBudgets();
-  return budgets.filter(budget => budget.category === category && budget.isActive);
+  const normalized = normalizeCategory(category);
+  return budgets.filter(budget => normalizeCategory(budget.category) === normalized && budget.isActive);
 };
 
 export const getActiveBudgets = async (): Promise<Budget[]> => {
