@@ -281,6 +281,28 @@ export const clearAllTransactions = async (): Promise<void> => {
   try { emitter.emit('transactions:changed'); } catch (err) { /* ignore */ }
 };
 
+export const deleteCustomPastTransactions = async (referenceDate: Date = new Date()): Promise<number> => {
+  const all = await getAllTransactions();
+  const startOfToday = new Date(referenceDate);
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfTodayMs = startOfToday.getTime();
+
+  const remaining = all.filter(tx => {
+    const isCustom = !tx.smsData;
+    const timestamp = getTransactionTimestamp(tx);
+    const isPast = timestamp < startOfTodayMs;
+    return !(isCustom && isPast);
+  });
+
+  const deletedCount = all.length - remaining.length;
+  if (deletedCount > 0) {
+    await writeJson(STORAGE_KEY, remaining);
+    try { emitter.emit('transactions:changed'); } catch { /* ignore */ }
+  }
+
+  return deletedCount;
+};
+
 // Advanced Filtering and Search
 export const getFilteredTransactions = async (filters: TransactionFilters): Promise<Transaction[]> => {
   const all = await getAllTransactions();

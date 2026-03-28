@@ -11,6 +11,7 @@ import {
 } from '@/services/smsService';
 import { saveTransaction } from '@/services/transactionService';
 import { Typography } from '@/components/ui/text';
+import { DateCalendarModal } from '@/components/ui/date-calendar-modal';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import ThemeContext from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,6 @@ import React, { useEffect, useState, useContext } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -232,26 +232,18 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   // Calendar Modal State
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [calendarMode, setCalendarMode] = useState<'start' | 'end'>('start');
-  const [calendarMonth, setCalendarMonth] = useState<number>(new Date().getMonth());
-  const [calendarYear, setCalendarYear] = useState<number>(new Date().getFullYear());
 
   const openCalendarFor = (mode: 'start' | 'end') => {
     setCalendarMode(mode);
-    const dateStr = mode === 'start' ? filterStart : filterEnd;
-    const d = dateStr ? new Date(dateStr) : new Date();
-    if (!isNaN(d.getTime())) {
-      setCalendarMonth(d.getMonth());
-      setCalendarYear(d.getFullYear());
-    }
     setCalendarVisible(true);
   };
 
   const closeCalendar = () => setCalendarVisible(false);
 
-  const handlePickDate = (d: Date) => {
-    const yy = d.getFullYear();
-    const mm = `${d.getMonth() + 1}`.padStart(2, '0');
-    const dd = `${d.getDate()}`.padStart(2, '0');
+  const handlePickDate = (pickedDate: Date) => {
+    const yy = pickedDate.getFullYear();
+    const mm = `${pickedDate.getMonth() + 1}`.padStart(2, '0');
+    const dd = `${pickedDate.getDate()}`.padStart(2, '0');
     const v = `${yy}-${mm}-${dd}`;
     if (calendarMode === 'start') {
       setFilterStart(v);
@@ -260,55 +252,13 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
       setFilterEnd(v);
       if (filterStart && new Date(filterStart) > new Date(v)) setFilterStart('');
     }
-    setCalendarVisible(false);
   };
 
-  const renderCalendar = () => {
-    const days: Date[] = [];
-    const firstDay = new Date(calendarYear, calendarMonth, 1);
-    const lastDay = new Date(calendarYear, calendarMonth + 1, 0);
-    const padding = firstDay.getDay();
-    for (let i = padding - 1; i >= 0; i--) days.push(new Date(calendarYear, calendarMonth, -i));
-    for (let d = 1; d <= lastDay.getDate(); d++) days.push(new Date(calendarYear, calendarMonth, d));
-    while (days.length % 7 !== 0) days.push(new Date(calendarYear, calendarMonth + 1, days.length - padding - lastDay.getDate() + 1));
-
-    const monthName = new Date(calendarYear, calendarMonth, 1).toLocaleString(undefined, { month: 'long' });
-
-    return (
-      <View style={styles.calendarContainer}>
-        <View style={styles.calendarHeaderRow}>
-          <TouchableOpacity onPress={() => {
-            const m = calendarMonth === 0 ? 11 : calendarMonth - 1;
-            const y = calendarMonth === 0 ? calendarYear - 1 : calendarYear;
-            setCalendarMonth(m); setCalendarYear(y);
-          }}>
-            <Typography style={styles.calendarNav}>{'<'}</Typography>
-          </TouchableOpacity>
-          <Typography style={[styles.calendarTitle, { color: text }]}>{monthName} {calendarYear}</Typography>
-          <TouchableOpacity onPress={() => {
-            const m = calendarMonth === 11 ? 0 : calendarMonth + 1;
-            const y = calendarMonth === 11 ? calendarYear + 1 : calendarYear;
-            setCalendarMonth(m); setCalendarYear(y);
-          }}>
-            <Typography style={styles.calendarNav}>{'>'}</Typography>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.weekRow}>
-          {['Su','Mo','Tu','We','Th','Fr','Sa'].map(w => <Typography key={w} style={styles.weekDayText}>{w}</Typography>)}
-        </View>
-        <View style={styles.daysGrid}>
-          {days.map((d, i) => {
-            const isOther = d.getMonth() !== calendarMonth;
-            const isSel = (calendarMode === 'start' ? filterStart : filterEnd) === `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            return (
-              <TouchableOpacity key={i} onPress={() => handlePickDate(d)} style={[styles.dayCell, isOther && styles.dayCellFaded, isSel && styles.dayCellSelected]}>
-                <Typography style={[styles.dayText, { color: text }, isOther && styles.dayTextFaded, isSel && styles.dayTextSelected]}>{d.getDate()}</Typography>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-    );
+  const getCalendarValue = (): Date | undefined => {
+    const raw = calendarMode === 'start' ? filterStart : filterEnd;
+    if (!raw) return undefined;
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
   };
 
   const renderExpenseItem = (expense: ExtractedExpense, index: number) => {
@@ -400,21 +350,18 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
           </View>
         </CardHeader>
         <CardContent>
-          <Modal visible={calendarVisible} transparent animationType="fade" onRequestClose={closeCalendar}>
-            <View style={styles.modalBackdrop}>
-              <View style={[styles.modalContent, { backgroundColor: cardColor }]}>
-                {renderCalendar()}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
-                  <Button variant="ghost" onPress={() => { if(calendarMode==='start') setFilterStart(''); else setFilterEnd(''); setCalendarVisible(false); }}>
-                    <Typography style={{ color: '#ef4444' }}>Clear</Typography>
-                  </Button>
-                  <Button onPress={closeCalendar}>
-                    <Typography style={{ color: '#fff', fontWeight: 'bold' }}>OK</Typography>
-                  </Button>
-                </View>
-              </View>
-            </View>
-          </Modal>
+          <DateCalendarModal
+            visible={calendarVisible}
+            onClose={closeCalendar}
+            title={calendarMode === 'start' ? 'Select Start Date' : 'Select End Date'}
+            value={getCalendarValue()}
+            onConfirm={handlePickDate}
+            allowClear
+            onClear={() => {
+              if (calendarMode === 'start') setFilterStart('');
+              else setFilterEnd('');
+            }}
+          />
 
           <View style={{ marginBottom: 20 }}>
             <Typography style={[styles.sectionTitle, { color: mutedForeground }]}>Filter & Range</Typography>
@@ -536,21 +483,6 @@ const styles = StyleSheet.create({
   confidenceBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   suspiciousBlock: { marginTop: 24, padding: 16, borderRadius: 20, backgroundColor: '#fff8f7', borderWidth: 1, borderColor: '#fee2e2' },
   suspItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#fdeceb' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: '90%', borderRadius: 28, padding: 24 },
-  calendarContainer: { width: '100%' },
-  calendarHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  calendarTitle: { fontSize: 16, fontWeight: '700' },
-  calendarNav: { fontSize: 24, color: '#f97316', fontWeight: '300' },
-  weekRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  weekDayText: { width: '14.28%', textAlign: 'center', fontSize: 11, color: '#94a3b8', fontWeight: '700' },
-  daysGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell: { width: '14.28%', aspectRatio: 1, justifyContent: 'center', alignItems: 'center' },
-  dayCellFaded: { opacity: 0.2 },
-  dayCellSelected: { backgroundColor: '#f97316', borderRadius: 20 },
-  dayText: { fontSize: 14, color: '#1e293b' },
-  dayTextFaded: { color: '#94a3b8' },
-  dayTextSelected: { color: '#fff', fontWeight: '800' },
   notAvailable: { alignItems: 'center', padding: 32 },
   notAvailableTitle: { fontSize: 18, fontWeight: '700', color: '#1e293b', marginTop: 16 },
   notAvailableText: { fontSize: 14, color: '#64748b', textAlign: 'center', marginTop: 8 },

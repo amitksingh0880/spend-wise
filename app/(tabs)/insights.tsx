@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Activity, BarChart3, DollarSign, PieChart as PieChartIcon, TrendingUp, Calendar, Info } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View, StatusBar, Platform, TextInput } from 'react-native';
 import { BarChart, LineChart, PieChart, StackedBarChart } from 'react-native-chart-kit';
@@ -53,6 +54,7 @@ interface FinancialInsight {
 }
 
 const InsightsScreen: React.FC = () => {
+  const router = useRouter();
   const { formatAmount } = useCurrency();
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
   const [insights, setInsights] = useState<FinancialInsight[]>([]);
@@ -239,6 +241,13 @@ const InsightsScreen: React.FC = () => {
       >
         <Typography variant="title" weight="bold" style={styles.headerTitle}>Financial Insights</Typography>
         <Typography style={styles.headerSubtitle}>Grow your wealth with smart data</Typography>
+
+        <TouchableOpacity
+          style={styles.reportBtn}
+          onPress={() => router.push('/(tabs)/premium-report')}
+        >
+          <Typography variant="small" weight="bold" style={styles.reportBtnText}>Open Premium Report</Typography>
+        </TouchableOpacity>
         
         <View style={styles.periodSelector}>
           {(['week', 'month', 'year'] as const).map((period) => (
@@ -611,6 +620,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 16,
     padding: 4,
+  },
+  reportBtn: {
+    marginBottom: 14,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
+  },
+  reportBtnText: {
+    color: '#FFFFFF',
   },
   periodButton: {
     flex: 1,

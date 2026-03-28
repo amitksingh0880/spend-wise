@@ -16,6 +16,7 @@ import {
 let DateTimePicker: any = undefined;
 import { FontFamily } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
+import { DateCalendarModal } from '@/components/ui/date-calendar-modal';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Link } from 'expo-router';
@@ -64,7 +65,7 @@ import {
   SmartRuleInput,
   updateSmartRule,
 } from '@/services/rulesEngineService';
-import { getAllTransactions, Transaction } from '@/services/transactionService';
+import { deleteCustomPastTransactions, getAllTransactions, Transaction } from '@/services/transactionService';
 import { LinearGradient } from 'expo-linear-gradient';
 import Reanimated, { FadeInUp, Layout } from 'react-native-reanimated';
 
@@ -163,6 +164,8 @@ const WEEKDAY_OPTIONS: Array<{ label: string; value: number }> = [
   { label: 'F', value: 5 },
   { label: 'S', value: 6 },
 ];
+
+const DELETE_PRESET_DAYS: number[] = [30, 60, 90, 180];
 
 type SettingRowProps = {
   icon: any;
@@ -641,22 +644,75 @@ const SettingsScreen: React.FC = () => {
     );
   };
 
+  const handleDeleteCustomPastRecords = async () => {
+    setShowDeleteCustomModal(true);
+  };
+
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showDeleteCustomModal, setShowDeleteCustomModal] = useState(false);
+  const [deleteCutoffDate, setDeleteCutoffDate] = useState<Date>(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 90);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  });
+  const [showDeleteCutoffCalendar, setShowDeleteCutoffCalendar] = useState(false);
+  const [useKeepLastNDays, setUseKeepLastNDays] = useState(true);
+  const [keepLastNDays, setKeepLastNDays] = useState(90);
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'pdf'>('csv');
   const [includeTransactionsExport, setIncludeTransactionsExport] = useState(true);
   const [includeBudgetsExport, setIncludeBudgetsExport] = useState(false);
   const [includeAnalyticsExport, setIncludeAnalyticsExport] = useState(false);
   const [exportFromDate, setExportFromDate] = useState<Date | undefined>(undefined);
   const [exportToDate, setExportToDate] = useState<Date | undefined>(undefined);
-  const [showExportFromPicker, setShowExportFromPicker] = useState(false);
-  const [showExportToPicker, setShowExportToPicker] = useState(false);
-  // Web-specific inputs
-  const [showWebExportInputs, setShowWebExportInputs] = useState(false);
-  const [webExportFromValue, setWebExportFromValue] = useState(''); // YYYY-MM-DD
-  const [webExportToValue, setWebExportToValue] = useState('');
+  const [exportCalendarTarget, setExportCalendarTarget] = useState<'from' | 'to' | null>(null);
 
   const [showWebSmsInput, setShowWebSmsInput] = useState(false);
   const [webSmsHourValue, setWebSmsHourValue] = useState(String(smsAutoFetchHour));
+
+  const applyDeletePreset = (days: number) => {
+    setUseKeepLastNDays(true);
+    setKeepLastNDays(days);
+    const date = new Date();
+    date.setDate(date.getDate() - days);
+    date.setHours(0, 0, 0, 0);
+    setDeleteCutoffDate(date);
+  };
+
+  const handleDeleteCutoffDatePress = () => {
+    setUseKeepLastNDays(false);
+    setShowDeleteCutoffCalendar(true);
+  };
+
+  const handleConfirmDeleteCustomPastRecords = async () => {
+    Alert.alert(
+      'Confirm Delete',
+      `Delete manual custom records created before ${deleteCutoffDate.toLocaleDateString()}? SMS/imported records will be kept.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const deletedCount = await deleteCustomPastTransactions(deleteCutoffDate);
+              if (deletedCount > 0) {
+                Alert.alert('Done', `Deleted ${deletedCount} custom record${deletedCount === 1 ? '' : 's'}.`);
+              } else {
+                Alert.alert('No records found', 'No custom records matched the selected date range.');
+              }
+              setShowDeleteCustomModal(false);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete custom past records');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleStartExport = async () => {
     try {
@@ -697,18 +753,7 @@ const SettingsScreen: React.FC = () => {
   };
 
   const handleExportDatePress = async (which: 'from' | 'to') => {
-    if (Platform.OS === 'web') {
-      // show in-modal inputs on web
-      if (which === 'from') {
-        setWebExportFromValue(exportFromDate ? exportFromDate.toISOString().slice(0, 10) : '');
-      } else {
-        setWebExportToValue(exportToDate ? exportToDate.toISOString().slice(0, 10) : '');
-      }
-      setShowWebExportInputs(true);
-    } else {
-      if (which === 'from') setShowExportFromPicker(true);
-      else setShowExportToPicker(true);
-    }
+    setExportCalendarTarget(which);
   };
 
   const handleSmsTimePress = async () => {
@@ -1004,6 +1049,14 @@ const SettingsScreen: React.FC = () => {
           <SettingRow
             index={8}
             icon={Trash2}
+            title="Delete Custom Past Records"
+            subtitle="Remove manual custom entries from past dates"
+            color="#f97316"
+            onPress={handleDeleteCustomPastRecords}
+          />
+          <SettingRow
+            index={9}
+            icon={Trash2}
             title="Clear All Data"
             subtitle="Delete all app data"
             color="#ef4444"
@@ -1014,14 +1067,14 @@ const SettingsScreen: React.FC = () => {
         <Typography variant="subtitle" weight="bold" style={styles.sectionHeading}>About</Typography>
         <Card style={styles.sectionCard} delay={0}>
           <SettingRow
-            index={9}
+            index={10}
             icon={Info}
             title="Version"
             subtitle="1.0.0 (Build 42)"
             color="#64748b"
           />
           <SettingRow
-            index={10}
+            index={11}
             icon={HelpCircle}
             title="Help & Support"
             subtitle="Contact us for assistance"
@@ -1118,78 +1171,34 @@ const SettingsScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            {showExportFromPicker && Platform.OS !== 'web' && (
-              <DateTimePicker
-                value={exportFromDate ?? new Date()}
-                mode="date"
-                display="default"
-                onChange={(ev, date) => { setShowExportFromPicker(false); if (date) setExportFromDate(date); }}
-              />
-            )}
+            <DateCalendarModal
+              visible={exportCalendarTarget !== null}
+              onClose={() => setExportCalendarTarget(null)}
+              title={exportCalendarTarget === 'from' ? 'Select From Date' : 'Select To Date'}
+              value={exportCalendarTarget === 'from' ? exportFromDate : exportToDate}
+              onConfirm={(selectedDate) => {
+                const nextDate = new Date(selectedDate);
+                nextDate.setHours(0, 0, 0, 0);
+                if (exportCalendarTarget === 'from') {
+                  setExportFromDate(nextDate);
+                  if (exportToDate && exportToDate < nextDate) {
+                    setExportToDate(undefined);
+                  }
+                  return;
+                }
 
-            {showExportToPicker && Platform.OS !== 'web' && (
-              <DateTimePicker
-                value={exportToDate ?? new Date()}
-                mode="date"
-                display="default"
-                onChange={(ev, date) => { setShowExportToPicker(false); if (date) setExportToDate(date); }}
-              />
-            )}
-
-            {/* Web in-modal date inputs */}
-            {showWebExportInputs && Platform.OS === 'web' && (
-              <View style={{ padding: 8 }}>
-                <Typography variant="small" style={{ color: mutedForeground }}>From (YYYY-MM-DD)</Typography>
-                <TextInput
-                  value={webExportFromValue}
-                  onChangeText={setWebExportFromValue}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={mutedForeground}
-                  style={{ borderWidth: 1, borderColor: border, borderRadius: 8, padding: 8, marginTop: 6, color: text }}
-                />
-
-                <Typography variant="small" style={{ color: mutedForeground, marginTop: 8 }}>To (YYYY-MM-DD)</Typography>
-                <TextInput
-                  value={webExportToValue}
-                  onChangeText={setWebExportToValue}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={mutedForeground}
-                  style={{ borderWidth: 1, borderColor: border, borderRadius: 8, padding: 8, marginTop: 6, color: text }}
-                />
-
-                <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                  <TouchableOpacity onPress={() => { setWebExportFromValue(''); setWebExportToValue(''); setShowWebExportInputs(false); }} style={[styles.closeModal, { backgroundColor: muted, flex: 1, marginRight: 8 }]}>
-                    <Typography variant="bold" style={{ color: text }}>Cancel</Typography>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => {
-                    // apply values
-                    try {
-                      if (webExportFromValue) {
-                        const d1 = new Date(webExportFromValue);
-                        if (!isNaN(d1.getTime())) setExportFromDate(d1);
-                        else { Alert.alert('Invalid date', 'Please enter a valid From date (YYYY-MM-DD)'); return; }
-                      } else {
-                        setExportFromDate(undefined);
-                      }
-
-                      if (webExportToValue) {
-                        const d2 = new Date(webExportToValue);
-                        if (!isNaN(d2.getTime())) setExportToDate(d2);
-                        else { Alert.alert('Invalid date', 'Please enter a valid To date (YYYY-MM-DD)'); return; }
-                      } else {
-                        setExportToDate(undefined);
-                      }
-
-                      setShowWebExportInputs(false);
-                    } catch (e) {
-                      Alert.alert('Error', 'Failed to apply dates');
-                    }
-                  }} style={[styles.closeModal, { backgroundColor: primary, flex: 1 }]}>
-                    <Typography variant="bold" style={{ color: primaryForeground }}>Apply</Typography>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
+                if (exportFromDate && nextDate < exportFromDate) {
+                  Alert.alert('Invalid range', 'To date cannot be before From date.');
+                  return;
+                }
+                setExportToDate(nextDate);
+              }}
+              allowClear
+              onClear={() => {
+                if (exportCalendarTarget === 'from') setExportFromDate(undefined);
+                if (exportCalendarTarget === 'to') setExportToDate(undefined);
+              }}
+            />
 
             </ScrollView>
 
@@ -1203,6 +1212,133 @@ const SettingsScreen: React.FC = () => {
             </View>
               </>
             )}
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showDeleteCustomModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteCustomModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          {renderModalContent(
+            <>
+              <View style={[styles.modalHeader, { borderBottomColor: border }]}> 
+                <View style={styles.modalHeaderSpacer} />
+                <View style={styles.modalHeaderCenter}>
+                  <View style={styles.modalHandle} />
+                  <Typography variant="bold" style={styles.modalTitle}>Delete Custom Records</Typography>
+                </View>
+                <TouchableOpacity style={styles.modalHeaderClose} onPress={() => setShowDeleteCustomModal(false)}>
+                  <Typography variant="small" weight="bold" style={{ color: mutedForeground }}>Close</Typography>
+                </TouchableOpacity>
+              </View>
+
+              <Typography variant="small" style={{ color: mutedForeground, marginBottom: 8 }}>
+                Remove manual/custom records created before a selected date.
+              </Typography>
+
+              <View style={[styles.currencyOption, { borderColor: border, marginBottom: 10 }]}> 
+                <View style={{ flex: 1 }}>
+                  <Typography variant="bold">Keep last N days</Typography>
+                  <Typography variant="small" style={{ color: mutedForeground }}>
+                    Use presets for quick cleanup
+                  </Typography>
+                </View>
+                <Switch
+                  value={useKeepLastNDays}
+                  onValueChange={(value) => {
+                    setUseKeepLastNDays(value);
+                    if (value) {
+                      applyDeletePreset(keepLastNDays);
+                    }
+                  }}
+                  trackColor={{ false: border, true: primary }}
+                  thumbColor={primaryForeground}
+                />
+              </View>
+
+              {useKeepLastNDays ? (
+                <>
+                  <Typography variant="small" style={{ color: mutedForeground, marginBottom: 8 }}>Keep Last N Days</Typography>
+                  <View style={styles.optionRow}>
+                    {DELETE_PRESET_DAYS.map(days => (
+                      <TouchableOpacity
+                        key={days}
+                        style={[
+                          styles.optionChip,
+                          { borderColor: border },
+                          keepLastNDays === days && [styles.optionChipActive, { backgroundColor: `${primary}18`, borderColor: primary }],
+                        ]}
+                        onPress={() => applyDeletePreset(days)}
+                      >
+                        <Typography
+                          variant="small"
+                          weight="bold"
+                          style={{ color: keepLastNDays === days ? primary : mutedForeground }}
+                        >
+                          Keep {days} days
+                        </Typography>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <View style={[styles.currencyOption, { borderColor: border }]}> 
+                    <View style={{ flex: 1 }}>
+                      <Typography variant="bold">Delete records before</Typography>
+                      <Typography variant="small" style={{ color: mutedForeground }}>
+                        {deleteCutoffDate.toLocaleDateString()}
+                      </Typography>
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Typography variant="small" style={{ color: mutedForeground, marginBottom: 8 }}>Custom Cutoff Date</Typography>
+                  <TouchableOpacity
+                    style={[styles.currencyOption, { borderColor: border }]}
+                    onPress={handleDeleteCutoffDatePress}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Typography variant="bold">Delete records before</Typography>
+                      <Typography variant="small" style={{ color: mutedForeground }}>
+                        {deleteCutoffDate.toLocaleDateString()}
+                      </Typography>
+                    </View>
+                    <Typography variant="small" weight="bold" style={{ color: primary }}>Change</Typography>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              <DateCalendarModal
+                visible={showDeleteCutoffCalendar}
+                onClose={() => setShowDeleteCutoffCalendar(false)}
+                title="Select Cutoff Date"
+                value={deleteCutoffDate}
+                onConfirm={(selectedDate) => {
+                  const nextDate = new Date(selectedDate);
+                  nextDate.setHours(0, 0, 0, 0);
+                  setDeleteCutoffDate(nextDate);
+                }}
+              />
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+                <TouchableOpacity
+                  style={[styles.closeModal, { backgroundColor: muted, flex: 1, marginRight: 8 }]}
+                  onPress={() => setShowDeleteCustomModal(false)}
+                >
+                  <Typography variant="bold" style={{ color: text }}>Cancel</Typography>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.closeModal, { backgroundColor: destructive, flex: 1 }]}
+                  onPress={handleConfirmDeleteCustomPastRecords}
+                >
+                  <Typography variant="bold" style={{ color: '#FFFFFF' }}>Delete</Typography>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </View>
       </Modal>
 
