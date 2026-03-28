@@ -1,10 +1,10 @@
-import * as Notifications from 'expo-notifications';
 import { writeJson } from '@/libs/storage';
 import { runBudgetWarningAutomation } from './budgetService';
 import { getBillReminderAlerts } from './billReminderService';
 import { detectRecurringPatterns } from './recurringService';
 import { get7And30DayForecast } from './cashflowForecastService';
 import { getUserPreferences } from './preferencesService';
+import { getNotificationsModule } from './notificationsRuntime';
 
 export const runAllFinanceAutomations = async (): Promise<void> => {
   await runBudgetWarningAutomation();
@@ -22,8 +22,11 @@ export const runAllFinanceAutomations = async (): Promise<void> => {
   await writeJson('cashflow_forecast', forecast);
 
   if (canNotify && prefs.notifications?.billReminders) {
+    const notifications = await getNotificationsModule();
+    if (!notifications) return;
+
     for (const alert of billAlerts.slice(0, 3)) {
-      await Notifications.scheduleNotificationAsync({
+      await notifications.scheduleNotificationAsync({
         content: {
           title: alert.type === 'due-soon' ? 'Bill Due Soon' : 'Bill Amount Variance',
           body: alert.message,
