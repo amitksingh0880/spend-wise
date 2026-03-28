@@ -196,6 +196,16 @@ type SettingsFeedbackConfig = {
   tone?: ConfirmTone;
 };
 
+interface DateTimePickerNativeEvent {
+  timestamp: number;
+  utcOffset?: number;
+}
+
+interface DateTimePickerChangeEvent {
+  type: string;
+  nativeEvent: DateTimePickerNativeEvent;
+}
+
 const SettingRow: React.FC<SettingRowProps> = ({
   icon: Icon,
   title,
@@ -1131,7 +1141,7 @@ const SettingsScreen: React.FC = () => {
               mode="time"
               is24Hour={false}
               display="default"
-              onChange={async (event, selectedDate) => {
+              onChange={async (event: DateTimePickerChangeEvent, selectedDate?: Date) => {
                 setShowTimePicker(false);
                 if (selectedDate) {
                   const hour = selectedDate.getHours();
