@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { generateFinancialReport } from './analyticsService';
@@ -547,6 +548,145 @@ const generatePDFContent = async (options: ExportOptions): Promise<string> => {
   return html;
 };
 
+const exportPDFOnWeb = async (options: ExportOptions, fileName: string): Promise<ExportResult> => {
+  const { jsPDF } = await import('jspdf');
+  const report = await generateFinancialReport();
+  const currency = await getCurrency();
+  const formatAmount = (value: number) => formatCurrency(value, currency);
+
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const margin = 40;
+  const lineHeight = 16;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const maxWidth = pageWidth - margin * 2;
+  let y = 48;
+
+  const ensureSpace = (needed: number) => {
+    if (y + needed > pageHeight - 40) {
+      doc.addPage();
+      y = 40;
+    }
+  };
+
+  const writeLine = (text: string, options?: { bold?: boolean; size?: number }) => {
+    const size = options?.size ?? 11;
+    doc.setFont('helvetica', options?.bold ? 'bold' : 'normal');
+    doc.setFontSize(size);
+    const lines = doc.splitTextToSize(text, maxWidth);
+    ensureSpace(lines.length * lineHeight + 4);
+    doc.text(lines, margin, y);
+    y += lines.length * lineHeight + 4;
+  };
+
+  writeLine('SpendWise Financial Report', { bold: true, size: 20 });
+  writeLine(`Generated: ${new Date().toLocaleString()}`, { size: 10 });
+  if (options.dateRange) {
+    writeLine(
+      `Period: ${new Date(options.dateRange.from).toLocaleDateString()} - ${new Date(options.dateRange.to).toLocaleDateString()}`,
+      { size: 10 }
+    );
+  }
+
+  y += 6;
+  writeLine('Financial Overview', { bold: true, size: 14 });
+  writeLine(`Total Income: ${formatAmount(report.summary.totalIncome)}`);
+  writeLine(`Total Expenses: ${formatAmount(report.summary.totalExpenses)}`);
+  writeLine(`Net Balance: ${formatAmount(report.summary.netAmount)}`);
+  writeLine(`Transactions: ${report.summary.transactionCount}`);
+
+  y += 6;
+  writeLine('Financial Health', { bold: true, size: 14 });
+  writeLine(`Score: ${report.healthScore.score}`);
+  writeLine(`Risk Level: ${report.healthScore.riskLevel.toUpperCase()}`);
+
+  if (report.insights.length > 0) {
+    y += 6;
+    writeLine('Top Insights', { bold: true, size: 14 });
+    report.insights.slice(0, 5).forEach((insight, index) => {
+      writeLine(`${index + 1}. ${insight.title}`, { bold: true });
+      writeLine(insight.description);
+    });
+  }
+
+  if (report.spendingPatterns.length > 0) {
+    y += 6;
+    writeLine('Top Spending Categories', { bold: true, size: 14 });
+    report.spendingPatterns.slice(0, 10).forEach((pattern, index) => {
+      writeLine(
+        `${index + 1}. ${pattern.category} | ${formatAmount(pattern.averageMonthly)} | ${pattern.trend}`
+      );
+    });
+  }
+
+  if (options.includeTransactions) {
+    const maskingEnabled = await shouldMaskExports();
+    let transactions = await getAllTransactions();
+
+    if (options.dateRange) {
+      transactions = transactions.filter(tx => {
+        const txDate = new Date(tx.createdAt);
+        return txDate >= new Date(options.dateRange!.from) && txDate <= new Date(options.dateRange!.to);
+      });
+    }
+
+    if (maskingEnabled) {
+      transactions = transactions.map(maskTransactionForExport);
+    }
+
+    y += 6;
+    writeLine('Recent Transactions', { bold: true, size: 14 });
+    transactions.slice(0, 30).forEach(tx => {
+      writeLine(
+        `${new Date(tx.createdAt).toLocaleDateString()} | ${tx.vendor} | ${tx.category} | ${tx.type} | ${formatAmount(tx.amount)}`,
+        { size: 10 }
+      );
+    });
+  }
+
+  const blob = doc.output('blob');
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  return { success: true, filePath: `Downloads/${fileName}` };
+};
+
+const exportPDFOnNative = async (options: ExportOptions, fileName: string): Promise<ExportResult> => {
+  const html = await generatePDFContent(options);
+  const generated = await Print.printToFileAsync({ html, base64: false });
+  const filePath = `${FileSystem.documentDirectory}${fileName}`;
+
+  try {
+    await FileSystem.deleteAsync(filePath, { idempotent: true });
+  } catch {
+    // no-op
+  }
+
+  await FileSystem.copyAsync({
+    from: generated.uri,
+    to: filePath,
+  });
+
+  try {
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(filePath, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'Export SpendWise PDF Report',
+      });
+    }
+  } catch (shareErr) {
+    console.error('Error sharing PDF export:', shareErr);
+  }
+
+  return { success: true, filePath };
+};
+
 // Main Export Functions
 export const exportTransactions = async (options: ExportOptions): Promise<ExportResult> => {
   try {
@@ -570,10 +710,11 @@ export const exportTransactions = async (options: ExportOptions): Promise<Export
         break;
         
       case 'pdf':
-        content = await generatePDFContent(options);
-        fileName = `spendwise-report-${dateStr}.html`; // HTML for now, can be converted to PDF
-        mimeType = 'text/html';
-        break;
+        fileName = `spendwise-report-${dateStr}.pdf`;
+        if (Platform.OS === 'web') {
+          return await exportPDFOnWeb(options, fileName);
+        }
+        return await exportPDFOnNative(options, fileName);
         
       default:
         throw new Error('Unsupported export format');
