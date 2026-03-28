@@ -16,6 +16,7 @@ import {
 let DateTimePicker: any = undefined;
 import { FontFamily } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
+import { ConfirmActionModal } from '@/components/ui/confirm-action-modal';
 import { DateCalendarModal } from '@/components/ui/date-calendar-modal';
 import { Typography } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -176,6 +177,18 @@ type SettingRowProps = {
   color: string;
   index: number;
   shouldAnimateOnFirstVisit?: boolean;
+};
+
+type ConfirmTone = 'destructive' | 'primary';
+
+type SettingsConfirmConfig = {
+  title: string;
+  message: string;
+  warning?: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  confirmTone?: ConfirmTone;
+  onConfirm: () => Promise<void>;
 };
 
 const SettingRow: React.FC<SettingRowProps> = ({
@@ -389,25 +402,22 @@ const SettingsScreen: React.FC = () => {
   };
 
   const handleDeleteRule = async (rule: SmartRule) => {
-    Alert.alert(
-      'Delete Rule',
-      `Delete "${rule.name || 'Unnamed Rule'}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteSmartRule(rule.id);
-              await loadRules();
-            } catch (error) {
-              Alert.alert('Delete Failed', 'Unable to delete rule.');
-            }
-          },
-        },
-      ]
-    );
+    openConfirmModal({
+      title: 'Delete Rule',
+      message: `Delete "${rule.name || 'Unnamed Rule'}"?`,
+      warning: 'This cannot be undone',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      confirmTone: 'destructive',
+      onConfirm: async () => {
+        try {
+          await deleteSmartRule(rule.id);
+          await loadRules();
+        } catch (error) {
+          Alert.alert('Delete Failed', 'Unable to delete rule.');
+        }
+      },
+    });
   };
 
   const handleCreateRule = async () => {
@@ -594,54 +604,48 @@ const SettingsScreen: React.FC = () => {
   };
 
   const handleClearAllData = async () => {
-    Alert.alert(
-      'Clear All Data',
-      'This will permanently delete all your transactions, budgets, and settings. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Clear All', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              const storageKeys = ['transactions', 'budgets', 'budget_alerts', 'categories', 'user_preferences'];
-              await Promise.all(storageKeys.map(key => deleteKey(key)));
-              await refreshCurrency();
-              Alert.alert('Success', 'All data has been cleared!');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to clear data');
-            } finally {
-              setLoading(false);
-            }
-          }
-        },
-      ]
-    );
+    openConfirmModal({
+      title: 'Clear All Data',
+      message: 'This will permanently delete all your transactions, budgets, and settings.',
+      warning: 'This action cannot be undone',
+      confirmLabel: 'Clear All',
+      cancelLabel: 'Cancel',
+      confirmTone: 'destructive',
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          const storageKeys = ['transactions', 'budgets', 'budget_alerts', 'categories', 'user_preferences'];
+          await Promise.all(storageKeys.map(key => deleteKey(key)));
+          await refreshCurrency();
+          Alert.alert('Success', 'All data has been cleared!');
+        } catch (error) {
+          Alert.alert('Error', 'Failed to clear data');
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   };
 
   const handleLoadMockData = async () => {
-    Alert.alert(
-      'Load Mock Data',
-      'This will add sample transactions and budgets to your app. Do you want to proceed?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Load', 
-          onPress: async () => {
-            try {
-              setLoading(true);
-              const result = await seedMockData();
-              Alert.alert('Success', `Successfully loaded ${result.transactionsCount} transactions and ${result.budgetsCount} budgets!`);
-            } catch (error) {
-              Alert.alert('Error', 'Failed to load mock data');
-            } finally {
-              setLoading(false);
-            }
-          }
-        },
-      ]
-    );
+    openConfirmModal({
+      title: 'Load Mock Data',
+      message: 'This will add sample transactions and budgets to your app.',
+      confirmLabel: 'Load',
+      cancelLabel: 'Cancel',
+      confirmTone: 'primary',
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          const result = await seedMockData();
+          Alert.alert('Success', `Successfully loaded ${result.transactionsCount} transactions and ${result.budgetsCount} budgets!`);
+        } catch (error) {
+          Alert.alert('Error', 'Failed to load mock data');
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   };
 
   const handleDeleteCustomPastRecords = async () => {
@@ -650,6 +654,7 @@ const SettingsScreen: React.FC = () => {
 
   const [showExportModal, setShowExportModal] = useState(false);
   const [showDeleteCustomModal, setShowDeleteCustomModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<SettingsConfirmConfig | null>(null);
   const [deleteCutoffDate, setDeleteCutoffDate] = useState<Date>(() => {
     const date = new Date();
     date.setDate(date.getDate() - 90);
@@ -701,34 +706,51 @@ const SettingsScreen: React.FC = () => {
     setShowDeleteCutoffCalendar(true);
   };
 
+  const openConfirmModal = (config: SettingsConfirmConfig) => {
+    setConfirmModalConfig(config);
+  };
+
+  const closeConfirmModal = () => {
+    if (loading) return;
+    setConfirmModalConfig(null);
+  };
+
+  const handleConfirmModalSubmit = async () => {
+    if (!confirmModalConfig) return;
+    try {
+      await confirmModalConfig.onConfirm();
+    } finally {
+      setConfirmModalConfig(null);
+    }
+  };
+
+  const executeDeleteCustomPastRecords = async () => {
+    try {
+      setLoading(true);
+      const deletedCount = await deleteCustomPastTransactions(deleteCutoffDate);
+      if (deletedCount > 0) {
+        Alert.alert('Done', `Deleted ${deletedCount} custom record${deletedCount === 1 ? '' : 's'}.`);
+      } else {
+        Alert.alert('No records found', 'No custom records matched the selected date range.');
+      }
+      setShowDeleteCustomModal(false);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete custom past records');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleConfirmDeleteCustomPastRecords = async () => {
-    Alert.alert(
-      'Confirm Delete',
-      `Delete manual custom records created before ${deleteCutoffDate.toLocaleDateString()}? SMS/imported records will be kept.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              const deletedCount = await deleteCustomPastTransactions(deleteCutoffDate);
-              if (deletedCount > 0) {
-                Alert.alert('Done', `Deleted ${deletedCount} custom record${deletedCount === 1 ? '' : 's'}.`);
-              } else {
-                Alert.alert('No records found', 'No custom records matched the selected date range.');
-              }
-              setShowDeleteCustomModal(false);
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete custom past records');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+    openConfirmModal({
+      title: 'Confirm Deletion',
+      message: `Manual/custom records before ${deleteCutoffDate.toLocaleDateString()} will be deleted. SMS/imported records are kept.`,
+      warning: 'This action cannot be undone',
+      cancelLabel: 'Back',
+      confirmLabel: 'Yes, Delete',
+      confirmTone: 'destructive',
+      onConfirm: executeDeleteCustomPastRecords,
+    });
   };
 
   const handleStartExport = async () => {
@@ -1388,6 +1410,20 @@ const SettingsScreen: React.FC = () => {
           )}
         </View>
       </Modal>
+
+      <ConfirmActionModal
+        visible={!!confirmModalConfig}
+        title={confirmModalConfig?.title || 'Confirm'}
+        message={confirmModalConfig?.message || ''}
+        warning={confirmModalConfig?.warning}
+        cancelLabel={confirmModalConfig?.cancelLabel || 'Cancel'}
+        confirmLabel={confirmModalConfig?.confirmLabel || 'Confirm'}
+        confirmTone={confirmModalConfig?.confirmTone || 'destructive'}
+        blurIntensity={95}
+        loading={loading}
+        onCancel={closeConfirmModal}
+        onConfirm={handleConfirmModalSubmit}
+      />
 
       <Modal
         visible={showRulesModal}
