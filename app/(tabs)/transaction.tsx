@@ -126,6 +126,11 @@ const TransactionsScreen: React.FC = () => {
   const [showSMSImport, setShowSMSImport] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showTodayOnly, setShowTodayOnly] = useState(false);
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterMinAmount, setFilterMinAmount] = useState('');
+  const [filterMaxAmount, setFilterMaxAmount] = useState('');
   const [lastScrollY, setLastScrollY] = useState(0);
 
   const background = useThemeColor({}, 'background');
@@ -134,6 +139,13 @@ const TransactionsScreen: React.FC = () => {
   const primary = useThemeColor({}, 'primary');
   const primaryForeground = useThemeColor({}, 'primaryForeground');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
+
+  const activeAdvancedFilterCount = [
+    filterType !== 'all',
+    filterCategory.trim() !== '',
+    filterMinAmount.trim() !== '',
+    filterMaxAmount.trim() !== '',
+  ].filter(Boolean).length;
 
   const sortNewestFirst = (items: Transaction[]): Transaction[] => {
     return [...items].sort((a, b) => {
@@ -155,7 +167,7 @@ const TransactionsScreen: React.FC = () => {
 
   useEffect(() => {
     filterTransactions();
-  }, [searchTerm, transactions, showTodayOnly]);
+  }, [searchTerm, transactions, showTodayOnly, filterType, filterCategory, filterMinAmount, filterMaxAmount]);
 
   const loadTransactions = async () => {
     try {
@@ -202,7 +214,33 @@ const TransactionsScreen: React.FC = () => {
       });
     }
 
+    if (filterType !== 'all') {
+      filtered = filtered.filter(t => t.type === filterType);
+    }
+
+    const categoryQuery = filterCategory.trim().toLowerCase();
+    if (categoryQuery) {
+      filtered = filtered.filter(t => (t.category || '').toLowerCase().includes(categoryQuery));
+    }
+
+    const minAmount = Number(filterMinAmount);
+    if (filterMinAmount.trim() !== '' && Number.isFinite(minAmount)) {
+      filtered = filtered.filter(t => t.amount >= minAmount);
+    }
+
+    const maxAmount = Number(filterMaxAmount);
+    if (filterMaxAmount.trim() !== '' && Number.isFinite(maxAmount)) {
+      filtered = filtered.filter(t => t.amount <= maxAmount);
+    }
+
     setFilteredTransactions(sortNewestFirst(filtered));
+  };
+
+  const clearAdvancedFilters = () => {
+    setFilterType('all');
+    setFilterCategory('');
+    setFilterMinAmount('');
+    setFilterMaxAmount('');
   };
 
   const handleDeleteTransaction = async (id: string) => {
@@ -267,9 +305,24 @@ const TransactionsScreen: React.FC = () => {
             </Typography>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.filterChip}>
+          <TouchableOpacity
+            style={[
+              styles.filterChip,
+              activeAdvancedFilterCount > 0 && { backgroundColor: '#FFFFFF' },
+            ]}
+            onPress={() => setShowFiltersModal(true)}
+          >
             <SlidersHorizontal size={14} color="rgba(255,255,255,0.6)" />
-            <Typography variant="small" weight="bold" style={styles.filterChipText}>Filters</Typography>
+            <Typography
+              variant="small"
+              weight="bold"
+              style={[
+                styles.filterChipText,
+                activeAdvancedFilterCount > 0 && { color: '#0f172a' },
+              ]}
+            >
+              {activeAdvancedFilterCount > 0 ? `Filters (${activeAdvancedFilterCount})` : 'Filters'}
+            </Typography>
           </TouchableOpacity>
         </ScrollView>
       </LinearGradient>
@@ -340,6 +393,103 @@ const TransactionsScreen: React.FC = () => {
         onSuccess={loadTransactions}
         transaction={editingTransaction}
       />
+
+      <Modal
+        visible={showFiltersModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowFiltersModal(false)}
+      >
+        <View style={styles.filterOverlay}>
+          <View style={[styles.filterModalCard, { backgroundColor: cardColor, borderColor: border }]}> 
+            <View style={[styles.filterHeader, { borderBottomColor: border }]}> 
+              <View style={styles.filterHeaderLeft}>
+                <Filter size={18} color={primary} />
+                <Typography variant="subtitle" weight="bold" style={{ marginLeft: 8 }}>Advanced Filters</Typography>
+              </View>
+              <TouchableOpacity onPress={() => setShowFiltersModal(false)}>
+                <X size={20} color={mutedForeground} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.filterBody} showsVerticalScrollIndicator={false}>
+              <Typography variant="small" style={[styles.filterLabel, { color: mutedForeground }]}>Type</Typography>
+              <View style={styles.filterTypeRow}>
+                {([
+                  { key: 'all', label: 'All' },
+                  { key: 'expense', label: 'Expense' },
+                  { key: 'income', label: 'Income' },
+                ] as const).map(option => {
+                  const isActive = filterType === option.key;
+                  return (
+                    <TouchableOpacity
+                      key={option.key}
+                      onPress={() => setFilterType(option.key)}
+                      style={[
+                        styles.filterTypeChip,
+                        { borderColor: border },
+                        isActive && { backgroundColor: `${primary}20`, borderColor: primary },
+                      ]}
+                    >
+                      <Typography
+                        variant="small"
+                        weight="bold"
+                        style={{ color: isActive ? primary : mutedForeground }}
+                      >
+                        {option.label}
+                      </Typography>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Typography variant="small" style={[styles.filterLabel, { color: mutedForeground }]}>Category contains</Typography>
+              <TextInput
+                value={filterCategory}
+                onChangeText={setFilterCategory}
+                placeholder="e.g. food, transport"
+                placeholderTextColor={mutedForeground}
+                style={[styles.filterInput, { borderColor: border, color: mutedForeground }]}
+              />
+
+              <Typography variant="small" style={[styles.filterLabel, { color: mutedForeground }]}>Amount range</Typography>
+              <View style={styles.filterAmountRow}>
+                <TextInput
+                  value={filterMinAmount}
+                  onChangeText={setFilterMinAmount}
+                  keyboardType="numeric"
+                  placeholder="Min"
+                  placeholderTextColor={mutedForeground}
+                  style={[styles.filterInput, styles.filterAmountInput, { borderColor: border, color: mutedForeground }]}
+                />
+                <TextInput
+                  value={filterMaxAmount}
+                  onChangeText={setFilterMaxAmount}
+                  keyboardType="numeric"
+                  placeholder="Max"
+                  placeholderTextColor={mutedForeground}
+                  style={[styles.filterInput, styles.filterAmountInput, { borderColor: border, color: mutedForeground }]}
+                />
+              </View>
+            </ScrollView>
+
+            <View style={[styles.filterActions, { borderTopColor: border }]}> 
+              <TouchableOpacity
+                style={[styles.filterActionBtn, { backgroundColor: '#334155' }]}
+                onPress={clearAdvancedFilters}
+              >
+                <Typography variant="small" weight="bold" style={{ color: '#FFFFFF' }}>Clear</Typography>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterActionBtn, { backgroundColor: primary }]}
+                onPress={() => setShowFiltersModal(false)}
+              >
+                <Typography variant="small" weight="bold" style={{ color: primaryForeground }}>Apply</Typography>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showSMSImport}
@@ -419,6 +569,75 @@ const styles = StyleSheet.create({
   filterChipText: {
     color: 'rgba(255,255,255,0.6)',
     fontSize: 12,
+  },
+  filterOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2,6,23,0.58)',
+    justifyContent: 'flex-end',
+    padding: 12,
+  },
+  filterModalCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    maxHeight: '78%',
+    overflow: 'hidden',
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  filterHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterBody: {
+    padding: 16,
+  },
+  filterLabel: {
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  filterTypeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  filterTypeChip: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  filterInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+  filterAmountRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  filterAmountInput: {
+    flex: 1,
+  },
+  filterActions: {
+    flexDirection: 'row',
+    gap: 10,
+    borderTopWidth: 1,
+    padding: 14,
+  },
+  filterActionBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    paddingVertical: 12,
   },
   content: {
     flex: 1,
