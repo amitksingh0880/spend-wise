@@ -5,7 +5,6 @@ import { getCurrencySymbol } from '@/utils/currency';
 import { FileText, Tag, X } from 'lucide-react-native';
 import React, { useEffect, useState, useContext } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -16,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { Typography } from '@/components/ui/text';
+import { ConfirmActionModal } from '@/components/ui/confirm-action-modal';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import ThemeContext from '@/contexts/ThemeContext';
 
@@ -40,6 +40,11 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [feedbackModalConfig, setFeedbackModalConfig] = useState<{
+    title: string;
+    message: string;
+    tone: 'destructive' | 'primary';
+  } | null>(null);
   const [splitEnabled, setSplitEnabled] = useState(false);
   const [splits, setSplits] = useState<{ id: string; amount: string; category: string; description: string }[]>([
     { id: '1', amount: '', category: '', description: '' },
@@ -121,13 +126,21 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   const handleSubmit = async () => {
     const requiresPrimaryCategory = !(splitEnabled && !transaction && type === 'expense');
     if (!amount || !vendor || (requiresPrimaryCategory && !category)) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      setFeedbackModalConfig({
+        title: 'Error',
+        message: 'Please fill in all required fields',
+        tone: 'destructive',
+      });
       return;
     }
 
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
+      setFeedbackModalConfig({
+        title: 'Error',
+        message: 'Please enter a valid amount',
+        tone: 'destructive',
+      });
       return;
     }
 
@@ -144,19 +157,31 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           .filter(split => split.amount > 0 || split.category.length > 0 || split.description.length > 0);
 
         if (normalizedSplits.length < 2) {
-          Alert.alert('Error', 'Add at least 2 valid split rows.');
+          setFeedbackModalConfig({
+            title: 'Error',
+            message: 'Add at least 2 valid split rows.',
+            tone: 'destructive',
+          });
           return;
         }
 
         const hasInvalid = normalizedSplits.some(split => Number.isNaN(split.amount) || split.amount <= 0 || !split.category);
         if (hasInvalid) {
-          Alert.alert('Error', 'Each split must have a valid amount and category.');
+          setFeedbackModalConfig({
+            title: 'Error',
+            message: 'Each split must have a valid amount and category.',
+            tone: 'destructive',
+          });
           return;
         }
 
         const splitTotal = normalizedSplits.reduce((sum, split) => sum + split.amount, 0);
         if (Math.abs(splitTotal - numAmount) > 0.01) {
-          Alert.alert('Error', `Split total ${splitTotal.toFixed(2)} must match amount ${numAmount.toFixed(2)}.`);
+          setFeedbackModalConfig({
+            title: 'Error',
+            message: `Split total ${splitTotal.toFixed(2)} must match amount ${numAmount.toFixed(2)}.`,
+            tone: 'destructive',
+          });
           return;
         }
 
@@ -199,7 +224,11 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
       onClose();
     } catch (error) {
       console.error('Error saving transaction:', error);
-      Alert.alert('Error', 'Failed to save transaction');
+      setFeedbackModalConfig({
+        title: 'Error',
+        message: 'Failed to save transaction',
+        tone: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -210,12 +239,25 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   );
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
+    <>
+      <ConfirmActionModal
+        visible={!!feedbackModalConfig}
+        title={feedbackModalConfig?.title || 'Notice'}
+        message={feedbackModalConfig?.message || ''}
+        confirmLabel="OK"
+        confirmTone={feedbackModalConfig?.tone || 'primary'}
+        showCancel={false}
+        blurIntensity={95}
+        onCancel={() => setFeedbackModalConfig(null)}
+        onConfirm={() => setFeedbackModalConfig(null)}
+      />
+
+      <Modal
+        visible={visible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={onClose}
+      >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={[styles.container, { backgroundColor: background }]}
@@ -449,7 +491,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+      </Modal>
+    </>
   );
 };
 

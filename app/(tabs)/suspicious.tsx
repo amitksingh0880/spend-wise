@@ -12,7 +12,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useFocusEffect } from 'expo-router';
 import { CheckCircle, Edit2, Trash2, AlertCircle, ShieldAlert, History, RotateCcw, XCircle, Info } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, StyleSheet, View, StatusBar, Platform, TouchableOpacity, ScrollView } from 'react-native';
+import { FlatList, StyleSheet, View, StatusBar, Platform, TouchableOpacity, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInRight, Layout } from 'react-native-reanimated';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -27,6 +27,11 @@ const SuspiciousScreen: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [feedbackModalConfig, setFeedbackModalConfig] = useState<{
+    title: string;
+    message: string;
+    tone: 'destructive' | 'primary';
+  } | null>(null);
 
   const { theme } = useAppTheme();
   const isDark = theme === 'dark';
@@ -88,7 +93,11 @@ const SuspiciousScreen: React.FC = () => {
       await loadSuspicious();
       emitter.emit('transactions:changed');
     } catch (error) {
-      Alert.alert('Error', 'Failed to mark as reviewed');
+      setFeedbackModalConfig({
+        title: 'Error',
+        message: 'Failed to mark as reviewed',
+        tone: 'destructive',
+      });
     }
   };
 
@@ -116,7 +125,11 @@ const SuspiciousScreen: React.FC = () => {
       emitter.emit('transactions:changed');
       await loadSuspicious();
     } catch (err) {
-      Alert.alert('Error', 'Failed to save transaction');
+      setFeedbackModalConfig({
+        title: 'Error',
+        message: 'Failed to save transaction',
+        tone: 'destructive',
+      });
     } finally { setLoading(false); }
   };
 
@@ -220,6 +233,17 @@ const SuspiciousScreen: React.FC = () => {
           setPendingDeleteId(null);
         }}
         onConfirm={confirmDelete}
+      />
+      <ConfirmActionModal
+        visible={!!feedbackModalConfig}
+        title={feedbackModalConfig?.title || 'Notice'}
+        message={feedbackModalConfig?.message || ''}
+        confirmLabel="OK"
+        confirmTone={feedbackModalConfig?.tone || 'primary'}
+        showCancel={false}
+        blurIntensity={95}
+        onCancel={() => setFeedbackModalConfig(null)}
+        onConfirm={() => setFeedbackModalConfig(null)}
       />
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <LinearGradient

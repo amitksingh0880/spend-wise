@@ -22,7 +22,6 @@ import { AlertCircle, CheckCircle, Download, Info, MessageCircle, Calendar as Ca
 import React, { useEffect, useState, useContext } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -71,6 +70,7 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   const [resultModalTitle, setResultModalTitle] = useState('');
   const [resultModalMessage, setResultModalMessage] = useState('');
   const [resultModalTone, setResultModalTone] = useState<'destructive' | 'primary'>('primary');
+  const [permissionPromptVisible, setPermissionPromptVisible] = useState(false);
   
   const SUSPICIOUS_KEY = 'held_suspicious';
 
@@ -123,21 +123,24 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
       const granted = await requestSMSPermission();
       setHasPermission(granted);
       if (!granted) {
-        Alert.alert('Permission Required', 'SMS permission is required to automatically import expenses.');
+        setResultModalTitle('Permission Required');
+        setResultModalMessage('SMS permission is required to automatically import expenses.');
+        setResultModalTone('destructive');
+        setResultModalVisible(true);
       }
     } catch (error) {
       console.error('requestSMSPermission error', error);
-      Alert.alert('Error', 'Failed to request SMS permission');
+      setResultModalTitle('Error');
+      setResultModalMessage('Failed to request SMS permission');
+      setResultModalTone('destructive');
+      setResultModalVisible(true);
     }
   };
 
   const handleImportSMS = async () => {
     if (hasPermission === null) await checkPermissionStatus();
     if (!hasPermission) {
-      Alert.alert('Permission Required', 'Please grant SMS permission first.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Grant Permission', onPress: handleRequestPermission },
-      ]);
+      setPermissionPromptVisible(true);
       return;
     }
 
@@ -227,7 +230,10 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
         return updated;
       });
     } catch (err) {
-      Alert.alert('Error', 'Failed to save transaction');
+      setResultModalTitle('Error');
+      setResultModalMessage('Failed to save transaction');
+      setResultModalTone('destructive');
+      setResultModalVisible(true);
     } finally {
       setIsLoading(false);
     }
@@ -374,6 +380,21 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
             blurIntensity={95}
             onCancel={() => setResultModalVisible(false)}
             onConfirm={() => setResultModalVisible(false)}
+          />
+
+          <ConfirmActionModal
+            visible={permissionPromptVisible}
+            title="Permission Required"
+            message="Please grant SMS permission first."
+            cancelLabel="Cancel"
+            confirmLabel="Grant Permission"
+            confirmTone="primary"
+            blurIntensity={95}
+            onCancel={() => setPermissionPromptVisible(false)}
+            onConfirm={async () => {
+              setPermissionPromptVisible(false);
+              await handleRequestPermission();
+            }}
           />
 
           <DateCalendarModal

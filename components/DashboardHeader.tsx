@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from './ui/text';
+import { ConfirmActionModal } from './ui/confirm-action-modal';
 import { Bell } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import * as ImagePicker from 'expo-image-picker';
@@ -15,6 +16,11 @@ export const DashboardHeader = ({ userName: propUserName }: { userName?: string 
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [userName, setUserName] = useState(propUserName || 'User');
   const [appName, setAppName] = useState('SpendWise');
+  const [feedbackModalConfig, setFeedbackModalConfig] = useState<{
+    title: string;
+    message: string;
+    tone: 'destructive' | 'primary';
+  } | null>(null);
 
   const loadPrefs = async () => {
     const prefs = await getUserPreferences();
@@ -47,7 +53,11 @@ export const DashboardHeader = ({ userName: propUserName }: { userName?: string 
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
+        setFeedbackModalConfig({
+          title: 'Permission Denied',
+          message: 'Sorry, we need camera roll permissions to make this work!',
+          tone: 'destructive',
+        });
         return;
       }
 
@@ -65,33 +75,51 @@ export const DashboardHeader = ({ userName: propUserName }: { userName?: string 
       }
     } catch (error) {
       console.error('Failed to pick avatar image:', error);
-      Alert.alert('Error', 'Failed to save the image.');
+      setFeedbackModalConfig({
+        title: 'Error',
+        message: 'Failed to save the image.',
+        tone: 'destructive',
+      });
     }
   };
   
   return (
-    <View style={[styles.container, { backgroundColor: background, paddingTop: Math.max(insets.top, 10) }]}>
-      <View>
-        <Typography variant="title" weight="bold" style={{ color: text }}>
-          {appName}
-        </Typography>
-        <Typography variant="large" weight="medium" style={{ color: text }}>
-          Hello, {userName}
-        </Typography>
+    <>
+      <ConfirmActionModal
+        visible={!!feedbackModalConfig}
+        title={feedbackModalConfig?.title || 'Notice'}
+        message={feedbackModalConfig?.message || ''}
+        confirmLabel="OK"
+        confirmTone={feedbackModalConfig?.tone || 'primary'}
+        showCancel={false}
+        blurIntensity={95}
+        onCancel={() => setFeedbackModalConfig(null)}
+        onConfirm={() => setFeedbackModalConfig(null)}
+      />
+
+      <View style={[styles.container, { backgroundColor: background, paddingTop: Math.max(insets.top, 10) }]}>
+        <View>
+          <Typography variant="title" weight="bold" style={{ color: text }}>
+            {appName}
+          </Typography>
+          <Typography variant="large" weight="medium" style={{ color: text }}>
+            Hello, {userName}
+          </Typography>
+        </View>
+        <View style={styles.rightSection}>
+          <TouchableOpacity style={styles.iconButton}>
+            <Bell size={24} color={text} />
+            <View style={styles.badge} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handlePickAvatar}>
+            <Image 
+              source={{ uri: avatarUri || 'https://i.pravatar.cc/150?img=11' }} 
+              style={styles.avatar} 
+            />
+          </TouchableOpacity>
+        </View>
       </View>
-      <View style={styles.rightSection}>
-        <TouchableOpacity style={styles.iconButton}>
-          <Bell size={24} color={text} />
-          <View style={styles.badge} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handlePickAvatar}>
-          <Image 
-            source={{ uri: avatarUri || 'https://i.pravatar.cc/150?img=11' }} 
-            style={styles.avatar} 
-          />
-        </TouchableOpacity>
-      </View>
-    </View>
+    </>
   );
 };
 
