@@ -164,6 +164,60 @@ const WEEKDAY_OPTIONS: Array<{ label: string; value: number }> = [
   { label: 'S', value: 6 },
 ];
 
+type SettingRowProps = {
+  icon: any;
+  title: string;
+  subtitle?: string;
+  onPress?: () => void;
+  rightElement?: React.ReactNode;
+  color: string;
+  index: number;
+  shouldAnimateOnFirstVisit?: boolean;
+};
+
+const SettingRow: React.FC<SettingRowProps> = ({
+  icon: Icon,
+  title,
+  subtitle,
+  onPress,
+  rightElement,
+  color,
+  index,
+  shouldAnimateOnFirstVisit = false,
+}) => {
+  const borderColor = useThemeColor({}, 'border');
+  const mutedColor = useThemeColor({}, 'mutedForeground');
+
+  const rowContent = (
+    <TouchableOpacity
+      style={[styles.settingRow, { borderBottomColor: borderColor }]}
+      onPress={onPress}
+      disabled={!onPress}
+    >
+      <View style={styles.settingLeft}>
+        <View style={[styles.iconBox, { backgroundColor: `${color}15` }]}> 
+          <Icon size={20} color={color} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Typography variant="bold" style={styles.settingTitle}>{title}</Typography>
+          {subtitle && <Typography variant="small" style={{ color: mutedColor }}>{subtitle}</Typography>}
+        </View>
+      </View>
+      {rightElement || (onPress && <ChevronRight size={18} color={mutedColor} />)}
+    </TouchableOpacity>
+  );
+
+  if (shouldAnimateOnFirstVisit) {
+    return (
+      <Reanimated.View entering={FadeInUp.delay(400 + index * 50).duration(500)} layout={Layout.springify()}>
+        {rowContent}
+      </Reanimated.View>
+    );
+  }
+
+  return <View>{rowContent}</View>;
+};
+
 const SettingsScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState(true);
@@ -275,6 +329,9 @@ const SettingsScreen: React.FC = () => {
   const cardColor = useThemeColor({}, 'card');
   const border = useThemeColor({}, 'border');
   const primary = useThemeColor({}, 'primary');
+  const primaryForeground = useThemeColor({}, 'primaryForeground');
+  const muted = useThemeColor({}, 'muted');
+  const destructive = useThemeColor({}, 'destructive');
   const mutedForeground = useThemeColor({}, 'mutedForeground');
   const text = useThemeColor({}, 'text');
 
@@ -663,53 +720,6 @@ const SettingsScreen: React.FC = () => {
     }
   };
 
-  const SettingRow = ({ 
-    icon: Icon, 
-    title, 
-    subtitle, 
-    onPress, 
-    rightElement,
-    color,
-    index,
-  }: {
-    icon: any;
-    title: string;
-    subtitle?: string;
-    onPress?: () => void;
-    rightElement?: React.ReactNode;
-    color: string;
-    index: number;
-  }) => {
-    const rowContent = (
-      <TouchableOpacity 
-        style={[styles.settingRow, { borderBottomColor: border }]} 
-        onPress={onPress}
-        disabled={!onPress}
-      >
-        <View style={styles.settingLeft}>
-          <View style={[styles.iconBox, { backgroundColor: `${color}15` }]}>
-            <Icon size={20} color={color} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Typography variant="bold" style={styles.settingTitle}>{title}</Typography>
-            {subtitle && <Typography variant="small" style={{ color: mutedForeground }}>{subtitle}</Typography>}
-          </View>
-        </View>
-        {rightElement || (onPress && <ChevronRight size={18} color={mutedForeground} />)}
-      </TouchableOpacity>
-    );
-
-    if (shouldAnimateOnFirstVisit) {
-      return (
-        <Reanimated.View entering={FadeInUp.delay(400 + index * 50).duration(500)} layout={Layout.springify()}>
-          {rowContent}
-        </Reanimated.View>
-      );
-    }
-
-    return <View>{rowContent}</View>;
-  };
-
   const renderModalContent = (children: React.ReactNode) => {
     if (shouldAnimateOnFirstVisit) {
       return (
@@ -726,7 +736,7 @@ const SettingsScreen: React.FC = () => {
     <View style={[styles.container, { backgroundColor: background }]}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <LinearGradient
-        colors={isDark ? ['#1e1b4b', '#0f172a'] : ['#f97316', '#ea580c']}
+        colors={isDark ? ['#2f3550', '#253245'] : ['#f97316', '#ea580c']}
         style={styles.headerGradient}
       >
         <Typography variant="title" weight="bold" style={styles.headerTitle}>Settings</Typography>
@@ -786,8 +796,8 @@ const SettingsScreen: React.FC = () => {
                     notifications: { ...prefs.notifications, budgetAlerts: v } 
                   }); 
                 }}
-                trackColor={{ false: '#e2e8f0', true: primary }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: border, true: primary }}
+                thumbColor={primaryForeground}
               />
             }
           />
@@ -801,8 +811,8 @@ const SettingsScreen: React.FC = () => {
               <Switch
                 value={darkMode}
                 onValueChange={(v) => { setDarkMode(v); setTheme && setTheme(v ? 'dark' : 'light'); }}
-                trackColor={{ false: '#e2e8f0', true: primary }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: border, true: primary }}
+                thumbColor={primaryForeground}
               />
             }
           />
@@ -871,8 +881,8 @@ const SettingsScreen: React.FC = () => {
                   setSmsAutoFetch(false);
                   await saveUserPreferences({ smsAutoFetch: false });
                 }}
-                trackColor={{ false: '#e2e8f0', true: primary }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: border, true: primary }}
+                thumbColor={primaryForeground}
               />
             }
           />
@@ -969,7 +979,7 @@ const SettingsScreen: React.FC = () => {
             onPress={() => {}}
             rightElement={
               <Link href="/suspicious" asChild>
-                <TouchableOpacity style={styles.linkBtn}>
+                <TouchableOpacity style={[styles.linkBtn, { backgroundColor: `${primary}15` }]}>
                   <Typography variant="small" weight="bold" style={{ color: primary }}>View</Typography>
                 </TouchableOpacity>
               </Link>
@@ -1076,7 +1086,7 @@ const SettingsScreen: React.FC = () => {
                   <Typography variant="bold">Transactions</Typography>
                   <Typography variant="small" style={{ color: mutedForeground }}>Include transaction history</Typography>
                 </View>
-                <Switch value={includeTransactionsExport} onValueChange={setIncludeTransactionsExport} trackColor={{ false: '#e2e8f0', true: primary }} thumbColor="#FFFFFF" />
+                <Switch value={includeTransactionsExport} onValueChange={setIncludeTransactionsExport} trackColor={{ false: border, true: primary }} thumbColor={primaryForeground} />
               </View>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -1084,7 +1094,7 @@ const SettingsScreen: React.FC = () => {
                   <Typography variant="bold">Budgets</Typography>
                   <Typography variant="small" style={{ color: mutedForeground }}>Include budgets and progress</Typography>
                 </View>
-                <Switch value={includeBudgetsExport} onValueChange={setIncludeBudgetsExport} trackColor={{ false: '#e2e8f0', true: primary }} thumbColor="#FFFFFF" />
+                <Switch value={includeBudgetsExport} onValueChange={setIncludeBudgetsExport} trackColor={{ false: border, true: primary }} thumbColor={primaryForeground} />
               </View>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1092,7 +1102,7 @@ const SettingsScreen: React.FC = () => {
                   <Typography variant="bold">Analytics</Typography>
                   <Typography variant="small" style={{ color: mutedForeground }}>Include generated analytics/report</Typography>
                 </View>
-                <Switch value={includeAnalyticsExport} onValueChange={setIncludeAnalyticsExport} trackColor={{ false: '#e2e8f0', true: primary }} thumbColor="#FFFFFF" />
+                <Switch value={includeAnalyticsExport} onValueChange={setIncludeAnalyticsExport} trackColor={{ false: border, true: primary }} thumbColor={primaryForeground} />
               </View>
             </View>
 
@@ -1148,8 +1158,8 @@ const SettingsScreen: React.FC = () => {
                 />
 
                 <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                  <TouchableOpacity onPress={() => { setWebExportFromValue(''); setWebExportToValue(''); setShowWebExportInputs(false); }} style={[styles.closeModal, { backgroundColor: '#6b7280', flex: 1, marginRight: 8 }]}>
-                    <Typography variant="bold" style={{ color: '#FFFFFF' }}>Cancel</Typography>
+                  <TouchableOpacity onPress={() => { setWebExportFromValue(''); setWebExportToValue(''); setShowWebExportInputs(false); }} style={[styles.closeModal, { backgroundColor: muted, flex: 1, marginRight: 8 }]}>
+                    <Typography variant="bold" style={{ color: text }}>Cancel</Typography>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => {
                     // apply values
@@ -1175,7 +1185,7 @@ const SettingsScreen: React.FC = () => {
                       Alert.alert('Error', 'Failed to apply dates');
                     }
                   }} style={[styles.closeModal, { backgroundColor: primary, flex: 1 }]}>
-                    <Typography variant="bold" style={{ color: '#FFFFFF' }}>Apply</Typography>
+                    <Typography variant="bold" style={{ color: primaryForeground }}>Apply</Typography>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1184,11 +1194,11 @@ const SettingsScreen: React.FC = () => {
             </ScrollView>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
-              <TouchableOpacity style={[styles.closeModal, { backgroundColor: '#6b7280', flex: 1, marginRight: 8 }]} onPress={() => setShowExportModal(false)}>
-                <Typography variant="bold" style={{ color: '#FFFFFF' }}>Cancel</Typography>
+              <TouchableOpacity style={[styles.closeModal, { backgroundColor: muted, flex: 1, marginRight: 8 }]} onPress={() => setShowExportModal(false)}>
+                <Typography variant="bold" style={{ color: text }}>Cancel</Typography>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.closeModal, { backgroundColor: primary, flex: 1 }]} onPress={handleStartExport}>
-                <Typography variant="bold" style={{ color: '#FFFFFF' }}>Export</Typography>
+                <Typography variant="bold" style={{ color: primaryForeground }}>Export</Typography>
               </TouchableOpacity>
             </View>
               </>
@@ -1577,11 +1587,11 @@ const SettingsScreen: React.FC = () => {
                     <Switch
                       value={rule.isActive}
                       onValueChange={(value) => handleToggleRule(rule, value)}
-                      trackColor={{ false: '#e2e8f0', true: primary }}
-                      thumbColor="#FFFFFF"
+                      trackColor={{ false: border, true: primary }}
+                      thumbColor={primaryForeground}
                     />
-                    <TouchableOpacity style={styles.ruleDeleteBtn} onPress={() => handleDeleteRule(rule)}>
-                      <Trash2 size={16} color="#ef4444" />
+                    <TouchableOpacity style={[styles.ruleDeleteBtn, { backgroundColor: `${destructive}20` }]} onPress={() => handleDeleteRule(rule)}>
+                      <Trash2 size={16} color={destructive} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1824,7 +1834,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(2,6,23,0.62)',
+    backgroundColor: 'rgba(15,23,42,0.42)',
     justifyContent: Platform.OS === 'web' ? 'center' : 'flex-end',
     paddingHorizontal: Platform.OS === 'web' ? 24 : 10,
     paddingTop: Platform.OS === 'web' ? 24 : 56,

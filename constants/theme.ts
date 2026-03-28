@@ -36,29 +36,29 @@ export const Colors = {
     tabIconSelected: tintColorLight,
   },
   dark: {
-    background: '#09090b', // Deep rich black/slate
+    background: '#1a1f28', // Brighter slate base
     foreground: '#fafafa',
-    card: '#18181b', // Slightly lighter dark
+    card: '#252c38', // Brighter elevated card surface
     cardForeground: '#fafafa',
-    popover: '#09090b',
+    popover: '#212835',
     popoverForeground: '#fafafa',
     primary: '#F97316', // Orange
     primaryForeground: '#FFFFFF',
-    secondary: '#27272a',
+    secondary: '#2d3442',
     secondaryForeground: '#fafafa',
-    muted: '#27272a',
-    mutedForeground: '#a1a1aa',
-    accent: '#2a1a14', // Subtle warm dark tint
+    muted: '#323b4b',
+    mutedForeground: '#c4cbda',
+    accent: '#33221a', // Subtle warm dark tint
     accentForeground: '#FB923C',
-    destructive: '#7f1d1d',
+    destructive: '#8b2a2a',
     destructiveForeground: '#fafafa',
-    border: '#27272a',
-    input: '#27272a',
+    border: '#3d4657',
+    input: '#3d4657',
     ring: '#F97316',
     text: '#fafafa',
-    icon: '#a1a1aa',
+    icon: '#c4cbda',
     tint: tintColorDark,
-    tabIconDefault: '#52525b',
+    tabIconDefault: '#96a1b7',
     tabIconSelected: tintColorDark,
   },
 };
