@@ -13,6 +13,7 @@ interface ConfirmActionModalProps {
   cancelLabel?: string;
   confirmTone?: 'destructive' | 'primary';
   blurIntensity?: number;
+  showCancel?: boolean;
   loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -27,6 +28,7 @@ export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
   cancelLabel = 'Cancel',
   confirmTone = 'destructive',
   blurIntensity = 90,
+  showCancel = true,
   loading = false,
   onConfirm,
   onCancel,
@@ -62,16 +64,23 @@ export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
           )}
 
           <View style={styles.actionsRow}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton, { backgroundColor: muted, borderColor: border }]}
-              onPress={onCancel}
-              disabled={loading}
-            >
-              <Typography variant="bold" style={{ color: text }}>{cancelLabel}</Typography>
-            </TouchableOpacity>
+            {showCancel && (
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton, { backgroundColor: muted, borderColor: border }]}
+                onPress={onCancel}
+                disabled={loading}
+              >
+                <Typography variant="bold" style={{ color: text }}>{cancelLabel}</Typography>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
-              style={[styles.button, styles.confirmButton, { backgroundColor: confirmButtonColor }]}
+              style={[
+                styles.button,
+                styles.confirmButton,
+                { backgroundColor: confirmButtonColor },
+                !showCancel && styles.singleActionButton,
+              ]}
               onPress={onConfirm}
               disabled={loading}
             >
@@ -139,6 +148,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 10,
     elevation: 6,
+  },
+  singleActionButton: {
+    flex: 0,
+    minWidth: 130,
+    alignSelf: 'center',
+    width: '100%',
   },
 });
 
