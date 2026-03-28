@@ -10,6 +10,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import StartupSplash from '@/components/StartupSplash';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { ThemeProvider as AppThemeProvider, useAppTheme } from '@/contexts/ThemeContext';
+import { Colors } from '@/constants/theme';
 import { emitter } from '@/libs/emitter';
 // Auth code removed
 import { runAllFinanceAutomations } from '@/services/automationService';
@@ -165,21 +166,29 @@ export default function RootLayout() {
     const colorScheme = useColorScheme();
     const appTheme = useAppTheme();
     const userTheme = appTheme?.theme ?? colorScheme;
+    const safeAreaBackground = Colors[userTheme].background;
+
     return (
       /* @ts-ignore */
       <ThemeProvider value={userTheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <View style={{ flex: 1, width: '100%' }}>
-          {showStartup ? (
-            <StartupSplash visible={showStartup} onFinish={() => setShowStartup(false)} />
-          ) : (
-            <>
-              <Stack>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              </Stack>
-              <StatusBar style="auto" />
-            </>
-          )}
-        </View>
+        <SafeAreaView style={{ flex: 1, width: '100%', backgroundColor: safeAreaBackground }} edges={['top']}>
+          <View style={{ flex: 1, width: '100%' }}>
+            {showStartup ? (
+              <StartupSplash visible={showStartup} onFinish={() => setShowStartup(false)} />
+            ) : (
+              <>
+                <Stack>
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                </Stack>
+                <StatusBar
+                  style={userTheme === 'dark' ? 'light' : 'dark'}
+                  backgroundColor={safeAreaBackground}
+                  translucent={false}
+                />
+              </>
+            )}
+          </View>
+        </SafeAreaView>
       </ThemeProvider>
     );
   }
@@ -188,9 +197,7 @@ export default function RootLayout() {
     <CurrencyProvider>
       <AppThemeProvider>
         <SafeAreaProvider>
-          <SafeAreaView style={{ flex: 1, width: '100%' }} edges={['top']}>
-            <InnerApp />
-          </SafeAreaView>
+          <InnerApp />
         </SafeAreaProvider>
       </AppThemeProvider>
     </CurrencyProvider>
