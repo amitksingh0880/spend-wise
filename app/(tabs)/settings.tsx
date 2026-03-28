@@ -659,6 +659,7 @@ const SettingsScreen: React.FC = () => {
   const [showDeleteCutoffCalendar, setShowDeleteCutoffCalendar] = useState(false);
   const [useKeepLastNDays, setUseKeepLastNDays] = useState(true);
   const [keepLastNDays, setKeepLastNDays] = useState(90);
+  const [keepLastNDaysInput, setKeepLastNDaysInput] = useState('90');
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'pdf'>('csv');
   const [includeTransactionsExport, setIncludeTransactionsExport] = useState(true);
   const [includeBudgetsExport, setIncludeBudgetsExport] = useState(false);
@@ -673,10 +674,26 @@ const SettingsScreen: React.FC = () => {
   const applyDeletePreset = (days: number) => {
     setUseKeepLastNDays(true);
     setKeepLastNDays(days);
+    setKeepLastNDaysInput(String(days));
     const date = new Date();
     date.setDate(date.getDate() - days);
     date.setHours(0, 0, 0, 0);
     setDeleteCutoffDate(date);
+  };
+
+  const applyCustomKeepDays = () => {
+    const parsedDays = parseInt(keepLastNDaysInput, 10);
+    if (Number.isNaN(parsedDays) || parsedDays < 1) {
+      Alert.alert('Invalid days', 'Please enter a valid number of days (minimum 1).');
+      return;
+    }
+
+    if (parsedDays > 36500) {
+      Alert.alert('Invalid days', 'Please enter a realistic value up to 36500 days.');
+      return;
+    }
+
+    applyDeletePreset(parsedDays);
   };
 
   const handleDeleteCutoffDatePress = () => {
@@ -1282,6 +1299,36 @@ const SettingsScreen: React.FC = () => {
                         </Typography>
                       </TouchableOpacity>
                     ))}
+                  </View>
+
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <TextInput
+                      value={keepLastNDaysInput}
+                      onChangeText={setKeepLastNDaysInput}
+                      keyboardType="numeric"
+                      placeholder="Custom days"
+                      placeholderTextColor={mutedForeground}
+                      style={{
+                        flex: 1,
+                        borderWidth: 1,
+                        borderColor: border,
+                        borderRadius: 12,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        color: text,
+                      }}
+                    />
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: primary,
+                        borderRadius: 12,
+                        paddingHorizontal: 14,
+                        paddingVertical: 10,
+                      }}
+                      onPress={applyCustomKeepDays}
+                    >
+                      <Typography variant="small" weight="bold" style={{ color: primaryForeground }}>Apply</Typography>
+                    </TouchableOpacity>
                   </View>
 
                   <View style={[styles.currencyOption, { borderColor: border }]}> 
