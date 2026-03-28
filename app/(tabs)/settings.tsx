@@ -710,7 +710,7 @@ const SettingsScreen: React.FC = () => {
     return <View>{rowContent}</View>;
   };
 
-  const ModalContentContainer = ({ children }: { children: React.ReactNode }) => {
+  const renderModalContent = (children: React.ReactNode) => {
     if (shouldAnimateOnFirstVisit) {
       return (
         <Reanimated.View entering={FadeInUp} style={[styles.modalContent, { backgroundColor: cardColor }]}> 
@@ -1032,7 +1032,8 @@ const SettingsScreen: React.FC = () => {
         onRequestClose={() => setShowExportModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <ModalContentContainer>
+          {renderModalContent(
+            <>
             <View style={[styles.modalHeader, { borderBottomColor: border }]}> 
               <View style={styles.modalHeaderSpacer} />
               <View style={styles.modalHeaderCenter}>
@@ -1190,7 +1191,8 @@ const SettingsScreen: React.FC = () => {
                 <Typography variant="bold" style={{ color: '#FFFFFF' }}>Export</Typography>
               </TouchableOpacity>
             </View>
-          </ModalContentContainer>
+              </>
+            )}
         </View>
       </Modal>
 
@@ -1201,7 +1203,8 @@ const SettingsScreen: React.FC = () => {
         onRequestClose={() => setShowRulesModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <ModalContentContainer>
+          {renderModalContent(
+            <>
             <View style={[styles.modalHeader, { borderBottomColor: border }]}> 
               <View style={styles.modalHeaderSpacer} />
               <View style={styles.modalHeaderCenter}>
@@ -1213,7 +1216,11 @@ const SettingsScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.rulesScroll}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={styles.rulesScroll}
+              keyboardShouldPersistTaps="handled"
+            >
               <Typography variant="small" style={{ color: mutedForeground, marginBottom: 8 }}>
                 Auto-map transactions to categories using amount range and repeat patterns.
               </Typography>
@@ -1584,7 +1591,8 @@ const SettingsScreen: React.FC = () => {
             <TouchableOpacity style={[styles.closeModal, { backgroundColor: isDark ? '#334155' : '#1e293b' }]} onPress={() => setShowRulesModal(false)}>
               <Typography variant="bold" style={{ color: '#FFFFFF' }}>Close</Typography>
             </TouchableOpacity>
-          </ModalContentContainer>
+            </>
+          )}
         </View>
       </Modal>
 
@@ -1595,7 +1603,8 @@ const SettingsScreen: React.FC = () => {
         onRequestClose={() => setShowCurrencyModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <ModalContentContainer>
+          {renderModalContent(
+            <>
             <View style={[styles.modalHeader, { borderBottomColor: border }]}> 
               <View style={styles.modalHeaderSpacer} />
               <View style={styles.modalHeaderCenter}>
@@ -1627,7 +1636,8 @@ const SettingsScreen: React.FC = () => {
             <TouchableOpacity style={[styles.closeModal, { backgroundColor: isDark ? '#334155' : '#1e293b' }]} onPress={() => setShowCurrencyModal(false)}>
               <Typography variant="bold" style={{ color: '#FFFFFF' }}>Cancel</Typography>
             </TouchableOpacity>
-          </ModalContentContainer>
+            </>
+          )}
         </View>
       </Modal>
 
@@ -1638,7 +1648,8 @@ const SettingsScreen: React.FC = () => {
         onRequestClose={() => setShowFontModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <ModalContentContainer>
+          {renderModalContent(
+            <>
             <View style={[styles.modalHeader, { borderBottomColor: border }]}> 
               <View style={styles.modalHeaderSpacer} />
               <View style={styles.modalHeaderCenter}>
@@ -1681,7 +1692,8 @@ const SettingsScreen: React.FC = () => {
             <TouchableOpacity style={[styles.closeModal, { backgroundColor: isDark ? '#334155' : '#1e293b' }]} onPress={() => setShowFontModal(false)}>
               <Typography variant="bold" style={{ color: '#FFFFFF' }}>Cancel</Typography>
             </TouchableOpacity>
-          </ModalContentContainer>
+            </>
+          )}
         </View>
       </Modal>
 
@@ -1692,7 +1704,8 @@ const SettingsScreen: React.FC = () => {
         onRequestClose={() => setShowSupportModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <ModalContentContainer>
+          {renderModalContent(
+            <>
             <View style={[styles.modalHeader, { borderBottomColor: border }]}> 
               <View style={styles.modalHeaderSpacer} />
               <View style={styles.modalHeaderCenter}>
@@ -1723,7 +1736,8 @@ const SettingsScreen: React.FC = () => {
             <TouchableOpacity style={[styles.closeModal, { backgroundColor: isDark ? '#334155' : '#1e293b' }]} onPress={() => setShowSupportModal(false)}>
               <Typography variant="bold" style={{ color: '#FFFFFF' }}>Close</Typography>
             </TouchableOpacity>
-          </ModalContentContainer>
+            </>
+          )}
         </View>
       </Modal>
     </View>
