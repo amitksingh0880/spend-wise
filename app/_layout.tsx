@@ -31,7 +31,7 @@ import { Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold
 import { Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from '@expo-google-fonts/roboto';
 import { OpenSans_400Regular, OpenSans_500Medium, OpenSans_600SemiBold, OpenSans_700Bold } from '@expo-google-fonts/open-sans';
 import * as SplashScreen from 'expo-splash-screen';
-import * as Notifications from 'expo-notifications';
+import { getNotificationsModule } from '@/services/notificationsRuntime';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -45,16 +45,28 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    // Listener for notification responses (when user taps a notification)
-    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
-      const { screen } = response.notification.request.content.data;
-      if (screen === 'transactions') {
-        router.push('/(tabs)/transaction');
-      }
-    });
+    let isMounted = true;
+    let subscription: { remove: () => void } | null = null;
 
-    return () => subscription.remove();
-  }, []);
+    const initNotificationListener = async () => {
+      const notifications = await getNotificationsModule();
+      if (!notifications || !isMounted) return;
+
+      subscription = notifications.addNotificationResponseReceivedListener(response => {
+        const { screen } = response.notification.request.content.data;
+        if (screen === 'transactions') {
+          router.push('/(tabs)/transaction');
+        }
+      });
+    };
+
+    initNotificationListener();
+
+    return () => {
+      isMounted = false;
+      subscription?.remove();
+    };
+  }, [router]);
 
   useEffect(() => {
     // Authentication flow removed for now
@@ -64,26 +76,24 @@ export default function RootLayout() {
       try {
         const prefs = await getUserPreferences();
         if (prefs.smsAutoFetch) {
-          // Request notification permissions
-          const { status: existingStatus } = await Notifications.getPermissionsAsync();
-          let finalStatus = existingStatus;
-          if (existingStatus !== 'granted') {
-            const { status } = await Notifications.requestPermissionsAsync();
-            finalStatus = status;
-          }
-          
-          if (finalStatus === 'granted') {
-            const registration = await registerSmsAutoFetch();
-            if (!registration?.ok) {
-              console.warn('SMS auto-fetch registration skipped:', registration?.reason);
+          const notifications = await getNotificationsModule();
+
+          if (notifications) {
+            const { status: existingStatus } = await notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+            if (existingStatus !== 'granted') {
+              const { status } = await notifications.requestPermissionsAsync();
+              finalStatus = status;
             }
-          } else {
-             console.warn('Notification permission not granted, but SMS auto-fetch is enabled.');
-             // We still register the task, but notify user that notifications won't work
-             const registration = await registerSmsAutoFetch();
-             if (!registration?.ok) {
-               console.warn('SMS auto-fetch registration skipped:', registration?.reason);
-             }
+
+            if (finalStatus !== 'granted') {
+              console.warn('Notification permission not granted, but SMS auto-fetch is enabled.');
+            }
+          }
+
+          const registration = await registerSmsAutoFetch();
+          if (!registration?.ok) {
+            console.warn('SMS auto-fetch registration skipped:', registration?.reason);
           }
         }
       } catch (error) {

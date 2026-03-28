@@ -2,8 +2,8 @@ import { emitter } from '../libs/emitter';
 import { readJson, writeJson } from '../libs/storage';
 import { uuidv4 } from '../utils/uuid';
 import { getAllTransactions } from './transactionService';
-import * as Notifications from 'expo-notifications';
 import { getUserPreferences } from './preferencesService';
+import { getNotificationsModule } from './notificationsRuntime';
 
 export interface Budget {
   id: string;
@@ -297,12 +297,15 @@ const sendBudgetAlertNotifications = async (alerts: BudgetAlert[]): Promise<void
   const canNotify = !!prefs.notifications?.budgetAlerts && !!prefs.notifications?.pushNotifications;
   if (!canNotify) return;
 
+  const notifications = await getNotificationsModule();
+  if (!notifications) return;
+
   for (const alert of alerts) {
     if (!alert.isActive) continue;
 
     const title = alert.type === 'exceeded' ? 'Budget Exceeded' : 'Budget Warning';
 
-    await Notifications.scheduleNotificationAsync({
+    await notifications.scheduleNotificationAsync({
       content: {
         title,
         body: alert.message,
