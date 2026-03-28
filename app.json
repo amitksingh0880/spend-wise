@@ -4,7 +4,7 @@
     "slug": "spend-wise",
     "version": "2.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/app-icon-square.png",
     "scheme": "spendwise",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -13,8 +13,8 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0f766e",
-        "foregroundImage": "./assets/images/icon.png",
-        "monochromeImage": "./assets/images/icon.png"
+        "foregroundImage": "./assets/images/app-icon-adaptive-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
@@ -27,7 +27,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/icon.png"
+      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
