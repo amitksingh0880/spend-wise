@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { Typography } from './ui/text';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { ConfirmActionModal } from './ui/confirm-action-modal';
 import { BlurView } from 'expo-blur';
 import Animated, { FadeInDown, FadeInUp, SlideInRight } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -45,6 +46,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
   const [selectedColor, setSelectedColor] = useState('#4f46e5');
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
   const { theme } = useAppTheme();
   const isDark = theme === 'dark';
 
@@ -116,7 +118,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
         ...budgetPeriod,
       });
 
-      Alert.alert('Success', 'Budget created successfully');
+      setSuccessModalVisible(true);
       resetForm();
       onSuccess();
       onClose();
@@ -129,13 +131,26 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={[styles.container, { backgroundColor: background }]}>
+    <>
+      <ConfirmActionModal
+        visible={successModalVisible}
+        title="Budget Created"
+        message="Budget created successfully"
+        confirmLabel="OK"
+        confirmTone="primary"
+        showCancel={false}
+        blurIntensity={95}
+        onCancel={() => setSuccessModalVisible(false)}
+        onConfirm={() => setSuccessModalVisible(false)}
+      />
+
+      <Modal
+        visible={visible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={onClose}
+      >
+        <View style={[styles.container, { backgroundColor: background }]}> 
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         
         {/* Header */}
@@ -300,8 +315,9 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
             </View>
           </View>
         </KeyboardAvoidingView>
-      </View>
-    </Modal>
+        </View>
+      </Modal>
+    </>
   );
 };
 

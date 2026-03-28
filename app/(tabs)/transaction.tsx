@@ -1,4 +1,5 @@
 import { emitter } from '@/libs/emitter';
+import { ConfirmActionModal } from '@/components/ui/confirm-action-modal';
 import SMSImport from '@/components/SMSImport';
 import TransactionForm from '@/components/TransactionForm';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -36,13 +37,13 @@ const screenWidth = Dimensions.get('window').width;
 const TransactionItem = ({ 
   transaction, 
   index,
-  onDelete,
+  onRequestDelete,
   onEdit,
   key
 }: { 
   transaction: Transaction; 
   index: number;
-  onDelete: (id: string) => void;
+  onRequestDelete: (id: string) => void;
   onEdit: (transaction: Transaction) => void;
   key?: string;
 }) => {
@@ -60,14 +61,7 @@ const TransactionItem = ({
   });
 
   const handleLongPress = () => {
-    Alert.alert(
-      'Delete Transaction',
-      'Are you sure you want to delete this transaction?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => onDelete(transaction.id) },
-      ]
-    );
+    onRequestDelete(transaction.id);
   };
 
   return (
@@ -125,8 +119,11 @@ const TransactionsScreen: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [showSMSImport, setShowSMSImport] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTodayOnly, setShowTodayOnly] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [importSuccessModal, setImportSuccessModal] = useState<{ title: string; message: string } | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterMinAmount, setFilterMinAmount] = useState('');
@@ -257,6 +254,18 @@ const TransactionsScreen: React.FC = () => {
     setShowForm(true);
   };
 
+  const requestDeleteTransaction = (id: string) => {
+    setPendingDeleteId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteTransaction = async () => {
+    if (!pendingDeleteId) return;
+    await handleDeleteTransaction(pendingDeleteId);
+    setShowDeleteConfirm(false);
+    setPendingDeleteId(null);
+  };
+
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingTransaction(null);
@@ -264,6 +273,32 @@ const TransactionsScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
+      <ConfirmActionModal
+        visible={showDeleteConfirm}
+        title="Delete Transaction"
+        message="Are you sure you want to delete this transaction?"
+        warning="This action cannot be undone"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        confirmTone="destructive"
+        blurIntensity={95}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setPendingDeleteId(null);
+        }}
+        onConfirm={confirmDeleteTransaction}
+      />
+      <ConfirmActionModal
+        visible={!!importSuccessModal}
+        title={importSuccessModal?.title || 'Success'}
+        message={importSuccessModal?.message || ''}
+        confirmLabel="OK"
+        confirmTone="primary"
+        showCancel={false}
+        blurIntensity={95}
+        onCancel={() => setImportSuccessModal(null)}
+        onConfirm={() => setImportSuccessModal(null)}
+      />
       <StatusBar barStyle="light-content" />
       <LinearGradient
         colors={['#0f172a', '#1e293b']}
@@ -353,7 +388,7 @@ const TransactionsScreen: React.FC = () => {
               <TransactionItem 
                 transaction={item} 
                 index={index}
-                onDelete={handleDeleteTransaction}
+                onRequestDelete={requestDeleteTransaction}
                 onEdit={handleEditTransaction}
               />
             )}
@@ -511,7 +546,10 @@ const TransactionsScreen: React.FC = () => {
             onImportComplete={(result) => {
               setShowSMSImport(false);
               loadTransactions();
-              Alert.alert('Import Success', `Added ${result.expenses.length} transactions.`);
+              setImportSuccessModal({
+                title: 'Import Success',
+                message: `Added ${result.expenses.length} transactions.`,
+              });
             }}
           />
         </View>

@@ -41,7 +41,6 @@ import {
 } from 'lucide-react-native';
 
 import {
-  Alert,
   Dimensions,
   Modal,
   ScrollView,
@@ -189,6 +188,12 @@ type SettingsConfirmConfig = {
   cancelLabel?: string;
   confirmTone?: ConfirmTone;
   onConfirm: () => Promise<void>;
+};
+
+type SettingsFeedbackConfig = {
+  title: string;
+  message: string;
+  tone?: ConfirmTone;
 };
 
 const SettingRow: React.FC<SettingRowProps> = ({
@@ -397,7 +402,11 @@ const SettingsScreen: React.FC = () => {
       await updateSmartRule(rule.id, { isActive });
       await loadRules();
     } catch (error) {
-      Alert.alert('Update Failed', 'Unable to update rule status.');
+      setFeedbackModalConfig({
+        title: 'Update Failed',
+        message: 'Unable to update rule status.',
+        tone: 'destructive',
+      });
     }
   };
 
@@ -414,7 +423,11 @@ const SettingsScreen: React.FC = () => {
           await deleteSmartRule(rule.id);
           await loadRules();
         } catch (error) {
-          Alert.alert('Delete Failed', 'Unable to delete rule.');
+          setFeedbackModalConfig({
+            title: 'Delete Failed',
+            message: 'Unable to delete rule.',
+            tone: 'destructive',
+          });
         }
       },
     });
@@ -429,37 +442,65 @@ const SettingsScreen: React.FC = () => {
     const numericAmountValue = Number(newRuleAmountValue);
 
     if (!newRuleName.trim() || !newRuleCategory.trim()) {
-      Alert.alert('Missing fields', 'Please add rule name and category.');
+      setFeedbackModalConfig({
+        title: 'Missing Fields',
+        message: 'Please add rule name and category.',
+        tone: 'destructive',
+      });
       return;
     }
 
     if (newRuleMode === 'amount') {
       if (newRuleOperator === 'between') {
         if (!Number.isFinite(minAmount) || !Number.isFinite(maxAmount) || minAmount < 0 || maxAmount < minAmount) {
-          Alert.alert('Invalid amount range', 'Please enter a valid minimum and maximum amount.');
+          setFeedbackModalConfig({
+            title: 'Invalid Amount Range',
+            message: 'Please enter a valid minimum and maximum amount.',
+            tone: 'destructive',
+          });
           return;
         }
       } else if (!Number.isFinite(numericAmountValue)) {
-        Alert.alert('Invalid amount', 'Please enter a valid numeric amount.');
+        setFeedbackModalConfig({
+          title: 'Invalid Amount',
+          message: 'Please enter a valid numeric amount.',
+          tone: 'destructive',
+        });
         return;
       }
     } else if (!newRuleTextValue.trim()) {
-      Alert.alert('Missing value', 'Please enter text value for this rule.');
+      setFeedbackModalConfig({
+        title: 'Missing Value',
+        message: 'Please enter text value for this rule.',
+        tone: 'destructive',
+      });
       return;
     }
 
     if (!Number.isFinite(repeatCount) || repeatCount < 0) {
-      Alert.alert('Invalid repeat condition', 'Please enter valid repeat count and day window.');
+      setFeedbackModalConfig({
+        title: 'Invalid Repeat Condition',
+        message: 'Please enter valid repeat count and day window.',
+        tone: 'destructive',
+      });
       return;
     }
 
     if (repeatCount > 0 && (!Number.isFinite(repeatDays) || repeatDays < 1)) {
-      Alert.alert('Invalid repeat condition', 'Please enter a valid day window when repeat count is set.');
+      setFeedbackModalConfig({
+        title: 'Invalid Repeat Condition',
+        message: 'Please enter a valid day window when repeat count is set.',
+        tone: 'destructive',
+      });
       return;
     }
 
     if (!Number.isFinite(tolerance) || tolerance < 0) {
-      Alert.alert('Invalid tolerance', 'Tolerance must be 0 or greater.');
+      setFeedbackModalConfig({
+        title: 'Invalid Tolerance',
+        message: 'Tolerance must be 0 or greater.',
+        tone: 'destructive',
+      });
       return;
     }
 
@@ -486,9 +527,17 @@ const SettingsScreen: React.FC = () => {
       setNewRuleTolerance('10');
       resetPreview();
       await loadRules();
-      Alert.alert('Success', 'Smart rule created.');
+      setFeedbackModalConfig({
+        title: 'Smart Rule Created',
+        message: 'Smart rule created.',
+        tone: 'primary',
+      });
     } catch (error) {
-      Alert.alert('Create Failed', error instanceof Error ? error.message : 'Unable to create the smart rule.');
+      setFeedbackModalConfig({
+        title: 'Create Failed',
+        message: error instanceof Error ? error.message : 'Unable to create the smart rule.',
+        tone: 'destructive',
+      });
     } finally {
       setRulesLoading(false);
     }
@@ -499,17 +548,29 @@ const SettingsScreen: React.FC = () => {
     const repeatDays = Number(newRuleRepeatDays);
 
     if (!newRuleName.trim() || !newRuleCategory.trim()) {
-      Alert.alert('Missing fields', 'Please add rule name and category before preview.');
+      setFeedbackModalConfig({
+        title: 'Missing Fields',
+        message: 'Please add rule name and category before preview.',
+        tone: 'destructive',
+      });
       return;
     }
 
     if (!Number.isFinite(repeatCount) || repeatCount < 0) {
-      Alert.alert('Invalid repeat condition', 'Please enter a valid repeat count.');
+      setFeedbackModalConfig({
+        title: 'Invalid Repeat Condition',
+        message: 'Please enter a valid repeat count.',
+        tone: 'destructive',
+      });
       return;
     }
 
     if (repeatCount > 0 && (!Number.isFinite(repeatDays) || repeatDays < 1)) {
-      Alert.alert('Invalid repeat condition', 'Please enter a valid day window when repeat count is set.');
+      setFeedbackModalConfig({
+        title: 'Invalid Repeat Condition',
+        message: 'Please enter a valid day window when repeat count is set.',
+        tone: 'destructive',
+      });
       return;
     }
 
@@ -521,7 +582,11 @@ const SettingsScreen: React.FC = () => {
       setPreviewCount(result.count);
       setPreviewMatches(result.matched);
     } catch (error) {
-      Alert.alert('Preview Failed', error instanceof Error ? error.message : 'Unable to preview this rule.');
+      setFeedbackModalConfig({
+        title: 'Preview Failed',
+        message: error instanceof Error ? error.message : 'Unable to preview this rule.',
+        tone: 'destructive',
+      });
     } finally {
       setPreviewLoading(false);
     }
@@ -566,9 +631,17 @@ const SettingsScreen: React.FC = () => {
       });
 
       await loadRules();
-      Alert.alert('Success', `${template.name} template rule added.`);
+      setFeedbackModalConfig({
+        title: 'Template Rule Added',
+        message: `${template.name} template rule added.`,
+        tone: 'primary',
+      });
     } catch (error) {
-      Alert.alert('Create Failed', 'Unable to create template rule.');
+      setFeedbackModalConfig({
+        title: 'Create Failed',
+        message: 'Unable to create template rule.',
+        tone: 'destructive',
+      });
     } finally {
       setRulesLoading(false);
     }
@@ -599,7 +672,11 @@ const SettingsScreen: React.FC = () => {
       await refreshCurrency();
       setShowCurrencyModal(false);
     } catch (error) {
-      Alert.alert('Error', 'Failed to update currency');
+      setFeedbackModalConfig({
+        title: 'Error',
+        message: 'Failed to update currency',
+        tone: 'destructive',
+      });
     }
   };
 
@@ -617,9 +694,17 @@ const SettingsScreen: React.FC = () => {
           const storageKeys = ['transactions', 'budgets', 'budget_alerts', 'categories', 'user_preferences'];
           await Promise.all(storageKeys.map(key => deleteKey(key)));
           await refreshCurrency();
-          Alert.alert('Success', 'All data has been cleared!');
+          setFeedbackModalConfig({
+            title: 'Data Cleared',
+            message: 'All data has been cleared!',
+            tone: 'primary',
+          });
         } catch (error) {
-          Alert.alert('Error', 'Failed to clear data');
+          setFeedbackModalConfig({
+            title: 'Error',
+            message: 'Failed to clear data',
+            tone: 'destructive',
+          });
         } finally {
           setLoading(false);
         }
@@ -638,9 +723,17 @@ const SettingsScreen: React.FC = () => {
         try {
           setLoading(true);
           const result = await seedMockData();
-          Alert.alert('Success', `Successfully loaded ${result.transactionsCount} transactions and ${result.budgetsCount} budgets!`);
+          setFeedbackModalConfig({
+            title: 'Mock Data Imported',
+            message: `Successfully loaded ${result.transactionsCount} transactions and ${result.budgetsCount} budgets.`,
+            tone: 'primary',
+          });
         } catch (error) {
-          Alert.alert('Error', 'Failed to load mock data');
+          setFeedbackModalConfig({
+            title: 'Error',
+            message: 'Failed to load mock data',
+            tone: 'destructive',
+          });
         } finally {
           setLoading(false);
         }
@@ -655,6 +748,7 @@ const SettingsScreen: React.FC = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showDeleteCustomModal, setShowDeleteCustomModal] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState<SettingsConfirmConfig | null>(null);
+  const [feedbackModalConfig, setFeedbackModalConfig] = useState<SettingsFeedbackConfig | null>(null);
   const [deleteCutoffDate, setDeleteCutoffDate] = useState<Date>(() => {
     const date = new Date();
     date.setDate(date.getDate() - 90);
@@ -689,12 +783,20 @@ const SettingsScreen: React.FC = () => {
   const applyCustomKeepDays = () => {
     const parsedDays = parseInt(keepLastNDaysInput, 10);
     if (Number.isNaN(parsedDays) || parsedDays < 1) {
-      Alert.alert('Invalid days', 'Please enter a valid number of days (minimum 1).');
+      setFeedbackModalConfig({
+        title: 'Invalid Days',
+        message: 'Please enter a valid number of days (minimum 1).',
+        tone: 'destructive',
+      });
       return;
     }
 
     if (parsedDays > 36500) {
-      Alert.alert('Invalid days', 'Please enter a realistic value up to 36500 days.');
+      setFeedbackModalConfig({
+        title: 'Invalid Days',
+        message: 'Please enter a realistic value up to 36500 days.',
+        tone: 'destructive',
+      });
       return;
     }
 
@@ -729,13 +831,25 @@ const SettingsScreen: React.FC = () => {
       setLoading(true);
       const deletedCount = await deleteCustomPastTransactions(deleteCutoffDate);
       if (deletedCount > 0) {
-        Alert.alert('Done', `Deleted ${deletedCount} custom record${deletedCount === 1 ? '' : 's'}.`);
+        setFeedbackModalConfig({
+          title: 'Done',
+          message: `Deleted ${deletedCount} custom record${deletedCount === 1 ? '' : 's'}.`,
+          tone: 'primary',
+        });
       } else {
-        Alert.alert('No records found', 'No custom records matched the selected date range.');
+        setFeedbackModalConfig({
+          title: 'No Records Found',
+          message: 'No custom records matched the selected date range.',
+          tone: 'primary',
+        });
       }
       setShowDeleteCustomModal(false);
     } catch (error) {
-      Alert.alert('Error', 'Failed to delete custom past records');
+      setFeedbackModalConfig({
+        title: 'Error',
+        message: 'Failed to delete custom past records',
+        tone: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -770,7 +884,11 @@ const SettingsScreen: React.FC = () => {
 
       const validation = validateExportOptions(options);
       if (!validation.valid) {
-        Alert.alert('Invalid options', validation.errors.join('\n'));
+        setFeedbackModalConfig({
+          title: 'Invalid Options',
+          message: validation.errors.join('\n'),
+          tone: 'destructive',
+        });
         return;
       }
 
@@ -779,13 +897,25 @@ const SettingsScreen: React.FC = () => {
         const locationMessage = Platform.OS === 'web'
           ? 'Saved via browser download (usually in your Downloads folder).'
           : `Saved to: ${result.filePath || 'App documents directory'}`;
-        Alert.alert('Export complete', `${locationMessage}\n\nYou can now share or open this file from your device file manager.`);
+        setFeedbackModalConfig({
+          title: 'Export Complete',
+          message: `${locationMessage}\n\nYou can now share or open this file from your device file manager.`,
+          tone: 'primary',
+        });
         setShowExportModal(false);
       } else {
-        Alert.alert('Export failed', result.error || 'Unknown error');
+        setFeedbackModalConfig({
+          title: 'Export Failed',
+          message: result.error || 'Unknown error',
+          tone: 'destructive',
+        });
       }
     } catch (error) {
-      Alert.alert('Export error', error instanceof Error ? error.message : 'Unknown error');
+      setFeedbackModalConfig({
+        title: 'Export Error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        tone: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -927,7 +1057,11 @@ const SettingsScreen: React.FC = () => {
                 value={smsAutoFetch}
                 onValueChange={async (v) => { 
                   if (Platform.OS !== 'android') {
-                    Alert.alert('Android Only', 'Daily SMS Auto-Fetch works only on Android devices.');
+                    setFeedbackModalConfig({
+                      title: 'Android Only',
+                      message: 'Daily SMS Auto-Fetch works only on Android devices.',
+                      tone: 'primary',
+                    });
                     setSmsAutoFetch(false);
                     await saveUserPreferences({ smsAutoFetch: false });
                     return;
@@ -936,10 +1070,11 @@ const SettingsScreen: React.FC = () => {
                   if (v) {
                     const hasSmsPermission = await requestSMSPermission();
                     if (!hasSmsPermission) {
-                      Alert.alert(
-                        'Permission Required',
-                        'SMS permission is required for auto-fetch. Please allow it and try again.'
-                      );
+                      setFeedbackModalConfig({
+                        title: 'Permission Required',
+                        message: 'SMS permission is required for auto-fetch. Please allow it and try again.',
+                        tone: 'destructive',
+                      });
                       setSmsAutoFetch(false);
                       await saveUserPreferences({ smsAutoFetch: false });
                       return;
@@ -947,10 +1082,11 @@ const SettingsScreen: React.FC = () => {
 
                     const registration = await registerSmsAutoFetch();
                     if (!registration?.ok) {
-                      Alert.alert(
-                        'Auto-Fetch Setup Failed',
-                        registration?.reason || 'Could not register background task on this device.'
-                      );
+                      setFeedbackModalConfig({
+                        title: 'Auto-Fetch Setup Failed',
+                        message: registration?.reason || 'Could not register background task on this device.',
+                        tone: 'destructive',
+                      });
                       setSmsAutoFetch(false);
                       await saveUserPreferences({ smsAutoFetch: false });
                       return;
@@ -1031,7 +1167,11 @@ const SettingsScreen: React.FC = () => {
                     await saveUserPreferences({ smsAutoFetchHour: h });
                     setShowWebSmsInput(false);
                   } else {
-                    Alert.alert('Invalid hour', 'Please enter a number between 0 and 23');
+                    setFeedbackModalConfig({
+                      title: 'Invalid Hour',
+                      message: 'Please enter a number between 0 and 23',
+                      tone: 'destructive',
+                    });
                   }
                 }} style={[styles.closeModal, { backgroundColor: primary, flex: 1 }]}>
                   <Typography variant="bold" style={{ color: '#FFFFFF' }}>Apply</Typography>
@@ -1227,7 +1367,11 @@ const SettingsScreen: React.FC = () => {
                 }
 
                 if (exportFromDate && nextDate < exportFromDate) {
-                  Alert.alert('Invalid range', 'To date cannot be before From date.');
+                  setFeedbackModalConfig({
+                    title: 'Invalid Range',
+                    message: 'To date cannot be before From date.',
+                    tone: 'destructive',
+                  });
                   return;
                 }
                 setExportToDate(nextDate);
@@ -1423,6 +1567,18 @@ const SettingsScreen: React.FC = () => {
         loading={loading}
         onCancel={closeConfirmModal}
         onConfirm={handleConfirmModalSubmit}
+      />
+
+      <ConfirmActionModal
+        visible={!!feedbackModalConfig}
+        title={feedbackModalConfig?.title || 'Done'}
+        message={feedbackModalConfig?.message || ''}
+        confirmLabel="OK"
+        confirmTone={feedbackModalConfig?.tone || 'primary'}
+        showCancel={false}
+        blurIntensity={95}
+        onCancel={() => setFeedbackModalConfig(null)}
+        onConfirm={() => setFeedbackModalConfig(null)}
       />
 
       <Modal

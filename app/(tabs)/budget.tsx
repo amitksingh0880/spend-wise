@@ -1,4 +1,5 @@
 import BudgetForm from '@/components/BudgetForm';
+import { ConfirmActionModal } from '@/components/ui/confirm-action-modal';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Typography } from '@/components/ui/text';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -35,11 +36,11 @@ const screenWidth = Dimensions.get('window').width;
 const BudgetCard = ({
   budget,
   index,
-  onDelete,
+  onRequestDelete,
 }: {
   budget: any;
   index: number;
-  onDelete: (id: string) => void;
+  onRequestDelete: (budget: any) => void;
 }) => {
   const { formatAmount } = useCurrency();
   const mutedForeground = useThemeColor({}, 'mutedForeground');
@@ -59,14 +60,7 @@ const BudgetCard = ({
   }));
 
   const handleLongPress = () => {
-    Alert.alert(
-      'Delete Budget',
-      `Are you sure you want to delete the "${budget.name}" budget?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => onDelete(budget.id) },
-      ]
-    );
+    onRequestDelete(budget);
   };
 
   return (
@@ -143,6 +137,8 @@ const BudgetScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [pendingDeleteBudget, setPendingDeleteBudget] = useState<any | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const primary = useThemeColor({}, 'primary');
   const primaryForeground = useThemeColor({}, 'primaryForeground');
@@ -210,10 +206,37 @@ const BudgetScreen: React.FC = () => {
     }
   };
 
+  const requestDeleteBudget = (budget: any) => {
+    setPendingDeleteBudget(budget);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteBudget = async () => {
+    if (!pendingDeleteBudget?.id) return;
+    await handleDeleteBudget(pendingDeleteBudget.id);
+    setShowDeleteConfirm(false);
+    setPendingDeleteBudget(null);
+  };
+
   const totalPercentage = summary?.totalBudgeted > 0 ? Math.min((summary.totalSpent / summary.totalBudgeted) * 100, 100) : 0;
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
+      <ConfirmActionModal
+        visible={showDeleteConfirm}
+        title="Delete Budget"
+        message={`Are you sure you want to delete the "${pendingDeleteBudget?.name || 'selected'}" budget?`}
+        warning="This action cannot be undone"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        confirmTone="destructive"
+        blurIntensity={95}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setPendingDeleteBudget(null);
+        }}
+        onConfirm={confirmDeleteBudget}
+      />
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <LinearGradient
         colors={isDark ? ['#1e1b4b', '#0f172a'] : ['#f97316', '#ea580c']}
@@ -289,7 +312,7 @@ const BudgetScreen: React.FC = () => {
               key={budget.id || index.toString()}
               budget={budget}
               index={index}
-              onDelete={handleDeleteBudget}
+              onRequestDelete={requestDeleteBudget}
             />
           ))
         ) : (

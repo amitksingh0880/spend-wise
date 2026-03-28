@@ -1,4 +1,5 @@
 import TransactionForm from '@/components/TransactionForm';
+import { ConfirmActionModal } from '@/components/ui/confirm-action-modal';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { emitter } from '@/libs/emitter';
 import { readJson, writeJson } from '@/libs/storage';
@@ -24,6 +25,8 @@ const SuspiciousScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const { theme } = useAppTheme();
   const isDark = theme === 'dark';
@@ -65,15 +68,17 @@ const SuspiciousScreen: React.FC = () => {
   useFocusEffect(useCallback(() => { loadSuspicious(); loadHeldSuspicious(); }, []));
 
   const handleDelete = async (id: string) => {
-    Alert.alert('Delete Transaction', 'Permanently remove this transaction?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => { 
-          await deleteTransaction(id); 
-          await loadSuspicious(); 
-          emitter.emit('transactions:changed'); 
-        } 
-      }
-    ]);
+    setPendingDeleteId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    await deleteTransaction(pendingDeleteId);
+    await loadSuspicious();
+    emitter.emit('transactions:changed');
+    setShowDeleteConfirm(false);
+    setPendingDeleteId(null);
   };
 
   const handleMarkReviewed = async (tx: Transaction) => {
@@ -201,6 +206,21 @@ const SuspiciousScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: background }]}>
+      <ConfirmActionModal
+        visible={showDeleteConfirm}
+        title="Delete Transaction"
+        message="Permanently remove this transaction?"
+        warning="This action cannot be undone"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        confirmTone="destructive"
+        blurIntensity={95}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setPendingDeleteId(null);
+        }}
+        onConfirm={confirmDelete}
+      />
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <LinearGradient
         colors={isDark ? ['#7f1d1d', '#450a0a'] : ['#ef4444', '#991b1b']}
