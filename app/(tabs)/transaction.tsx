@@ -5,7 +5,6 @@ import { useCurrency } from '@/contexts/CurrencyContext';
 import {
   deleteTransaction,
   getAllTransactions,
-  getFilteredTransactions,
   Transaction
 } from '@/services/transactionService';
 import { Button } from '@/components/ui/button';
@@ -170,42 +169,40 @@ const TransactionsScreen: React.FC = () => {
     }
   };
 
-  const filterTransactions = async () => {
-    try {
-      if (searchTerm.trim() === '' && !showTodayOnly) {
-        setFilteredTransactions(sortNewestFirst(transactions));
-      } else {
-        const filters: any = {};
-        if (searchTerm.trim() !== '') filters.vendor = searchTerm;
-        if (showTodayOnly) {
-          const today = new Date();
-          const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-          const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-          filters.dateFrom = startOfDay.toISOString();
-          filters.dateTo = endOfDay.toISOString();
-        }
-        const filtered = await getFilteredTransactions(filters);
-        setFilteredTransactions(sortNewestFirst(filtered));
-      }
-    } catch (error) {
-      let filtered = transactions;
-      if (searchTerm.trim() !== '') {
-        filtered = transactions.filter(t => 
-          t.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          t.category.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      }
-      if (showTodayOnly) {
-        const todayString = new Date().toDateString();
-        filtered = filtered.filter(t => {
-          const date = t.smsData?.timestamp
-            ? new Date(t.smsData.timestamp)
-            : new Date(t.createdAt);
-          return date.toDateString() === todayString;
-        });
-      }
-      setFilteredTransactions(sortNewestFirst(filtered));
+  const filterTransactions = () => {
+    let filtered = transactions;
+
+    if (showTodayOnly) {
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+      filtered = filtered.filter(t => {
+        const txDate = t.smsData?.timestamp
+          ? new Date(t.smsData.timestamp)
+          : new Date(t.createdAt);
+        return txDate >= startOfDay && txDate <= endOfDay;
+      });
     }
+
+    const query = searchTerm.trim().toLowerCase();
+    if (query) {
+      filtered = filtered.filter(t => {
+        const vendor = (t.vendor || '').toLowerCase();
+        const category = (t.category || '').toLowerCase();
+        const description = (t.description || '').toLowerCase();
+        const tags = (t.tags || []).join(' ').toLowerCase();
+
+        return (
+          vendor.includes(query) ||
+          category.includes(query) ||
+          description.includes(query) ||
+          tags.includes(query)
+        );
+      });
+    }
+
+    setFilteredTransactions(sortNewestFirst(filtered));
   };
 
   const handleDeleteTransaction = async (id: string) => {
