@@ -11,6 +11,7 @@ import {
 } from '@/services/smsService';
 import { saveTransaction } from '@/services/transactionService';
 import { Typography } from '@/components/ui/text';
+import { ConfirmActionModal } from '@/components/ui/confirm-action-modal';
 import { DateCalendarModal } from '@/components/ui/date-calendar-modal';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import ThemeContext from '@/contexts/ThemeContext';
@@ -66,6 +67,10 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
   const [filterStart, setFilterStart] = useState<string>('');
   const [filterEnd, setFilterEnd] = useState<string>('');
   const [txnType, setTxnType] = useState<'all' | 'expense' | 'income'>('all');
+  const [resultModalVisible, setResultModalVisible] = useState(false);
+  const [resultModalTitle, setResultModalTitle] = useState('');
+  const [resultModalMessage, setResultModalMessage] = useState('');
+  const [resultModalTone, setResultModalTone] = useState<'destructive' | 'primary'>('primary');
   
   const SUSPICIOUS_KEY = 'held_suspicious';
 
@@ -176,14 +181,23 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
       
       setLastResult(result);
       if (result.success) {
-        Alert.alert('Results', `Found ${result.expenses.length} expenses. ${result.suspicious?.length || 0} held for review.`);
+        setResultModalTitle('SMS Retrieval Complete');
+        setResultModalMessage(`Found ${result.expenses.length} expenses. ${result.suspicious?.length || 0} held for review.`);
+        setResultModalTone('primary');
+        setResultModalVisible(true);
       } else {
-        Alert.alert('Import Failed', result.errors.join('\n') || 'Unknown error');
+        setResultModalTitle('Import Failed');
+        setResultModalMessage(result.errors.join('\n') || 'Unknown error');
+        setResultModalTone('destructive');
+        setResultModalVisible(true);
       }
       onImportComplete?.(result, options);
     } catch (error) {
       console.error('Import error', error);
-      Alert.alert('Import Failed', 'Failed to read SMS alerts.');
+      setResultModalTitle('Import Failed');
+      setResultModalMessage('Failed to read SMS alerts.');
+      setResultModalTone('destructive');
+      setResultModalVisible(true);
     } finally {
       setIsLoading(false);
     }
@@ -350,6 +364,18 @@ export default function SMSImport({ onImportComplete }: SMSImportProps) {
           </View>
         </CardHeader>
         <CardContent>
+          <ConfirmActionModal
+            visible={resultModalVisible}
+            title={resultModalTitle}
+            message={resultModalMessage}
+            confirmLabel="OK"
+            confirmTone={resultModalTone}
+            showCancel={false}
+            blurIntensity={95}
+            onCancel={() => setResultModalVisible(false)}
+            onConfirm={() => setResultModalVisible(false)}
+          />
+
           <DateCalendarModal
             visible={calendarVisible}
             onClose={closeCalendar}
