@@ -5,7 +5,6 @@ import { getCurrencySymbol } from '@/utils/currency';
 import { Target, X, ChevronDown, Check, Plus } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -46,7 +45,11 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
   const [selectedColor, setSelectedColor] = useState('#4f46e5');
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [feedbackModalConfig, setFeedbackModalConfig] = useState<{
+    title: string;
+    message: string;
+    tone: 'destructive' | 'primary';
+  } | null>(null);
   const { theme } = useAppTheme();
   const isDark = theme === 'dark';
 
@@ -94,13 +97,21 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
 
   const handleSubmit = async () => {
     if (!name || !amount || !category) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      setFeedbackModalConfig({
+        title: 'Error',
+        message: 'Please fill in all required fields',
+        tone: 'destructive',
+      });
       return;
     }
 
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
+      setFeedbackModalConfig({
+        title: 'Error',
+        message: 'Please enter a valid amount',
+        tone: 'destructive',
+      });
       return;
     }
 
@@ -118,13 +129,21 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
         ...budgetPeriod,
       });
 
-      setSuccessModalVisible(true);
+      setFeedbackModalConfig({
+        title: 'Budget Created',
+        message: 'Budget created successfully',
+        tone: 'primary',
+      });
       resetForm();
       onSuccess();
       onClose();
     } catch (error) {
       console.error('Error creating budget:', error);
-      Alert.alert('Error', 'Failed to create budget');
+      setFeedbackModalConfig({
+        title: 'Error',
+        message: 'Failed to create budget',
+        tone: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -133,15 +152,15 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
   return (
     <>
       <ConfirmActionModal
-        visible={successModalVisible}
-        title="Budget Created"
-        message="Budget created successfully"
+        visible={!!feedbackModalConfig}
+        title={feedbackModalConfig?.title || 'Notice'}
+        message={feedbackModalConfig?.message || ''}
         confirmLabel="OK"
-        confirmTone="primary"
+        confirmTone={feedbackModalConfig?.tone || 'primary'}
         showCancel={false}
         blurIntensity={95}
-        onCancel={() => setSuccessModalVisible(false)}
-        onConfirm={() => setSuccessModalVisible(false)}
+        onCancel={() => setFeedbackModalConfig(null)}
+        onConfirm={() => setFeedbackModalConfig(null)}
       />
 
       <Modal

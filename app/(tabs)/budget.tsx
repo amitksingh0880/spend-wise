@@ -19,7 +19,6 @@ import { Bell, Plus, Target, Trash2, Wallet } from 'lucide-react-native';
 import * as React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
   Dimensions,
   Platform,
   RefreshControl,
@@ -139,6 +138,15 @@ const BudgetScreen: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [pendingDeleteBudget, setPendingDeleteBudget] = useState<any | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [feedbackModalConfig, setFeedbackModalConfig] = useState<{
+    title: string;
+    message: string;
+    tone: 'destructive' | 'primary';
+    confirmLabel?: string;
+    cancelLabel?: string;
+    showCancel?: boolean;
+    onConfirm?: () => Promise<void> | void;
+  } | null>(null);
 
   const primary = useThemeColor({}, 'primary');
   const primaryForeground = useThemeColor({}, 'primaryForeground');
@@ -187,20 +195,23 @@ const BudgetScreen: React.FC = () => {
       const toDelete = budgets.find(b => b.id === id);
       await deleteBudget(id);
       await loadBudgetData();
-      Alert.alert('Budget Deleted', 'The budget has been removed.', [
-        {
-          text: 'Undo', onPress: async () => {
-            if (!toDelete) return;
-            try {
-              await createBudget(toDelete);
-              await loadBudgetData();
-            } catch (err) {
-              console.error('Undo failed', err);
-            }
+      setFeedbackModalConfig({
+        title: 'Budget Deleted',
+        message: 'The budget has been removed.',
+        tone: 'primary',
+        confirmLabel: toDelete ? 'Undo' : 'OK',
+        cancelLabel: toDelete ? 'Close' : undefined,
+        showCancel: !!toDelete,
+        onConfirm: async () => {
+          if (!toDelete) return;
+          try {
+            await createBudget(toDelete);
+            await loadBudgetData();
+          } catch (err) {
+            console.error('Undo failed', err);
           }
         },
-        { text: 'OK' }
-      ]);
+      });
     } catch (error) {
       console.error('Error deleting budget:', error);
     }
@@ -236,6 +247,24 @@ const BudgetScreen: React.FC = () => {
           setPendingDeleteBudget(null);
         }}
         onConfirm={confirmDeleteBudget}
+      />
+      <ConfirmActionModal
+        visible={!!feedbackModalConfig}
+        title={feedbackModalConfig?.title || 'Notice'}
+        message={feedbackModalConfig?.message || ''}
+        confirmLabel={feedbackModalConfig?.confirmLabel || 'OK'}
+        cancelLabel={feedbackModalConfig?.cancelLabel || 'Cancel'}
+        confirmTone={feedbackModalConfig?.tone || 'primary'}
+        showCancel={feedbackModalConfig?.showCancel ?? false}
+        blurIntensity={95}
+        onCancel={() => setFeedbackModalConfig(null)}
+        onConfirm={async () => {
+          const onConfirm = feedbackModalConfig?.onConfirm;
+          if (onConfirm) {
+            await onConfirm();
+          }
+          setFeedbackModalConfig(null);
+        }}
       />
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <LinearGradient
