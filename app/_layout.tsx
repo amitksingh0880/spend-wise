@@ -3,8 +3,10 @@ import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as React from 'react';
 import { useEffect, useState } from 'react';
-import { AppState, View } from 'react-native';
+import { AppState, View, Platform } from 'react-native';
 import 'react-native-reanimated';
+import { getNotificationsModule } from '@/services/notificationsRuntime';
+import { generateHumorousNotification } from '@/services/aiService';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import StartupSplash from '@/components/StartupSplash';
@@ -32,7 +34,7 @@ import { Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold
 import { Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from '@expo-google-fonts/roboto';
 import { OpenSans_400Regular, OpenSans_500Medium, OpenSans_600SemiBold, OpenSans_700Bold } from '@expo-google-fonts/open-sans';
 import * as SplashScreen from 'expo-splash-screen';
-import { getNotificationsModule } from '@/services/notificationsRuntime';
+
 
 SplashScreen.preventAutoHideAsync();
 
@@ -72,13 +74,13 @@ export default function RootLayout() {
   useEffect(() => {
     // Authentication flow removed for now
     
-    // Register background tasks if enabled
-    const initBackgroundTasks = async () => {
+    // Register background tasks and real-time listener if enabled
+    const initSmsAutoFetch = async () => {
       try {
         const prefs = await getUserPreferences();
         if (prefs.smsAutoFetch) {
+          // 1. Background registration
           const notifications = await getNotificationsModule();
-
           if (notifications) {
             const { status: existingStatus } = await notifications.getPermissionsAsync();
             let finalStatus = existingStatus;
@@ -86,7 +88,6 @@ export default function RootLayout() {
               const { status } = await notifications.requestPermissionsAsync();
               finalStatus = status;
             }
-
             if (finalStatus !== 'granted') {
               console.warn('Notification permission not granted, but SMS auto-fetch is enabled.');
             }
@@ -96,13 +97,57 @@ export default function RootLayout() {
           if (!registration?.ok) {
             console.warn('SMS auto-fetch registration skipped:', registration?.reason);
           }
+
+          // 2. Real-time listener (when app is in foreground)
+          if (Platform.OS === 'android') {
+            const smsService = require('@/services/smsService').default;
+            const subscription = smsService.startSmsListener(async (message: any) => {
+              console.log('[SmsListener] Incoming SMS:', message.address);
+              // Process only current day messages as requested
+              const result = await smsService.importExpensesFromSMS({ 
+                onlyToday: true, 
+                autoSave: true 
+              });
+              
+              if (result.success && result.expenses.length > 0) {
+                const notifications = await getNotificationsModule();
+                if (notifications) {
+                  // Build an event description for the AI
+                  const lastExpense = result.expenses[0];
+                  const eventDesc = result.expenses.length === 1
+                    ? `${lastExpense.type === 'expense' ? 'spent' : 'received'} ₹${lastExpense.amount} at ${lastExpense.vendor}`
+                    : `imported ${result.expenses.length} transactions from SMS`;
+
+                  // Get a funny, financially-constrained notification
+                  const { title, body } = await generateHumorousNotification(eventDesc);
+
+                  await notifications.scheduleNotificationAsync({
+                    content: {
+                      title,
+                      body,
+                      data: { type: 'sms_import', expenseId: lastExpense.timestamp },
+                    },
+                    trigger: null,
+                  });
+                }
+              }
+              
+              emitter.emit('transactions:changed');
+            });
+            return () => {
+              smsService.stopSmsListener();
+            };
+          }
         }
       } catch (error) {
-        console.error('Failed to initialize background tasks', error);
+        console.error('Failed to initialize SMS auto-fetch', error);
       }
     };
     
-    initBackgroundTasks();
+    const cleanupSms = initSmsAutoFetch();
+    return () => {
+      cleanupSms.then(cleanup => cleanup && typeof cleanup === 'function' && (cleanup as any)());
+    };
   }, []);
 
   useEffect(() => {

@@ -1,12 +1,16 @@
-// AI Service for SpendWise - Gemini AI Integration
-// This service provides AI-powered financial insights and voice assistance
+// AI Service for SpendWise - Groq AI Integration
+// This service provides AI-powered financial insights and assistance using Groq
+
+const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY;
+const GROQ_API_URL = process.env.EXPO_PUBLIC_GROQ_API_URL || "https://api.groq.com/openai/v1/chat/completions";
+const MODEL_NAME = process.env.EXPO_PUBLIC_GROQ_MODEL_NAME || "llama-3-8b-8192";
 
 export interface AIInsight {
   id: string;
   type: 'spending_advice' | 'budget_suggestion' | 'saving_tip' | 'trend_analysis' | 'goal_recommendation';
   title: string;
   content: string;
-  confidence: number; // 0-1
+  confidence: number;
   actionable: boolean;
   priority: 'high' | 'medium' | 'low';
   createdAt: string;
@@ -17,7 +21,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
-  context?: any; // Financial data context used for the response
+  context?: any;
 }
 
 export interface FinancialContext {
@@ -30,35 +34,139 @@ export interface FinancialContext {
   monthlyTrend: 'increasing' | 'decreasing' | 'stable';
 }
 
-// Mock AI responses for demonstration (replace with actual Gemini API calls)
-const MOCK_RESPONSES = {
-  spending_analysis: [
-    "Based on your spending patterns, you're spending 35% of your income on food and dining. Consider meal planning to reduce this by 10-15%.",
-    "Your transportation costs have increased 20% this month. Look into carpooling or public transport options.",
-    "You have several recurring subscriptions totaling $89/month. Review which ones you actively use.",
-  ],
-  budget_advice: [
-    "Your grocery budget is consistently under-utilized. Consider reallocating $100 to your entertainment budget.",
-    "You're exceeding your shopping budget by 25%. Try the 24-hour rule before making non-essential purchases.",
-    "Your utility bills are higher than average. Consider energy-saving measures to reduce costs.",
-  ],
-  saving_tips: [
-    "You could save $150/month by cooking at home 3 more times per week instead of dining out.",
-    "Setting up automatic transfers of $200/month to savings would help you reach your emergency fund goal 6 months faster.",
-    "Your coffee shop visits cost $85/month. A good coffee maker could pay for itself in 2 months.",
-  ],
-  goal_advice: [
-    "At your current savings rate, you'll reach your $5000 emergency fund goal in 8 months. Increase by $50/month to reach it in 6 months.",
-    "Your vacation fund is growing well! You're on track to have $2000 by summer.",
-    "Consider increasing your retirement contributions by 2% to take advantage of compound growth.",
-  ]
+/**
+ * Interface with Groq API
+ */
+const callGroqAPI = async (messages: { role: string; content: string }[]): Promise<string> => {
+  try {
+    const response = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: MODEL_NAME,
+        messages,
+        temperature: 0.7,
+        max_tokens: 1024,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || `Groq API Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0]?.message?.content || "I'm sorry, I couldn't generate a response.";
+  } catch (error) {
+    console.error("Groq API Call Failed:", error);
+    throw error;
+  }
+};
+
+export interface AINotificationContent {
+  title: string;
+  body: string;
+}
+
+/**
+ * Generate a humorous, interactive notification about a financial event using Groq AI.
+ * The prompt is strictly limited to financial topics — the AI is instructed to refuse
+ * any non-financial content. Returns a funny, engaging title + body for a mobile push notification.
+ *
+ * @param event A short description of the financial event (e.g., "spent 500 on Swiggy")
+ * @param context Optional user financial summary to make the message more personal
+ */
+export const generateHumorousNotification = async (
+  event: string,
+  context?: Partial<FinancialContext>
+): Promise<AINotificationContent> => {
+  const FALLBACKS: AINotificationContent[] = [
+    { title: "💸 Money Alert!", body: "Your wallet just had a heart attack. Tap to check the damage." },
+    { title: "🤑 Transaction Detected", body: "Your bank account is judging you. We're just the messenger." },
+    { title: "📊 SpendWise Update", body: "Your money left faster than Monday motivation. Check your expenses!" },
+  ];
+
+  try {
+    const contextStr = context
+      ? `User's financial snapshot: monthly income ₹${context.totalIncome ?? '?'}, expenses ₹${context.totalExpenses ?? '?'}, savings rate ${((context.savingsRate ?? 0) * 100).toFixed(0)}%.`
+      : '';
+
+    const prompt = `
+You are the witty, slightly sarcastic AI brain of a personal finance app called SpendWise.
+Your ONLY job is to write hilarious, short mobile push notifications about financial events.
+
+IMPORTANT RULES:
+- ONLY respond to financial topics (spending, saving, budgets, transactions, income, debt, EMIs).
+- If the event is not financial, respond with: {"title":"💰 Stay On Budget!","body":"SpendWise keeps it strictly financial 😄"}
+- Keep the title under 8 words and body under 20 words.
+- Be funny, engaging, and slightly dramatic — like a financial sitcom.
+- Return ONLY valid JSON: {"title":"...","body":"..."}
+
+${contextStr}
+Event: "${event}"
+    `.trim();
+
+    const raw = await callGroqAPI([
+      { role: "system", content: "You are a witty financial notification writer. Always return JSON only." },
+      { role: "user", content: prompt }
+    ]);
+
+    // Extract JSON from response
+    const jsonMatch = raw.match(/\{[\s\S]*"title"[\s\S]*"body"[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.title && parsed.body) return parsed as AINotificationContent;
+    }
+
+    throw new Error("Could not parse notification JSON from AI response.");
+  } catch (err) {
+    console.warn("[AI Notification] Falling back to static message.", err);
+    return FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+  }
 };
 
 // AI Service Functions
 export const getFinancialInsights = async (context: FinancialContext): Promise<AIInsight[]> => {
+  try {
+    const prompt = `
+      As a financial advisor for "SpendWise", analyze this data and provide 3-4 distinct actionable insights.
+      Context:
+      - Income: ${context.totalIncome}
+      - Expenses: ${context.totalExpenses}
+      - Top Categories: ${context.topCategories.map(c => `${c.category}: ${c.amount}`).join(", ")}
+      - Budget Status: ${context.budgetStatus.map(b => `${b.category}: ${b.spent}/${b.budget}`).join(", ")}
+      - Savings Rate: ${(context.savingsRate * 100).toFixed(1)}%
+
+      Return a JSON array of insights with fields: type (one of the enum values), title, content, confidence (0-1), priority (high/medium/low).
+      Enum types: 'spending_advice', 'budget_suggestion', 'saving_tip', 'trend_analysis', 'goal_recommendation'.
+    `;
+
+    const response = await callGroqAPI([
+      { role: "system", content: "You are a concise financial analyst. Return only JSON." },
+      { role: "user", content: prompt }
+    ]);
+
+    // Simple JSON extraction in case AI adds markdown
+    const jsonStr = response.includes("[") ? response.substring(response.indexOf("["), response.lastIndexOf("]") + 1) : response;
+    const parsedInsights = JSON.parse(jsonStr);
+
+    return parsedInsights.map((insight: any, index: number) => ({
+      ...insight,
+      id: `insight-${Date.now()}-${index}`,
+      actionable: true,
+      createdAt: new Date().toISOString()
+    }));
+  } catch (error) {
+    console.error("Failed to get insights from Groq, falling back to rule-based:", error);
+    return getRuleBasedInsights(context);
+  }
+};
+
+const getRuleBasedInsights = (context: FinancialContext): AIInsight[] => {
   const insights: AIInsight[] = [];
-  
-  // Spending analysis
   if (context.totalExpenses > context.totalIncome * 0.8) {
     insights.push({
       id: `insight-${Date.now()}-1`,
@@ -71,58 +179,28 @@ export const getFinancialInsights = async (context: FinancialContext): Promise<A
       createdAt: new Date().toISOString()
     });
   }
-  
-  // Budget suggestions
-  if (context.budgetStatus.some(b => b.spent > b.budget)) {
-    const exceededBudgets = context.budgetStatus.filter(b => b.spent > b.budget);
-    insights.push({
-      id: `insight-${Date.now()}-2`,
-      type: 'budget_suggestion',
-      title: 'Budget Exceeded',
-      content: `You've exceeded budgets in ${exceededBudgets.length} categories: ${exceededBudgets.map(b => b.category).join(', ')}.`,
-      confidence: 0.95,
-      actionable: true,
-      priority: 'high',
-      createdAt: new Date().toISOString()
-    });
-  }
-  
-  // Savings advice
-  if (context.savingsRate < 0.1) {
-    insights.push({
-      id: `insight-${Date.now()}-3`,
-      type: 'saving_tip',
-      title: 'Improve Savings Rate',
-      content: `Your current savings rate is ${(context.savingsRate * 100).toFixed(1)}%. Aim for at least 10-20%.`,
-      confidence: 0.8,
-      actionable: true,
-      priority: 'medium',
-      createdAt: new Date().toISOString()
-    });
-  }
-  
-  return insights.sort((a, b) => {
-    const priorityOrder = { high: 3, medium: 2, low: 1 };
-    return priorityOrder[b.priority] - priorityOrder[a.priority];
-  });
+  return insights;
 };
 
 export const chatWithAI = async (message: string, context: FinancialContext): Promise<string> => {
-  const lowerMessage = message.toLowerCase();
-  
-  if (lowerMessage.includes('spending') || lowerMessage.includes('expenses')) {
-    return MOCK_RESPONSES.spending_analysis[Math.floor(Math.random() * MOCK_RESPONSES.spending_analysis.length)];
+  try {
+    const systemPrompt = `
+      You are the SpendWise AI assistant. You help users manage money.
+      User Data:
+      - Income: ${context.totalIncome}
+      - Expenses: ${context.totalExpenses}
+      - Monthly Savings Rate: ${(context.savingsRate * 100).toFixed(1)}%
+      - Top spending: ${context.topCategories.slice(0, 3).map(c => c.category).join(", ")}
+      Be concise, helpful, and encouraging.
+    `;
+
+    return await callGroqAPI([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: message }
+    ]);
+  } catch (error) {
+    return "I'm having trouble connecting to my brain right now. Please try again later!";
   }
-  
-  if (lowerMessage.includes('budget')) {
-    return MOCK_RESPONSES.budget_advice[Math.floor(Math.random() * MOCK_RESPONSES.budget_advice.length)];
-  }
-  
-  if (lowerMessage.includes('save') || lowerMessage.includes('saving')) {
-    return MOCK_RESPONSES.saving_tips[Math.floor(Math.random() * MOCK_RESPONSES.saving_tips.length)];
-  }
-  
-  return "I can help you analyze your spending patterns, create budgets, and find saving opportunities. Try asking me about your spending, budget recommendations, or saving tips!";
 };
 
 export const prepareFinancialContext = async (): Promise<FinancialContext> => {
@@ -136,8 +214,6 @@ export const prepareFinancialContext = async (): Promise<FinancialContext> => {
     getAllBudgets()
   ]);
   
-  const recentTransactions = transactions.slice(0, 10);
-  
   const budgetStatus = budgets.map(budget => ({
     category: budget.category,
     spent: budget.spent,
@@ -149,25 +225,25 @@ export const prepareFinancialContext = async (): Promise<FinancialContext> => {
     totalExpenses: summary.totalExpenses,
     topCategories: topCategories.map(cat => ({ category: cat.category, amount: cat.amount })),
     budgetStatus,
-    recentTransactions,
+    recentTransactions: transactions.slice(0, 10),
     savingsRate: summary.totalIncome > 0 ? (summary.totalIncome - summary.totalExpenses) / summary.totalIncome : 0,
     monthlyTrend: 'stable'
   };
 };
 
 export const generateSpendingInsights = async (context: FinancialContext): Promise<string[]> => {
-  return MOCK_RESPONSES.spending_analysis;
+  const insights = await getFinancialInsights(context);
+  return insights.map(i => i.content);
 };
 
 export const suggestBudgetOptimizations = async (context: FinancialContext): Promise<string[]> => {
-  return MOCK_RESPONSES.budget_advice;
+  const res = await chatWithAI("Give me 3 specific budget optimization tips based on my data.", context);
+  return res.split("\n").filter(line => line.trim().length > 0);
 };
 
 export const generateSavingRecommendations = async (context: FinancialContext): Promise<string[]> => {
-  return MOCK_RESPONSES.saving_tips;
+  const res = await chatWithAI("Give me 3 recommendations to save more money this month.", context);
+  return res.split("\n").filter(line => line.trim().length > 0);
 };
 
-export const callGeminiAPI = async (prompt: string, context?: any): Promise<string> => {
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  return "I've analyzed your data. You're doing well, but consider reducing your dining out expenses to save more.";
-};
+export const callGeminiAPI = callGroqAPI; // Aliased for compatibility

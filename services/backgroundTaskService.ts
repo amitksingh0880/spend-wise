@@ -5,6 +5,7 @@ import { readJson, writeJson } from '@/libs/storage';
 import { checkSMSPermission, importExpensesFromSMS } from './smsService';
 import { getUserPreferences } from './preferencesService';
 import { getNotificationsModule } from './notificationsRuntime';
+import { generateHumorousNotification } from './aiService';
 
 const SMS_AUTO_FETCH_TASK = 'SMS_AUTO_FETCH_TASK';
 const LAST_AUTO_FETCH_RUN_KEY = 'smsAutoFetch:lastRun';
@@ -38,31 +39,23 @@ const ensureNotificationHandler = async (): Promise<void> => {
 /**
  * Validates if the task should run (Checks if it's after the user-specified hour and hasn't run today)
  */
+/**
+ * Validates if the task should run
+ * (Runs if auto-fetch is enabled and hasn't run in the last 30 minutes)
+ * We removed the strict targetHour check to allow it to be more "automatic"
+ * as requested by the user, but it still focuses on "current day" messages.
+ */
 const shouldRunAutoFetch = async (): Promise<boolean> => {
-  const now = new Date();
-  const currentHour = now.getHours();
-
   const prefs = await getUserPreferences();
   if (!prefs.smsAutoFetch) {
     return false;
   }
-  const targetHour = prefs.smsAutoFetchHour ?? 22;
 
-  // Condition 1: Must be the target hour or later
-  if (currentHour < targetHour) {
-    return false;
-  }
-
-  // Condition 2: Must not have run successfully today
+  // Frequency capping: at most once every 15 minutes to be polite to the OS
   const lastRunTimestamp = await readJson<number>(LAST_AUTO_FETCH_RUN_KEY);
   if (lastRunTimestamp) {
-    const lastRunDate = new Date(lastRunTimestamp);
-    const isSameDay = 
-      now.getFullYear() === lastRunDate.getFullYear() &&
-      now.getMonth() === lastRunDate.getMonth() &&
-      now.getDate() === lastRunDate.getDate();
-    
-    if (isSameDay) {
+    const minWait = 15 * 60 * 1000; // 15 mins
+    if (Date.now() - lastRunTimestamp < minWait) {
       return false;
     }
   }
@@ -94,17 +87,31 @@ TaskManager.defineTask(SMS_AUTO_FETCH_TASK, async () => {
     });
 
     if (result.success) {
+      // LAST_AUTO_FETCH_RUN_KEY is used by shouldRunAutoFetch for frequency capping
       await writeJson(LAST_AUTO_FETCH_RUN_KEY, Date.now());
-      console.log(`[BackgroundTask] Auto-fetch successful. Imported ${result.expenses.length} expenses.`);
+      console.log(`[BackgroundTask] Auto-fetch successful. Processed ${result.expenses.length} expenses for today.`);
       
       // Notify the user if expenses were imported
       if (result.expenses.length > 0) {
         const notifications = await getNotificationsModule();
         if (notifications) {
+          // Build a concise event description for the AI
+          let eventDesc: string;
+          if (result.expenses.length === 1) {
+            const exp = result.expenses[0];
+            eventDesc = `${exp.type === 'expense' ? 'spent' : 'received'} ₹${exp.amount} at ${exp.vendor}`;
+          } else {
+            const total = result.expenses.reduce((s, e) => s + e.amount, 0);
+            eventDesc = `imported ${result.expenses.length} transactions totaling ₹${total.toFixed(0)}`;
+          }
+
+          // Generate a humorous AI notification
+          const { title, body } = await generateHumorousNotification(eventDesc);
+
           await notifications.scheduleNotificationAsync({
             content: {
-              title: 'Daily SMS Fetch Complete',
-              body: `Automatically imported ${result.expenses.length} new expenses from your SMS. Tap to review.`,
+              title,
+              body,
               data: { screen: 'transactions' },
             },
             trigger: null,

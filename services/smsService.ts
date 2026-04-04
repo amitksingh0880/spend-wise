@@ -689,22 +689,20 @@ export const importExpensesFromSMS = async (options: {
         dayStart += dayMs;
       }
     } else if (options.onlyToday) {
-      // Only today: use last sync for today
-      const now = new Date();
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).getTime();
-      const endOfDay = startOfDay + (24 * 60 * 60 * 1000) - 1;
-      let minFetch = startOfDay;
-      const lastSyncForToday = await getLastSyncForDate(startOfDay);
-      if (lastSyncForToday && lastSyncForToday >= startOfDay) {
-        minFetch = lastSyncForToday + 1;
-        console.log(`[smsService] Detected last sync for today: ${new Date(lastSyncForToday).toISOString()}, adjusting minDate to ${new Date(minFetch).toISOString()}`);
-      }
+      // Logic for "only today" auto-sync
+      const startOfToday = new Date().setHours(0, 0, 0, 0);
+      const globalLastSync = await getGlobalAutoFetchSync();
+      
+      // We want messages from TODAY, but specifically starting from the last time we synced today.
+      // If the last sync was yesterday, we start from the beginning of today.
+      const minFetch = Math.max(startOfToday, globalLastSync || 0);
+
+      console.log(`[smsService] Auto-fetch (Only Today): Fetching since ${new Date(minFetch).toISOString()}`);
+
       messages = await readSMSMessages({
         maxCount: options.maxCount ?? 200,
         minDate: minFetch,
-        maxDate: endOfDay,
       });
-      lastSyncMap[getLastSyncKeyForDate(startOfDay)] = messages.reduce((acc, m) => Math.max(acc, m.date || 0), lastSyncForToday || 0);
     } else {
       // Default: daysBack, but not a strict range, just use minDate
       messages = await readSMSMessages({
@@ -713,7 +711,6 @@ export const importExpensesFromSMS = async (options: {
         maxDate,
       });
     }
-
 
     let result = await processSMSMessages(messages);
 
@@ -726,26 +723,26 @@ export const importExpensesFromSMS = async (options: {
     if (useRange && minDate !== undefined && maxDate !== undefined) {
       for (const [dayKey, maxTs] of Object.entries(lastSyncMap)) {
         if (maxTs > 0) {
-          // Parse date from key
           const dateStr = dayKey.replace('smsImport:lastSync:', '');
           const [year, month, day] = dateStr.split('-').map(Number);
           const dayStart = new Date(year, month - 1, day, 0, 0, 0, 0).getTime();
           await setLastSyncForDate(dayStart, maxTs);
         }
       }
-      // Set lastSync in result as the latest maxTs
       const allMaxTs = Object.values(lastSyncMap).filter(ts => ts > 0);
       result.lastSync = allMaxTs.length > 0 ? Math.max(...allMaxTs) : null;
     } else if (options.onlyToday) {
-      const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).getTime();
-      const maxTs = lastSyncMap[getLastSyncKeyForDate(startOfToday)] || 0;
-      if (maxTs > 0) {
-        await setLastSyncForDate(startOfToday, maxTs);
-        result.lastSync = maxTs;
+      // Update global sync and current day's sync
+      if (messages.length > 0) {
+        const latestTs = Math.max(...messages.map(m => m.date || 0));
+        await setGlobalAutoFetchSync(latestTs);
+        
+        const startOfToday = new Date().setHours(0, 0, 0, 0);
+        await setLastSyncForDate(startOfToday, latestTs);
+        result.lastSync = latestTs;
       } else {
-        const existing = await getLastSyncForDate(startOfToday);
-        result.lastSync = existing ?? null;
+        const startOfToday = new Date().setHours(0, 0, 0, 0);
+        result.lastSync = await getLastSyncForDate(startOfToday);
       }
     }
 
@@ -814,6 +811,24 @@ export const getSMSImportStats = async (): Promise<{
 
 /* ---------- Last sync storage helpers ---------- */
 const SMS_LAST_SYNC_KEY_PREFIX = 'smsImport:lastSync:';
+const GLOBAL_AUTO_FETCH_SYNC_KEY = 'smsImport:globalAutoFetch:lastSync';
+
+/** Get global last sync for auto-fetch */
+export const getGlobalAutoFetchSync = async (): Promise<number | null> => {
+  try {
+    return await readJson<number>(GLOBAL_AUTO_FETCH_SYNC_KEY);
+  } catch (err) {
+    return null;
+  }
+};
+
+/** Set global last sync for auto-fetch */
+export const setGlobalAutoFetchSync = async (timestamp: number): Promise<void> => {
+  try {
+    await writeJson<number>(GLOBAL_AUTO_FETCH_SYNC_KEY, timestamp);
+  } catch (err) {}
+};
+
 const getLastSyncKeyForDate = (timestamp: number): string => {
   const d = new Date(timestamp);
   const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
