@@ -3,7 +3,7 @@
 
 const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY;
 const GROQ_API_URL = process.env.EXPO_PUBLIC_GROQ_API_URL || "https://api.groq.com/openai/v1/chat/completions";
-const MODEL_NAME = process.env.EXPO_PUBLIC_GROQ_MODEL_NAME || "llama-3-8b-8192";
+const MODEL_NAME = process.env.EXPO_PUBLIC_GROQ_MODEL_NAME || "llama-3.1-8b-instant";
 
 export interface AIInsight {
   id: string;
